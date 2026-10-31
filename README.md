@@ -27,9 +27,9 @@ A `scripts/init-env.sh` által generált `MB_ENCRYPTION_SECRET_KEY` és `RESTIC_
 
 ```text
 home/        otthoni Compose, Postgres init, Garage config
-pi/          a Pi Compose-fájlja (Sprint 3-tól)
+pi/          a Pi Compose-fájlja (Sprint 6-tól)
 webapp/      FastAPI webapp (Sprint 2-től)
-worker/      lehúzás és kinyerés (Sprint 4-től)
+worker/      lehúzás és kinyerés (Sprint 3-tól)
 dbt/         transzformációk (Sprint 2-től)
 migrations/  bronz sémák SQL-migrációi
 scripts/     mentés, visszaállítás, segédscriptek

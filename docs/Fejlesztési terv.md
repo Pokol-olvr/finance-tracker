@@ -8,9 +8,9 @@ tags: [penzugy, projekt]
 
 # Fejlesztési terv
 
-8 epic, 10 kéthetes sprint, kb. 154 story pont. Minden story egy feladat: a 📅 dátum a sprint vége, a címkék az epicet és a sprintet jelölik. A [Tasks](https://publish.obsidian.md/tasks/) bővítménnyel szűrhető, pl. `tags include #sprint/S1`.
+8 epic, 10 kéthetes sprint, kb. 158 story pont. Minden story egy feladat: a 📅 dátum a sprint vége, a címkék az epicet és a sprintet jelölik. A [Tasks](https://publish.obsidian.md/tasks/) bővítménnyel szűrhető, pl. `tags include #sprint/S1`.
 
-Részletes sprintterv: [[Sprint 1]] · [[Sprint 2]] · Kapcsolódó: [[Üzleti koncepció]] · [[Technikai terv]] · [[Release folyamat]] · [[Változásnapló]]
+Részletes sprintterv: [[Sprint 1]] · [[Sprint 2]] · [[Sprint 3]] · Kapcsolódó: [[Üzleti koncepció]] · [[Technikai terv]] · [[Release folyamat]] · [[Változásnapló]]
 
 ## Sprintek
 
@@ -27,7 +27,7 @@ Részletes sprintterv: [[Sprint 1]] · [[Sprint 2]] · Kapcsolódó: [[Üzleti k
 | S9 | 2027-02-22 | 2027-03-07 |
 | S10 | 2027-03-08 | 2027-03-21 |
 
-Első éles használat: a 6. sprint vége (2027-01-24), amikor működik a blokkbeolvasás. Addig a rendszer helyben fut, mock adattal, és az éles használat előtt a `finance` adatbázis üresen újraépül.
+Első éles használat: a 6. sprint vége (2027-01-24), amikor működik a blokkbeolvasás és a telefonos feltöltés. Addig a rendszer a laptopon fut, mock adattal, és az éles használat előtt a `finance` adatbázis üresen újraépül (FIN-309). A sorrend indoka: [[0006-blokkbeolvasas-a-pi-elott|ADR 0006]].
 
 ```mermaid
 gantt
@@ -37,9 +37,11 @@ gantt
   section Epicek
   E1 Alapinfrastruktúra        :e1, 2026-11-02, 2026-11-15
   E2 Adatmodell, medallion     :e2, 2026-11-02, 2026-11-29
-  E3 Pi postaláda és e-mail    :e3, 2026-11-30, 2026-12-27
-  E4 Blokkbeolvasás            :e4, 2026-12-14, 2027-01-24
-  E5 Címkézés, tanulás         :e5, 2027-01-11, 2027-02-07
+  E3 Postaláda helyben          :e3a, 2026-11-30, 2026-12-13
+  E4 Blokkbeolvasás            :e4, 2026-11-30, 2027-01-10
+  E5 Szabályok                 :e5a, 2026-12-28, 2027-01-10
+  E3 Pi és e-mail              :e3b, 2027-01-11, 2027-01-24
+  E5 Címkézés, tanulás         :e5b, 2027-01-25, 2027-02-07
   E6 Teljes pénzügyi kép       :e6, 2027-02-08, 2027-02-21
   E7 Tervezés                  :e7, 2027-02-22, 2027-03-07
   E8 Tanítás, költözés         :e8, 2027-03-08, 2027-03-21
@@ -77,49 +79,53 @@ Kész, ha: kézi bejegyzésből gold mutató és Áttekintés dashboard lesz.
 - [ ] FIN-205 Metabase Áttekintés dashboard · 2 SP #E2 #sprint/S2 📅 2026-11-29
     - Elfogadás: ez a hónap, az előző és az átlag egy képernyőn látszik
 
-## FIN-E3 Pi postaláda és e-mail (S3–S4, 25 SP)
+## FIN-E3 Postaláda, Pi és e-mail (S3, S6, 29 SP)
 
 Kész, ha: telefonról feltöltött vagy e-mailben továbbított számla eljut az otthoni object store-ba.
 
-- [ ] FIN-301 Tailscale a Pi-n, a telefonokon és az otthoni gépen · 2 SP #E3 #sprint/S3 📅 2026-12-13
+- [ ] FIN-301 Tailscale a Pi-n, a telefonokon és az otthoni gépen · 2 SP #E3 #sprint/S6 📅 2027-01-24
     - Elfogadás: a webapp csak a Tailscale-hálózatról érhető el
-- [ ] FIN-302 Caddy HTTPS a saját domainen, DNS-alapú tanúsítvány · 2 SP #E3 #sprint/S3 📅 2026-12-13
+- [ ] FIN-302 Caddy HTTPS a saját domainen, DNS-alapú tanúsítvány · 2 SP #E3 #sprint/S6 📅 2027-01-24
     - Elfogadás: érvényes tanúsítvány, a böngésző nem figyelmeztet
-- [ ] FIN-303 Authelia TOTP 2FA két felhasználóval · 3 SP #E3 #sprint/S3 📅 2026-12-13
+- [ ] FIN-303 Authelia TOTP 2FA két felhasználóval · 3 SP #E3 #sprint/S6 📅 2027-01-24
     - Elfogadás: második faktor nélkül nincs hozzáférés
 - [ ] FIN-304 PWA feltöltés: fotó, ki vásárolt, a blokk dátuma, több címke; a feltöltés ideje automatikus · 5 SP #E3 #sprint/S3 📅 2026-12-13
-    - Elfogadás: telefonról egy képernyőn feltölthető
-- [ ] FIN-305 Pi API a workernek: új tételek, letöltés, lezárás, törlés lezárás után · 3 SP #E3 #sprint/S4 📅 2026-12-27
-    - Elfogadás: a lezárt kép eltűnik a Pi-ről
-- [ ] FIN-306 Worker: lehúzás a Garage-ba, hash alapú duplikációszűrés, bronz rekord · 5 SP #E3 #sprint/S4 📅 2026-12-27
+    - Elfogadás: böngészőből egy képernyőn feltölthető; telefonról a FIN-308 után
+- [ ] FIN-305 Postaláda API a workernek: új tételek, letöltés, lezárás, törlés lezárás után · 3 SP #E3 #sprint/S3 📅 2026-12-13
+    - Elfogadás: a lezárt kép eltűnik a postaládából
+- [ ] FIN-306 Worker: lehúzás a Garage-ba, hash alapú duplikációszűrés, bronz rekord · 5 SP #E3 #sprint/S3 📅 2026-12-13
     - Elfogadás: kétszer feltöltött kép egyszer kerül be
-- [ ] FIN-307 E-mailes számlafogadás: külön postafiók, IMAP-lehúzás, csak a két saját feladótól, címkék a tárgyból, a levél és a mellékletek a Garage-ba · 5 SP #E3 #sprint/S4 📅 2026-12-27
+- [ ] FIN-307 E-mailes számlafogadás: külön postafiók, IMAP-lehúzás, csak a két saját feladótól, címkék a tárgyból, a levél és a mellékletek a Garage-ba · 5 SP #E3 #sprint/S6 📅 2027-01-24
     - Elfogadás: továbbított PDF-számla bekerül a bronzba; idegen feladó levele nem
+- [ ] FIN-308 Webapp és postaláda költözése a Pi-re: `pi/` Compose, Caddy és Authelia mögött · 3 SP #E3 #sprint/S6 📅 2027-01-24
+    - Elfogadás: telefonról feltölthető, a worker a Pi postaládájából húz
+- [ ] FIN-309 A `finance` adatbázis üres újraépítése az első éles használat előtt · 1 SP #E3 #sprint/S6 📅 2027-01-24
+    - Elfogadás: a bronz és a Garage `raw` bucket üres, a mock adat eltűnt, a Metabase dashboardjai megmaradnak
 
-## FIN-E4 Blokkbeolvasás (S4–S6, 25 SP)
+## FIN-E4 Blokkbeolvasás (S3–S5, 25 SP)
 
-Kész, ha: a blokkból tétel szintű silver lesz, kivételnél telefonos ellenőrzéssel.
+Kész, ha: a blokkból tétel szintű silver lesz, kivételnél ellenőrzéssel.
 
-- [ ] FIN-401 Ollama és Qwen3-VL 8B a Compose-ban, GPU-val · 2 SP #E4 #sprint/S4 📅 2026-12-27
+- [ ] FIN-401 Ollama és GLM-OCR a Compose-ban, egyelőre a laptop CPU-ján · 2 SP #E4 #sprint/S3 📅 2026-12-13
     - Elfogadás: egy mintablokkra JSON jön vissza
-- [ ] FIN-402 Kinyerési JSON-séma és prompt; modellverzió mentése · 5 SP #E4 #sprint/S5 📅 2027-01-10
+- [ ] FIN-402 Kinyerési JSON-séma és prompt; modellverzió mentése · 5 SP #E4 #sprint/S4 📅 2026-12-27
     - Elfogadás: 20 mintablokkon a kimenet mindig érvényes a sémára
-- [ ] FIN-403 PaddleOCR második olvasat bizonytalan esetekre · 3 SP #E4 #sprint/S5 📅 2027-01-10
+- [ ] FIN-403 PaddleOCR második olvasat bizonytalan esetekre · 3 SP #E4 #sprint/S4 📅 2026-12-27
     - Elfogadás: bizonytalan blokknál az OCR-szöveg is a bronzba kerül
-- [ ] FIN-404 Automatikus ellenőrzés: tételösszeg = végösszeg, beírt dátum = beolvasott dátum · 3 SP #E4 #sprint/S5 📅 2027-01-10
+- [ ] FIN-404 Automatikus ellenőrzés: tételösszeg = végösszeg, beírt dátum = beolvasott dátum · 3 SP #E4 #sprint/S4 📅 2026-12-27
     - Elfogadás: eltérésnél a blokk az ellenőrzési sorba kerül
-- [ ] FIN-405 Javaslat visszatöltése a Pi-re, kivétel alapú Ellenőrzés képernyő · 5 SP #E4 #sprint/S6 📅 2027-01-24
-    - Elfogadás: telefonon javítható, a döntés eljut a bronzba
-- [ ] FIN-406 Silver tétel szint: blokk, blokktétel, bolt-egységesítés, korrekciós tábla · 5 SP #E4 #sprint/S6 📅 2027-01-24
+- [ ] FIN-405 Javaslat visszatöltése a postaládába, kivétel alapú Ellenőrzés képernyő · 5 SP #E4 #sprint/S5 📅 2027-01-10
+    - Elfogadás: böngészőből javítható, a döntés eljut a bronzba; telefonról a FIN-308 után
+- [ ] FIN-406 Silver tétel szint: blokk, blokktétel, bolt-egységesítés, korrekciós tábla · 5 SP #E4 #sprint/S5 📅 2027-01-10
     - Elfogadás: javítás után a silver a javított értéket mutatja, a bronz változatlan
-- [ ] FIN-407 Mérés 20–30 saját blokkon · 2 SP #E4 #sprint/S6 📅 2027-01-24
+- [ ] FIN-407 Mérés 20–30 saját blokkon · 2 SP #E4 #sprint/S5 📅 2027-01-10
     - Elfogadás: a mezőnkénti pontosság le van írva
 
-## FIN-E5 Címkézés és tanulás (S6–S7, 21 SP)
+## FIN-E5 Címkézés és tanulás (S5, S7, 21 SP)
 
 Kész, ha: a címkék előre kitöltve jönnek, a pontosság mérve van.
 
-- [ ] FIN-501 Címke- és boltszabályok tárolása és alkalmazása a silverben · 3 SP #E5 #sprint/S6 📅 2027-01-24
+- [ ] FIN-501 Címke- és boltszabályok tárolása és alkalmazása a silverben · 3 SP #E5 #sprint/S5 📅 2027-01-10
     - Elfogadás: szabályra illeszkedő tétel automatikusan címkét kap
 - [ ] FIN-502 Tételek besorolása a blokk címkéi közül, bizonytalannál kérdés · 5 SP #E5 #sprint/S7 📅 2027-02-07
     - Elfogadás: tétel csak a blokkon megadott címkét kaphatja
@@ -166,7 +172,7 @@ Kész, ha: célok, what-if és javasolt utalás látszik a Metabase-ben.
 
 ## FIN-E8 Tanítás és költözés (S10, 21 SP)
 
-Kész, ha: a finomhangolt 4B-s modell a Proxmoxon fut, a számok egyeznek.
+Kész, ha: a modell a Proxmoxon fut, a számok egyeznek. A FIN-801–804 csak akkor kell, ha a FIN-407 mérése szerint a GLM-OCR a saját blokkokon nem elég jó.
 
 - [ ] FIN-801 Tanítási adatkészlet a Garage-ban: manifest a képekről és a javított címkékről · 3 SP #E8 #sprint/S10 📅 2027-03-21
     - Elfogadás: a verziózott manifest a Garage `datasets/` mappájában van, a tesztkészlet nélkül

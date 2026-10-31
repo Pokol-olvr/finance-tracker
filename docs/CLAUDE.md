@@ -143,7 +143,7 @@ Egy fogalomra mindig ugyanazt a szót használd.
 | szabad keret | Ami a fix és szokásos kiadások után átlagosan megmarad havonta |
 | postaláda | A Pi szerepe: átmeneti tárolás, nem végleges adat |
 | ellenőrzési sor, Ellenőrzés képernyő | A kivételek jóváhagyása; csak eltérésnél kérdezünk |
-| főgép, Pi, Proxmox | A három gép neve; „otthoni stack” a Compose-ban futó feldolgozás |
+| laptop, főgép, Pi, Proxmox | A négy gép neve: a laptopon fut most a stack, a főgépen a tanítás; „otthoni stack” a Compose-ban futó feldolgozás |
 
 ## Tények és források
 

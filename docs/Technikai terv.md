@@ -20,8 +20,8 @@ flowchart TB
   subgraph pi["Raspberry Pi"]
     caddy["Caddy + Authelia<br/>HTTPS, 2FA"] --> web["Webapp + SQLite<br/>postaláda, ellenőrzési sor"]
   end
-  subgraph home["Otthoni gép, később Proxmox"]
-    ollama["Ollama<br/>finomhangolt Qwen3-VL"]
+  subgraph home["Laptop, később Proxmox"]
+    ollama["Ollama<br/>GLM-OCR"]
     worker["Worker<br/>letöltés, kinyerés"]
     garage["Garage<br/>raw · datasets · models"]
     subgraph pg["PostgreSQL"]
@@ -48,12 +48,13 @@ A telefon Tailscale-en és 2FA-val csak a Pi-t éri el; az e-mailben továbbíto
 
 ## Futtatási környezet
 
-A rendszer két részből áll: a mindig bekapcsolt Raspberry Pi a kapu és a postaláda, az otthoni stack pedig Docker Compose-ban végzi a feldolgozást. A stack először a főgépen fut, később átköltözik a Proxmoxra.
+A rendszer két részből áll: a mindig bekapcsolt Raspberry Pi a kapu és a postaláda, az otthoni stack pedig Docker Compose-ban végzi a feldolgozást. A stack most a laptopon fut, később átköltözik a Proxmoxra.
 
 | Gép | Szerep | GPU |
 | --- | --- | --- |
 | Raspberry Pi | Kapu: Tailscale, HTTPS, 2FA, webapp, átmeneti tárolás | Nincs, nem kell |
-| Főgép | Induláskor a teljes stack; később csak a modell tanítása | RTX 5070, 12 GB |
+| Laptop (átmeneti) | Most a teljes stack és a modellek, CPU-n | Nincs külön GPU, 30 GB memória |
+| Főgép | A modell tanítása | RTX 5070, 12 GB |
 | Proxmox (végleges hely) | A stack és a tanított modell futtatása, VM-ben GPU-átadással | GTX 1660 Ti, 6 GB |
 
 Mentés: naponta adatbázis-dump és az object store szinkronja külső meghajtóra (pl. restic-kel).
@@ -83,7 +84,7 @@ Ajánlás: a már meglévő Tailscale és egy 2FA együtt, mert blokkokról, bé
 
 ### Kapcsolat az otthoni stackkel
 
-Minden kapcsolatot az otthoni oldal nyit a Pi felé, így az otthoni hálózatba nem kell bejövő portot nyitni. Ha a gép ki van kapcsolva, a Pi addig gyűjti a képeket.
+Minden kapcsolatot az otthoni oldal nyit a Pi felé, így az otthoni hálózatba nem kell bejövő portot nyitni. Ha a gép ki van kapcsolva, a Pi addig gyűjti a képeket. Amíg a Pi nincs beállítva, a postaláda szerepét az otthoni webapp viszi ugyanazzal az API-val, így a worker a költözéskor csak másik címre mutat ([[0006-blokkbeolvasas-a-pi-elott|ADR 0006]]).
 
 1. Az otthoni worker letölti az új képeket a Pi-ről az object store-ba.
 2. A modell feldolgozza őket, a worker visszatölti a javaslatot a Pi ellenőrzési sorába.
@@ -105,8 +106,9 @@ A webshopok és szolgáltatók számláit egy külön postafiókba lehet tovább
 
 A blokkfotóból egy helyben futó képfelismerő nyelvi modell közvetlenül strukturált JSON-t készít: bolt, dátum, tételek, végösszeg, fizetési mód. Semmi nem megy ki külső szolgáltatáshoz.
 
-- **Alapmodell:** [Ollama](https://ollama.com/library/qwen3-vl) + [Qwen3-VL](https://freeapihub.com/ai-models/qwen3-vl). A modell Apache 2.0 licencű és OCR-t is tud. Kezdetben a 8B-s változat fut a főgép 12 GB-os 5070-esén.
-- **Tanítás a főgépen, futtatás a kis gépen:** a 8B-s változat kb. 6 GB ([forrás](https://www.agenticwire.news/article/ollama-qwen)), így a 1660 Ti 6 GB-jába nem fér el teljesen. Ezért a 4B-s változatot finomhangoljuk a főgépen a jóváhagyott blokkokon (LoRA, pl. [Unsloth](https://unsloth.ai/docs/de/modelle/tutorials/qwen3-how-to-run-and-fine-tune/qwen3-vl-how-to-run-and-fine-tune), amely támogatja a Qwen3-VL-t), majd GGUF-ként a Garage `models/` mappájába kerül, és a Proxmox Ollamája onnan tölti be. Az adatkészlet is a Garage-ban él (`datasets/`): egy manifest köti össze a `raw/` alatti képeket a Postgresben lévő javított címkékkel, így minden modellverzióról tudni, min tanult. Tanítás előtt egyszer a főgép helyi SSD-jére szinkronizálódik, mert a tanítás sokszor végigolvassa.
+- **Alapmodell:** [Ollama](https://ollama.com/library/glm-ocr) + [GLM-OCR](https://huggingface.co/zai-org/GLM-OCR). MIT licencű, betanítás nélkül használható, és JSON-séma alapján nyer ki adatot. Két kitalált blokkon a laptop CPU-ján kb. 17 másodperc alatt futott, és a szóközös ezres tagolást is jól olvasta (2026-10-31). A leírása a magyart nem említi, ezért saját blokkokon kell mérni.
+- **Tartalékmodell:** [Qwen3-VL](https://ollama.com/library/qwen3-vl), Apache 2.0 licenccel. A 4B-s változat ugyanott 56 másodperc alatt futott, az ezres tagolást elrontotta, és a válasz elejét a hívásnak kell megadnia, mert különben a kimeneti korlátig gondolkodik. Erre akkor váltunk, ha a GLM-OCR a saját blokkokon gyenge. A részletek: [[Sprint 3]].
+- **Tanítás a főgépen, futtatás a kis gépen:** csak akkor kell, ha az alapmodell a saját blokkokon nem elég jó. A 8B-s változat kb. 6 GB ([forrás](https://www.agenticwire.news/article/ollama-qwen)), így a 1660 Ti 6 GB-jába nem fér el teljesen. Ezért a 4B-s változatot finomhangoljuk a főgépen a jóváhagyott blokkokon (LoRA, pl. [Unsloth](https://unsloth.ai/docs/de/modelle/tutorials/qwen3-how-to-run-and-fine-tune/qwen3-vl-how-to-run-and-fine-tune), amely támogatja a Qwen3-VL-t), majd GGUF-ként a Garage `models/` mappájába kerül, és a Proxmox Ollamája onnan tölti be. Az adatkészlet is a Garage-ban él (`datasets/`): egy manifest köti össze a `raw/` alatti képeket a Postgresben lévő javított címkékkel, így minden modellverzióról tudni, min tanult. Tanítás előtt egyszer a főgép helyi SSD-jére szinkronizálódik, mert a tanítás sokszor végigolvassa.
 - **Második olvasat:** [PaddleOCR](https://www.paddleocr.ai/v3.1.1/en/version3.x/algorithm/PP-OCRv5/PP-OCRv5_multi_languages.html), amely támogatja a magyart. Ha a modell bizonytalan, a nyers OCR-szöveg segít ellenőrizni.
 - **Automatikus ellenőrzés:** a tételek összege egyezzen a végösszeggel, a beolvasott dátum a feltöltéskor beírttal. Ha nem, a blokk az Ellenőrzés képernyőre kerül.
 - **Miért kell a tanítás:** egy mérésben egy hasonló, nem finomhangolt helyi modell ([qwen2.5-VL 7B](https://github.com/Yacine-ai-tech/DocIntel)) a telefonnal fotózott blokkok 77%-át olvasta be hibátlanul. A magyar blokkokon finomhangolt modell ennél jobb lehet, de ezt mérni kell.
@@ -121,7 +123,7 @@ A blokk beolvasása és a címkék kitalálása két külön feladat, mert egés
 
 | Feladat | Ki tanulja | Hol és mikor |
 | --- | --- | --- |
-| Blokk beolvasása: bolt, dátum, tételek, árak | A finomhangolt Qwen3-VL | Tanítás alkalmanként a főgépen, futás a 6 GB-os kártyán |
+| Blokk beolvasása: bolt, dátum, tételek, árak | GLM-OCR, szükség esetén finomhangolt Qwen3-VL | Most a laptop CPU-ján, tanítás csak szükség esetén a főgépen |
 | Címkék és kategóriák javaslata | Szabályok plusz egy kis szövegosztályozó a tételnevekből és a boltból | CPU-n, éjjelente újratanítva, minden feltöltésből tanul |
 
 - **A címke a blokkra vonatkozik, nem a tételre:** az „élelmiszer + háztartás” azt mondja meg, mi van a blokkon, de azt nem, melyik tétel melyik. A rendszer ezért a tételeket csak a megadott címkék közül sorolja be, és ahol nem egyértelmű, ott rákérdez. Így a blokkszintű címkékből tétel szintű tudás lesz.
@@ -146,7 +148,7 @@ Egy PostgreSQL adatbázis három sémával (bronze, silver, gold), mellette a ny
 
 A silver és a gold táblákat dbt Core építi a bronzból, SQL-modellekkel és tesztekkel.
 
-- **Verzió:** a dbt Core v2.0 Apache 2.0 licenccel jött ki, de 2026 júniusa óta még alfa állapotú ([forrás](https://www.getdbt.com/blog/fivetran-dbt-20-future)). Indulásnak a stabil 1.x vonal és a Postgres-adapter a biztos választás.
+- **Verzió:** a stabil 1.x vonalat használjuk a Postgres-adapterrel (`dbt-core` 1.12.6, `dbt-postgres` 1.11.0). Az új telepítésekhez már a dbt v2 az alap, de a frissítési útmutató a támogatott adapterek között nem sorolja fel a Postgrest, és az alapértelmezett csomag saját licenccel jön; az Apache 2.0 licencű változat a `dbt-oss` (2026-10-31, [forrás](https://docs.getdbt.com/docs/dbt-versions/dbt-upgrade/upgrading-to-v2)). Az 1.x továbbra is támogatott.
 - **Könnyebb kezdés:** ha gyorsan látni akarsz valamit, indulhat sima Postgres-nézetekkel és materializált nézetekkel, amelyeket egy rövid script frissít. Az SQL később változatlanul átemelhető dbt-modellekbe.
 - **Tesztek:** a tételek összege egyezik a végösszeggel; nincs duplikált blokk; minden tételnek van kategóriája (ez csak figyelmeztetés); az átvezetések nem kerülnek a kiadások közé.
 - **Ütemezés:** a worker néhány percenként megnézi a Pi-t. Jóváhagyások után lefut a `dbt build`, éjjel pedig egy teljes futás is; a Metabase-ben így mindig friss adat van.
@@ -162,7 +164,7 @@ A BI eszköz a Metabase nyílt forrású kiadása (AGPL), amely csak a gold sém
 
 ## Docker Compose és költözés a Proxmoxra
 
-Két Compose-fájl van: egy a Pi-n, egy az otthoni stackhez. A főgépen rootless Podman futtatja őket ([[0004-rootless-podman-a-docker-helyett|ADR 0004]]), a CI Dockerrel. Az otthoni stack minden adata egy mappában van, így a költözés néhány lépés.
+Két Compose-fájl van: egy a Pi-n, egy az otthoni stackhez. A laptopon rootless Podman futtatja őket ([[0004-rootless-podman-a-docker-helyett|ADR 0004]]), a CI Dockerrel. Az otthoni stack minden adata egy mappában van, így a költözés néhány lépés.
 
 | Hol | Szolgáltatás | Feladat |
 | --- | --- | --- |
@@ -172,7 +174,7 @@ Két Compose-fájl van: egy a Pi-n, egy az otthoni stackhez. A főgépen rootles
 | Pi | webapp | Feltöltés, ellenőrzési sor, SQLite |
 | Otthon | postgres | Bronz, silver, gold, és a Metabase saját beállításai |
 | Otthon | garage | Object store a nyers képeknek |
-| Otthon | ollama | Képfelismerő modell GPU-val |
+| Otthon | ollama | Képfelismerő modell, egyelőre a laptop CPU-ján |
 | Otthon | worker | Letöltés a Pi-ről és a postafiókból (IMAP), kinyerés, címkejavaslat, visszatöltés |
 | Otthon | dbt | Transzformáció ütemezett jobként |
 | Otthon | metabase | Dashboardok |
@@ -209,21 +211,23 @@ Ha a saját építés túl nagy falatnak bizonyul, a Firefly III a legközelebbi
 
 Hét fázisban érdemes haladni; mindegyik után már használható rendszer van. A részletes bontás: [[Fejlesztési terv]].
 
-1. **Alap a főgépen:** Compose Postgresszel, Garage-dzsal és Metabase-zel; kézi bejegyzés; az első silver és gold modellek; egy Áttekintés dashboard.
-2. **Pi postaláda:** Tailscale, Caddy, Authelia, fotófeltöltés vásárlóval, dátummal és címkékkel; a worker letölti a képeket az object store-ba.
-3. **Blokkbeolvasás:** Qwen3-VL alapmodell, kivétel alapú ellenőrzés, tétel szintű silver, szabályok és a címkeosztályozó. Ezt 20–30 saját blokkon tesztelni.
+1. **Alap a laptopon:** Compose Postgresszel, Garage-dzsal és Metabase-zel; kézi bejegyzés; az első silver és gold modellek; egy Áttekintés dashboard.
+2. **Blokkbeolvasás helyben:** fotófeltöltés vásárlóval, dátummal és címkékkel, helyi postaláda, a worker a képeket az object store-ba tölti; GLM-OCR alapmodell, kivétel alapú ellenőrzés, tétel szintű silver és szabályok. Ezt 20–30 saját blokkon tesztelni.
+3. **Pi postaláda és címkézés:** Tailscale, Caddy, Authelia, a webapp költözése a Pi-re, e-mailes számlák, majd a címkeosztályozó.
 4. **Teljes kép:** bérpapír, kivonat, hitelek és tartozások, közös kártya és átvezetések, a Közös háztartás és a Személyes fülek.
 5. **Tervezés:** célok a Revolut-zseb egyenlegével, what-if paraméterek, javasolt utalás a közös kártyára, előrejelzés.
-6. **Finomhangolás:** ha összegyűlt elég jóváhagyott blokk, a 4B-s Qwen3-VL tanítása a főgépen, mérés a tesztkészleten.
+6. **Finomhangolás, ha kell:** ha a saját blokkokon mért pontosság kevés, a 4B-s Qwen3-VL tanítása a főgépen, mérés a tesztkészleten.
 7. **Költözés a Proxmoxra:** a fenti lépések szerint, a finomhangolt modellel a 1660 Ti-n.
 
 ## Források
 
 - [MinIO közösségi kiadás leállása és alternatívák – It's FOSS](https://itsfoss.com/news/minio-moves-away-from-open-source/)
-- [dbt Core v2.0 és licenc – dbt Labs](https://www.getdbt.com/blog/fivetran-dbt-20-future)
+- [Frissítés a dbt v2-re – dbt Labs](https://docs.getdbt.com/docs/dbt-versions/dbt-upgrade/upgrading-to-v2)
 - [Metabase licencek](https://metabase.com/license)
 - [Firefly III funkciók](https://docs.firefly-iii.org/explanation/firefly-iii/about/introduction/)
 - [Actual Budget összehasonlítás](https://railway.com/deploy/actual-budget-open-source-ynab-alternative--actual-personal-finance)
+- [GLM-OCR modelloldal és licenc – Z.ai](https://huggingface.co/zai-org/GLM-OCR)
+- [GLM-OCR az Ollamában](https://ollama.com/library/glm-ocr)
 - [Qwen3-VL áttekintés és licenc](https://freeapihub.com/ai-models/qwen3-vl)
 - [Qwen modellek az Ollamában](https://www.agenticwire.news/article/ollama-qwen)
 - [Ollama modellek VRAM szerint](https://computingforgeeks.com/ollama-models-cheat-sheet/)
