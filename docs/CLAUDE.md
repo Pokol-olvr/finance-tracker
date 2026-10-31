@@ -145,7 +145,7 @@ Egy fogalomra mindig ugyanazt a szót használd.
 - Becslést, mérést és ajánlást ne írj tényként. Ami még mérendő, arról mondd ki („ezt mérni kell”).
 - Nem ellenőrzött tényt ne hagyj a szövegben jelölés nélkül.
 - Rögzített értékeket (SP, dátum, tábla- és szerepkörnevek, verziók) a meglévő dokumentumokból vegyél, ne találj ki újat.
-- A dokumentumokba nem kerül valódi jelszó, kulcs, személyes pénzügyi adat vagy bérpapír-adat. Környezeti változónak csak a neve szerepelhet, és a példák összegei kitaláltak.
+- A repó nyilvános. A dokumentumokba nem kerül valódi jelszó, kulcs, név, személyes pénzügyi adat vagy bérpapír-adat. Környezeti változónak csak a neve szerepelhet, és a példák összegei kitaláltak.
 
 ## Ellenőrzőlista
 

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Commit előtt fut, mert nyilvános repóban a CI a push után már késő.
+# Bekapcsolás klónonként: git config core.hooksPath .githooks
+set -euo pipefail
+
+repo=$(git rev-parse --show-toplevel)
+
+"$repo/scripts/check-no-data.sh"
+
+runtime=$(command -v docker || command -v podman) || {
+  echo "A titokkereséshez Docker vagy Podman kell, a commit nem ellenőrizhető." >&2
+  exit 1
+}
+
+"$runtime" run --rm -v "$repo:/repo:ro,z" docker.io/zricethezav/gitleaks:v8.30.1 \
+  git --pre-commit --staged --redact --no-banner --log-level warn /repo
