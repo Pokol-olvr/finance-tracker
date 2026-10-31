@@ -45,6 +45,8 @@ docs/adr/    döntési jegyzetek
 
 Minden adat a `home/data/` alatt van, a helyét a `DATA_DIR` állítja. A Metabase és a Garage címe a `BIND_ADDRESS` változóval a gép Tailscale-címére tehető. A Postgres mindig csak helyben látszik, a Garage admin és RPC portja pedig csak a Compose-hálózaton.
 
+A konténerek rootless Podmanben a felhasználóhoz tartoznak, ezért a `home/data/postgres` törléséhez `podman unshare rm -rf home/data` kell.
+
 ### Szerepkörök a `finance` adatbázisban
 
 | Szerepkör | Jog | Ki használja |
@@ -76,8 +78,6 @@ A `scripts/backup.sh` a futó stacken dolgozik:
 A `RESTIC_REPO_DIR` éles használatra külső meghajtóra mutasson; alapból ugyanazon a lemezen van, és a script erre figyelmeztet.
 
 ### Ütemezés
-
-A konténerek rootless Podmanben a felhasználóhoz tartoznak, ezért a `home/data/postgres` törléséhez `podman unshare rm -rf home/data` kell.
 
 A systemd timer naponta 03:30-kor futtatja a mentést, és ha a gép ki volt kapcsolva, induláskor pótolja. A telepítés:
 
