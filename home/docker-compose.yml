@@ -87,6 +87,15 @@ services:
       retries: 8
       start_period: 180s
 
+  # A mappa a gazdagép felhasználójáé, a webapp viszont nobody-ként fut.
+  inbox-init:
+    image: docker.io/library/python:3.13.18-slim
+    restart: "no"
+    user: "0"
+    volumes:
+      - ${DATA_DIR:-./data}/inbox:/inbox:z
+    command: [chown, "65534:65534", /inbox]
+
   # Egyelőre itt fut, a Pi-re költözéssel átkerül a pi/ Compose-fájlba (ADR 0005).
   webapp:
     build: ../webapp
@@ -95,9 +104,15 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+      inbox-init:
+        condition: service_completed_successfully
     environment:
       DATABASE_URL: postgresql://app_writer:${APP_WRITER_PASSWORD:?}@postgres:5432/finance
       HOUSEHOLD_MEMBERS: ${HOUSEHOLD_MEMBERS:-person_a,person_b}
+      INBOX_DIR: /inbox
+      WORKER_API_TOKEN: ${WORKER_API_TOKEN:?}
+    volumes:
+      - ${DATA_DIR:-./data}/inbox:/inbox:z
     ports:
       # Belépés a FIN-303-ig nincs, ezért csak helyben látszhat.
       - 127.0.0.1:${WEBAPP_PORT:-8000}:8000
@@ -107,6 +122,44 @@ services:
       timeout: 5s
       retries: 6
       start_period: 10s
+
+  # Modellek a data/ollama alatt; portja nincs, csak a worker éri el a Compose-hálózaton.
+  ollama:
+    image: docker.io/ollama/ollama:0.40.13
+    restart: unless-stopped
+    volumes:
+      - ${DATA_DIR:-./data}/ollama:/root/.ollama:z
+    healthcheck:
+      test: [CMD, ollama, list]
+      interval: 15s
+      timeout: 10s
+      retries: 6
+      start_period: 10s
+
+  worker:
+    build: ../worker
+    image: localhost/finance-tracker-worker
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      garage:
+        condition: service_healthy
+      webapp:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://app_writer:${APP_WRITER_PASSWORD:?}@postgres:5432/finance
+      INBOX_URL: http://webapp:8000
+      WORKER_API_TOKEN: ${WORKER_API_TOKEN:?}
+      WORKER_POLL_SECONDS: ${WORKER_POLL_SECONDS:-60}
+      GARAGE_ENDPOINT: http://garage:3900
+      GARAGE_ACCESS_KEY: ${GARAGE_ACCESS_KEY:?}
+      GARAGE_SECRET_KEY: ${GARAGE_SECRET_KEY:?}
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-glm-ocr}
+      OLLAMA_NUM_THREAD: ${OLLAMA_NUM_THREAD:-10}
 
   webapp-test:
     image: docker.io/library/python:3.13.18-slim
@@ -119,6 +172,27 @@ services:
       PYTHONDONTWRITEBYTECODE: "1"
       PIP_ROOT_USER_ACTION: ignore
     working_dir: /repo/webapp
+    volumes:
+      - ..:/repo:ro,z
+    entrypoint: [sh, -c, "pip install -q --no-cache-dir -r requirements-dev.txt && python -m pytest -q -p no:cacheprovider"]
+
+  # A valódi Garage-ba és Postgresbe ír, a modellt egy csonk helyettesíti.
+  worker-test:
+    image: docker.io/library/python:3.13.18-slim
+    profiles: [tools]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      garage:
+        condition: service_healthy
+    environment:
+      TEST_DATABASE_URL: postgresql://app_writer:${APP_WRITER_PASSWORD:?}@postgres:5432/finance
+      TEST_GARAGE_ENDPOINT: http://garage:3900
+      GARAGE_ACCESS_KEY: ${GARAGE_ACCESS_KEY:?}
+      GARAGE_SECRET_KEY: ${GARAGE_SECRET_KEY:?}
+      PYTHONDONTWRITEBYTECODE: "1"
+      PIP_ROOT_USER_ACTION: ignore
+    working_dir: /repo/worker
     volumes:
       - ..:/repo:ro,z
     entrypoint: [sh, -c, "pip install -q --no-cache-dir -r requirements-dev.txt && python -m pytest -q -p no:cacheprovider"]

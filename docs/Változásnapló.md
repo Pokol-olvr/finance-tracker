@@ -13,6 +13,19 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 
 ## Kiadatlan
 
+### Hozzáadva
+
+- FIN-401 Ollama és GLM-OCR a Compose-ban, a `scripts/ollama-pull.sh` letöltővel és a `worker/tools/smoke_receipt.py` próbával.
+- FIN-304 Feltöltő képernyő a `/` címen, tartalom alapú típusellenőrzéssel és 20 MB-os határral.
+- FIN-305 Helyi postaláda SQLite-tal és a tokennel védett `/inbox` API a workernek.
+- FIN-306 Worker: a feltöltés a Garage-ba és a bronzba kerül, hash alapú duplikációszűréssel.
+- FIN-408 Kiolvasás a workerben: JSON és szöveges olvasat a `bronze.extraction` táblába, modellazonosítóval; a `scripts/last-extraction.sh` megmutatja a legutóbbit.
+
+### Frissítési teendők
+
+- A meglévő `home/.env`-be kell egy `WORKER_API_TOKEN`: `echo "WORKER_API_TOKEN=$(openssl rand -hex 24)" >> home/.env`.
+- `scripts/ollama-pull.sh`, majd `podman compose -f home/docker-compose.yml up -d --build`.
+
 ## v0.2.0 · 2026-10-31
 
 ### Hozzáadva
