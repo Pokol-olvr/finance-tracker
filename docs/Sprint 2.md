@@ -34,23 +34,23 @@ Javasolt sorrend: FIN-202, FIN-203, FIN-204, végül a FIN-205. A FIN-204 kital�
 
 **Részfeladatok**
 
-- [ ] `dbt/Dockerfile` rögzített verziókkal: `python:3.13.18-slim`, `dbt-core==1.12.6`, `dbt-postgres==1.11.0` 📅 2026-11-29
-- [ ] `dbt` szolgáltatás a Compose-ban a `tools` profilban, `dbt_runner`-ként, a `DBT_RUNNER_PASSWORD` változóval 📅 2026-11-29
-- [ ] `dbt_project.yml` és `profiles.yml`, jelszó csak `env_var`-ból 📅 2026-11-29
-- [ ] `macros/generate_schema_name.sql`, hogy a modellek a `silver` és `gold` sémába kerüljenek, ne `silver_silver` névre ([forrás](https://docs.getdbt.com/docs/build/custom-schemas)) 📅 2026-11-29
-- [ ] Források: a három bronz tábla `sources.yml`-ben 📅 2026-11-29
-- [ ] `dbt/seeds/categories.csv` az alap kategóriákkal: élelmiszer, háztartás, lakbér, közlekedés, szórakozás, egészség 📅 2026-11-29
-- [ ] `silver.transactions` a `manual_entry` táblából (lásd lent) 📅 2026-11-29
-- [ ] Tesztek: egyedi és kitöltött `transaction_id`, a `kind` megengedett értékei, `amount > 0`, kiadás kategóriája a seedben szerepel 📅 2026-11-29
-- [ ] A CI `dbt build` helyőrzője helyett valódi lépés a migrációk után 📅 2026-11-29
+- [x] `dbt/Dockerfile` rögzített verziókkal: `python:3.13.18-slim`, `dbt-core==1.12.6`, `dbt-postgres==1.11.0` 📅 2026-11-29
+- [x] `dbt` szolgáltatás a Compose-ban a `tools` profilban, `dbt_runner`-ként, a `DBT_RUNNER_PASSWORD` változóval 📅 2026-11-29
+- [x] `dbt_project.yml` és `profiles.yml`, jelszó csak `env_var`-ból 📅 2026-11-29
+- [x] `macros/generate_schema_name.sql`, hogy a modellek a `silver` és `gold` sémába kerüljenek, ne `silver_silver` névre ([forrás](https://docs.getdbt.com/docs/build/custom-schemas)) 📅 2026-11-29
+- [x] Források: a három bronz tábla `sources.yml`-ben 📅 2026-11-29
+- [x] `dbt/seeds/categories.csv` az alap kategóriákkal: élelmiszer, háztartás, lakbér, közlekedés, szórakozás, egészség 📅 2026-11-29
+- [x] `silver.transactions` a `manual_entry` táblából (lásd lent) 📅 2026-11-29
+- [x] Tesztek: egyedi és kitöltött `transaction_id`, a `kind` megengedett értékei, `amount > 0`, kiadás kategóriája a seedben szerepel 📅 2026-11-29
+- [x] A CI `dbt build` helyőrzője helyett valódi lépés a migrációk után 📅 2026-11-29
 - [ ] Éjszakai `dbt build`: `finance-dbt.timer` 03:00-kor, hogy a 03:30-as mentés a friss silvert és goldot vigye 📅 2026-11-29
-- [ ] README: a `dbt build` futtatása 📅 2026-11-29
+- [x] README: a `dbt build` futtatása 📅 2026-11-29
 
 **Elfogadási feltételek**
 
-- [ ] A `dbt build` üres bronzon és adattal is zöld, és a tesztek futnak
-- [ ] A `silver.transactions` a `silver` sémában jön létre, a modellek nem hoznak létre új sémát
-- [ ] Eldobható adatbázisban egy `amount = -1` sor piros `dbt build`-et ad
+- [x] A `dbt build` üres bronzon és adattal is zöld, és a tesztek futnak
+- [x] A `silver.transactions` a `silver` sémában jön létre, a modellek nem hoznak létre új sémát
+- [x] Eldobható adatbázisban egy `amount = -1` sor piros `dbt build`-et ad
 - [ ] Hibás modellnél a CI piros
 - [ ] Az éjszakai futás után a `silver.transactions` frissült
 
@@ -103,26 +103,26 @@ from {{ source('bronze', 'manual_entry') }}
 
 **Részfeladatok**
 
-- [ ] Migráció: nem kötelező `purchased_by` mező a `raw_document` és a `manual_entry` táblába 📅 2026-11-29
-- [ ] `webapp/` FastAPI alkalmazás rögzített verziókkal: `fastapi==0.162.0`, `uvicorn==0.54.0`, `psycopg==3.3.6`, `pydantic==2.14.2` 📅 2026-11-29
-- [ ] `webapp/Dockerfile` és `webapp` szolgáltatás a Compose-ban, `app_writer`-ként, `restart: unless-stopped` 📅 2026-11-29
-- [ ] Port csak helyben: `127.0.0.1:${WEBAPP_PORT:-8000}`; belépés nincs, ezért a hálózaton nem látszhat a FIN-303-ig 📅 2026-11-29
-- [ ] `GET /health` és `POST /entries` 📅 2026-11-29
-- [ ] Validálás a lenti szabályok szerint; pénzösszeg `Decimal`, float soha 📅 2026-11-29
-- [ ] Ismételt küldés elleni védelem: az `id`-t a kliens adja, az írás `on conflict (id) do nothing` 📅 2026-11-29
-- [ ] Az írás egyetlen modulban legyen (`webapp/app/store.py`), hogy a Pi-re költözéskor cserélhető maradjon ([[0005-monorepo-es-atmeneti-otthoni-webapp|ADR 0005]]) 📅 2026-11-29
-- [ ] `HOUSEHOLD_MEMBERS` változó a `.env.example`-ben: a két személy kódja; a nevek nem kerülnek a repóba 📅 2026-11-29
-- [ ] Mock bejegyzések az API-n át, kitalált összegekkel, `entered_by = mock` értékkel 📅 2026-11-29
-- [ ] pytest-tesztek a validálásra és a bronz írásra, CI-lépéssel 📅 2026-11-29
-- [ ] README: a végpont használata egy `curl` példával, kitalált adattal 📅 2026-11-29
+- [x] Migráció: nem kötelező `purchased_by` mező a `raw_document` és a `manual_entry` táblába 📅 2026-11-29
+- [x] `webapp/` FastAPI alkalmazás rögzített verziókkal: `fastapi==0.162.0`, `uvicorn==0.54.0`, `psycopg==3.3.6`, `pydantic==2.14.2` 📅 2026-11-29
+- [x] `webapp/Dockerfile` és `webapp` szolgáltatás a Compose-ban, `app_writer`-ként, `restart: unless-stopped` 📅 2026-11-29
+- [x] Port csak helyben: `127.0.0.1:${WEBAPP_PORT:-8000}`; belépés nincs, ezért a hálózaton nem látszhat a FIN-303-ig 📅 2026-11-29
+- [x] `GET /health` és `POST /entries` 📅 2026-11-29
+- [x] Validálás a lenti szabályok szerint; pénzösszeg `Decimal`, float soha 📅 2026-11-29
+- [x] Ismételt küldés elleni védelem: az `id`-t a kliens adja, az írás `on conflict (id) do nothing` 📅 2026-11-29
+- [x] Az írás egyetlen modulban legyen (`webapp/app/store.py`), hogy a Pi-re költözéskor cserélhető maradjon ([[0005-monorepo-es-atmeneti-otthoni-webapp|ADR 0005]]) 📅 2026-11-29
+- [x] `HOUSEHOLD_MEMBERS` változó a `.env.example`-ben: a két személy kódja; a nevek nem kerülnek a repóba 📅 2026-11-29
+- [x] Mock bejegyzések az API-n át, kitalált összegekkel, `entered_by = mock` értékkel 📅 2026-11-29
+- [x] pytest-tesztek a validálásra és a bronz írásra, CI-lépéssel 📅 2026-11-29
+- [x] README: a végpont használata egy `curl` példával, kitalált adattal 📅 2026-11-29
 
 **Elfogadási feltételek**
 
-- [ ] A felvitt tétel a következő `dbt build` után megjelenik a `silver.transactions` táblában
-- [ ] Érvénytelen kérésre 422 jön, és a bronz nem változik
-- [ ] Ugyanaz az `id` kétszer elküldve egy sort hoz létre
-- [ ] Módosító és törlő végpont nincs
-- [ ] A webapp portja a gazdagépen csak a `127.0.0.1` címen figyel
+- [x] A felvitt tétel a következő `dbt build` után megjelenik a `silver.transactions` táblában
+- [x] Érvénytelen kérésre 422 jön, és a bronz nem változik
+- [x] Ugyanaz az `id` kétszer elküldve egy sort hoz létre
+- [x] Módosító és törlő végpont nincs
+- [x] A webapp portja a gazdagépen csak a `127.0.0.1` címen figyel
 
 **Validálási szabályok**
 
@@ -145,20 +145,20 @@ from {{ source('bronze', 'manual_entry') }}
 
 **Részfeladatok**
 
-- [ ] `gold.monthly_cash_flow` hónap és fizető fél szerint: `income`, `expense`, `net`, `savings_rate` 📅 2026-11-29
-- [ ] `gold.category_month` hónap, fizető fél és kategória szerint: `expense`, `entry_count` 📅 2026-11-29
-- [ ] Átvezetés sehol nem számít bevételnek vagy kiadásnak 📅 2026-11-29
-- [ ] Hónap bejegyzés nélkül is megjelenik nullával, hogy ne torzítsa az átlagot 📅 2026-11-29
-- [ ] `savings_rate` üres, ha a havi bevétel 0 📅 2026-11-29
-- [ ] A goldba csak `HUF` kerülhet: más pénznem hibás tesztet ad, mert az összeadás értelmetlen lenne 📅 2026-11-29
-- [ ] dbt unit tesztek a lenti mintahónapokra; a `dbt build` ezeket is futtatja ([forrás](https://docs.getdbt.com/docs/build/unit-tests)) 📅 2026-11-29
+- [x] `gold.monthly_cash_flow` hónap és fizető fél szerint: `income`, `expense`, `net`, `savings_rate` 📅 2026-11-29
+- [x] `gold.category_month` hónap, fizető fél és kategória szerint: `expense`, `entry_count` 📅 2026-11-29
+- [x] Átvezetés sehol nem számít bevételnek vagy kiadásnak 📅 2026-11-29
+- [x] Hónap bejegyzés nélkül is megjelenik nullával, hogy ne torzítsa az átlagot 📅 2026-11-29
+- [x] `savings_rate` üres, ha a havi bevétel 0 📅 2026-11-29
+- [x] A goldba csak `HUF` kerülhet: más pénznem hibás tesztet ad, mert az összeadás értelmetlen lenne 📅 2026-11-29
+- [x] dbt unit tesztek a lenti mintahónapokra; a `dbt build` ezeket is futtatja ([forrás](https://docs.getdbt.com/docs/build/unit-tests)) 📅 2026-11-29
 
 **Elfogadási feltételek**
 
-- [ ] Három mintahónapon a gold egyezik a kézi számolással
-- [ ] Az átvezetés a mintában nem módosítja a bevételt és a kiadást
-- [ ] A két gold tábla az `mb_reader`-rel olvasható, újraépítés után is
-- [ ] Az `app_writer` nem éri el a gold sémát
+- [x] Három mintahónapon a gold egyezik a kézi számolással
+- [x] Az átvezetés a mintában nem módosítja a bevételt és a kiadást
+- [x] A két gold tábla az `mb_reader`-rel olvasható, újraépítés után is
+- [x] Az `app_writer` nem éri el a gold sémát
 
 **Mintahónapok a unit teszthez**
 
@@ -176,19 +176,19 @@ A számok kitaláltak, valódi adat nem kerülhet a repóba.
 
 **Részfeladatok**
 
-- [ ] A Finance adatforrás szinkronja, hogy a két gold tábla megjelenjen 📅 2026-11-29
-- [ ] Kártyák: e havi bevétel, kiadás, egyenleg és megtakarítási ráta 📅 2026-11-29
-- [ ] Összehasonlítás az előző hónappal és az előző 3 lezárt hónap átlagával 📅 2026-11-29
-- [ ] Kategóriák szerinti bontás az aktuális hónapra 📅 2026-11-29
-- [ ] Szűrő a fizető félre 📅 2026-11-29
-- [ ] A dashboard neve `Áttekintés`, a Metabase saját adatbázisában él, így a napi mentés viszi 📅 2026-11-29
+- [x] A Finance adatforrás szinkronja, hogy a két gold tábla megjelenjen 📅 2026-11-29
+- [x] Kártyák: e havi bevétel, kiadás, egyenleg és megtakarítási ráta 📅 2026-11-29
+- [x] Összehasonlítás az előző hónappal és az előző 3 lezárt hónap átlagával 📅 2026-11-29
+- [x] Kategóriák szerinti bontás az aktuális hónapra 📅 2026-11-29
+- [x] Szűrő a fizető félre 📅 2026-11-29
+- [x] A dashboard neve `Áttekintés`, a Metabase saját adatbázisában él, így a napi mentés viszi 📅 2026-11-29
 
 **Elfogadási feltételek**
 
-- [ ] Ez a hónap, az előző és a 3 lezárt hónap átlaga egy képernyőn látszik
-- [ ] Egy új bejegyzés a `dbt build` után megjelenik a dashboardon
-- [ ] A második felhasználó is látja a dashboardot
-- [ ] A Metabase-ben továbbra sem látszik a bronz és a silver séma
+- [x] Ez a hónap, az előző és a 3 lezárt hónap átlaga egy képernyőn látszik
+- [x] Egy új bejegyzés a `dbt build` után megjelenik a dashboardon
+- [x] A második felhasználó is látja a dashboardot
+- [x] A Metabase-ben továbbra sem látszik a bronz és a silver séma
 
 ## Események és nyitott kérdések
 

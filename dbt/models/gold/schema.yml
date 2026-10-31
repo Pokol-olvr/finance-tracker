@@ -1,0 +1,73 @@
+version: 2
+
+models:
+  - name: monthly_cash_flow
+    description: Havi bevétel, kiadás és egyenleg fizető felenként; az átvezetés nem számít bele.
+    columns:
+      - name: month
+        data_tests: [not_null]
+      - name: payer
+        data_tests: [not_null]
+  - name: category_month
+    description: Havi kiadás kategóriánként és fizető felenként.
+    columns:
+      - name: month
+        data_tests: [not_null]
+      - name: category
+        data_tests: [not_null]
+
+unit_tests:
+  # A számok kitaláltak, a Sprint 2 mintahónapjai.
+  - name: monthly_cash_flow_mintahonapok
+    model: monthly_cash_flow
+    overrides:
+      vars:
+        as_of_date: "date '2026-11-15'"
+    given:
+      - input: ref('transactions')
+        rows:
+          - {kind: income, amount: 500000, occurred_on: 2026-09-05, payer: shared}
+          - {kind: expense, amount: 320000, occurred_on: 2026-09-12, payer: shared}
+          - {kind: transfer, amount: 100000, occurred_on: 2026-09-20, payer: shared}
+          - {kind: income, amount: 500000, occurred_on: 2026-10-05, payer: shared}
+          - {kind: expense, amount: 450000, occurred_on: 2026-10-12, payer: shared}
+          - {kind: expense, amount: 120000, occurred_on: 2026-11-03, payer: shared}
+    expect:
+      rows:
+        - {month: 2026-09-01, payer: shared, income: 500000, expense: 320000, net: 180000, savings_rate: 0.36}
+        - {month: 2026-10-01, payer: shared, income: 500000, expense: 450000, net: 50000, savings_rate: 0.10}
+        - {month: 2026-11-01, payer: shared, income: 0, expense: 120000, net: -120000, savings_rate: null}
+
+  - name: monthly_cash_flow_ures_honap_es_fizeto_felek
+    model: monthly_cash_flow
+    overrides:
+      vars:
+        as_of_date: "date '2026-11-15'"
+    given:
+      - input: ref('transactions')
+        rows:
+          - {kind: income, amount: 1000, occurred_on: 2026-09-05, payer: person_a}
+          - {kind: expense, amount: 400, occurred_on: 2026-11-03, payer: shared}
+    expect:
+      rows:
+        - {month: 2026-09-01, payer: person_a, income: 1000, expense: 0, net: 1000, savings_rate: 1}
+        - {month: 2026-09-01, payer: shared, income: 0, expense: 0, net: 0, savings_rate: null}
+        - {month: 2026-10-01, payer: person_a, income: 0, expense: 0, net: 0, savings_rate: null}
+        - {month: 2026-10-01, payer: shared, income: 0, expense: 0, net: 0, savings_rate: null}
+        - {month: 2026-11-01, payer: person_a, income: 0, expense: 0, net: 0, savings_rate: null}
+        - {month: 2026-11-01, payer: shared, income: 0, expense: 400, net: -400, savings_rate: null}
+
+  - name: category_month_atvezetes_nelkul
+    model: category_month
+    given:
+      - input: ref('transactions')
+        rows:
+          - {kind: expense, amount: 300, occurred_on: 2026-09-05, payer: shared, category: élelmiszer}
+          - {kind: expense, amount: 200, occurred_on: 2026-09-15, payer: shared, category: élelmiszer}
+          - {kind: expense, amount: 700, occurred_on: 2026-09-20, payer: shared, category: lakbér}
+          - {kind: transfer, amount: 900, occurred_on: 2026-09-21, payer: shared, category: null}
+          - {kind: income, amount: 800, occurred_on: 2026-09-22, payer: shared, category: null}
+    expect:
+      rows:
+        - {month: 2026-09-01, payer: shared, category: élelmiszer, expense: 500, entry_count: 2}
+        - {month: 2026-09-01, payer: shared, category: lakbér, expense: 700, entry_count: 1}

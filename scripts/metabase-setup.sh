@@ -3,39 +3,15 @@
 # A felhasználók adatai a .env-ből jönnek. Újrafuttatható, a meglévő részeket átugorja.
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
+source "$REPO_ROOT/scripts/metabase-lib.sh"
 
 : "${MB_ADMIN_EMAIL:?töltsd ki a .env MB_ADMIN_* mezőit}"
 : "${MB_SECOND_EMAIL:?töltsd ki a .env MB_SECOND_* mezőit}"
 
-api="http://${BIND_ADDRESS:-127.0.0.1}:${METABASE_PORT:-3000}/api"
-session=
-
-# POST a szabványos bemenet JSON-jével. Hibánál csak az okot írja ki: a Metabase
-# teljes válasza a jelszót is visszaküldi.
-post() {
-  local response status
-  response=$(curl -sS -w '\n%{http_code}' -H 'Content-Type: application/json' \
-    ${session:+-H "X-Metabase-Session: $session"} -d @- "$api/$1")
-  status=${response##*$'\n'}
-  response=${response%$'\n'*}
-  if [[ $status != 2* ]]; then
-    echo "A /$1 hívás sikertelen ($status): $(jq -c '.errors // .message // "ismeretlen hiba"' <<<"$response")" >&2
-    return 1
-  fi
-  echo "$response"
-}
-
-get() {
-  curl -fsS -H "X-Metabase-Session: $session" "$api/$1"
-}
-
 properties=$(curl -fsS "$api/session/properties")
 
 if [[ $(jq -r '."has-user-setup"' <<<"$properties") == true ]]; then
-  session=$(
-    jq -n --arg email "$MB_ADMIN_EMAIL" --arg password "$MB_ADMIN_PASSWORD" \
-      '{username: $email, password: $password}' | post session | jq -r .id
-  )
+  metabase_login
 else
   session=$(
     jq -n \

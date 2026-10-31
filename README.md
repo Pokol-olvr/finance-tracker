@@ -2,7 +2,7 @@
 
 Kétszemélyes háztartási pénzügyi nyomkövető medallion adatrétegekkel és helyi blokkbeolvasással. A tervek a `docs/` mappában vannak: [Üzleti koncepció](docs/Üzleti%20koncepció.md), [Technikai terv](docs/Technikai%20terv.md), [Fejlesztési terv](docs/Fejlesztési%20terv.md).
 
-A jelenlegi állapot az otthoni alapstack: Postgres a bronz, silver és gold sémákkal, Garage object store és Metabase, napi mentéssel.
+A jelenlegi állapot az otthoni stack: Postgres a bronz, silver és gold sémákkal, Garage object store, kézi bejegyzés API, dbt és Metabase Áttekintés dashboard, napi mentéssel. Egyelőre minden helyben fut, és csak mock adatot kap.
 
 ## Előfeltételek
 
@@ -19,7 +19,7 @@ scripts/init-env.sh
 podman compose -f home/docker-compose.yml up -d
 ```
 
-A Metabase az első indításkor pár percig készül, utána a `http://127.0.0.1:3000` címen érhető el. Az első beállításhoz töltsd ki a `home/.env` `MB_ADMIN_*` és `MB_SECOND_*` mezőit, majd futtasd a `scripts/metabase-setup.sh`-t. A script létrehozza a két felhasználót, és felveszi a `finance` adatbázist `mb_reader`-ként.
+A Metabase az első indításkor pár percig készül, utána a `http://127.0.0.1:3000` címen érhető el. Az első beállításhoz töltsd ki a `home/.env` `MB_ADMIN_*` és `MB_SECOND_*` mezőit, majd futtasd a `scripts/metabase-setup.sh`-t. A script létrehozza a két felhasználót, és felveszi a `finance` adatbázist `mb_reader`-ként. A `scripts/metabase-dashboard.sh` ezután elkészíti az Áttekintés dashboardot. Mindkettő újrafuttatható.
 
 A `scripts/init-env.sh` által generált `MB_ENCRYPTION_SECRET_KEY` és `RESTIC_PASSWORD` értékét mentsd el a jelszókezelőbe. Az első nélkül költözés után a mentett adatbázis-kapcsolatok nem olvashatók, a második nélkül a mentés használhatatlan.
 
@@ -41,6 +41,7 @@ docs/adr/    döntési jegyzetek
 | `postgres` | `127.0.0.1:5432` | `finance` és `metabase` adatbázis |
 | `migrate` | nincs | Induláskor lefuttatja a `migrations/` mappát, majd kilép |
 | `garage` | `127.0.0.1:3900` | S3 API, `raw` bucket |
+| `webapp` | `127.0.0.1:8000` | Kézi bejegyzés API, belépés nélkül, ezért csak helyben látszik |
 | `metabase` | `127.0.0.1:3000` | Dashboardok |
 
 Minden adat a `home/data/` alatt van, a helyét a `DATA_DIR` állítja. A Metabase és a Garage címe a `BIND_ADDRESS` változóval a gép Tailscale-címére tehető. A Postgres mindig csak helyben látszik, a Garage admin és RPC portja pedig csak a Compose-hálózaton.
@@ -55,6 +56,26 @@ A konténerek rootless Podmanben a felhasználóhoz tartoznak, ezért a `home/da
 | `app_writer` | Csak beszúrás és olvasás a bronzban | Webapp, worker |
 | `dbt_runner` | Olvasás a bronzból, írás a silverbe és a goldba | dbt |
 | `mb_reader` | Csak olvasás a goldból | Metabase |
+
+## Kézi bejegyzés és adatút
+
+A bejegyzés az API-n át kerül a bronzba, a `dbt build` pedig ebből építi a silvert és a goldot. A bronzba került sor nem törölhető és nem javítható, ezért az azonosítót a kliens adja: ugyanaz az `id` másodszor már nem ír.
+
+```sh
+curl -H 'Content-Type: application/json' http://127.0.0.1:8000/entries -d '{
+  "id": "2f5b9c1e-7a54-4f0e-9d3a-0c1b2a3d4e5f",
+  "kind": "expense",
+  "amount": "18450.10",
+  "occurred_on": "2026-11-16",
+  "entered_by": "mock",
+  "purchased_by": "person_a",
+  "payer": "shared",
+  "tags": ["élelmiszer"]
+}'
+scripts/dbt.sh
+```
+
+A `purchased_by` és a `payer` a `HOUSEHOLD_MEMBERS` kódjait használja, a `payer` lehet `shared` is. A `scripts/mock-entries.sh` hat hónapnyi kitalált adatot tölt be, és újrafuttatható. A webapp tesztjei a `scripts/test-webapp.sh` paranccsal futnak, és a bronzban nem hagynak adatot.
 
 ## Migrációk
 
@@ -79,10 +100,10 @@ A `RESTIC_REPO_DIR` éles használatra külső meghajtóra mutasson; alapból ug
 
 ### Ütemezés
 
-A systemd timer naponta 03:30-kor futtatja a mentést, és ha a gép ki volt kapcsolva, induláskor pótolja. A telepítés:
+A systemd timerek naponta 03:00-kor a `dbt build`-et, 03:30-kor a mentést futtatják, és ha a gép ki volt kapcsolva, induláskor pótolják. A telepítés:
 
 ```sh
-scripts/install-backup-timer.sh
+scripts/install-timers.sh
 ```
 
 ### Visszaállítás

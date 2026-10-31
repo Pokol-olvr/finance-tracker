@@ -1,0 +1,20 @@
+version: 2
+
+models:
+  - name: transactions
+    description: Egységes tranzakció, a későbbi források is ide érkeznek.
+    columns:
+      - name: transaction_id
+        data_tests: [unique, not_null]
+      - name: kind
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [expense, income, transfer]
+      - name: amount
+        data_tests: [not_null]
+      - name: occurred_on
+        data_tests: [not_null]
+      - name: payer
+        data_tests: [not_null]

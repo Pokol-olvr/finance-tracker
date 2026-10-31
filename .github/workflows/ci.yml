@@ -46,5 +46,6 @@ jobs:
       - name: Bronz teszt
         run: scripts/test-bronze.sh
       - name: dbt build
-        # Helyőrző, a FIN-202 kapcsolja be a 2. sprintben.
-        run: echo "A dbt lépés a FIN-202-vel kapcsol be."
+        run: scripts/dbt.sh
+      - name: Webapp tesztek
+        run: scripts/test-webapp.sh
