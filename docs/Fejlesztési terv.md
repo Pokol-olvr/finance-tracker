@@ -27,7 +27,7 @@ Részletes sprintterv: [[Sprint 1]] · [[Sprint 2]] · [[Sprint 3]] · Kapcsoló
 | S9 | 2027-02-22 | 2027-03-07 |
 | S10 | 2027-03-08 | 2027-03-21 |
 
-Első éles használat: a 6. sprint vége (2027-01-24), amikor működik a blokkbeolvasás és a telefonos feltöltés. Addig a rendszer a laptopon fut, mock adattal, és az éles használat előtt a `finance` adatbázis üresen újraépül (FIN-309). A sorrend indoka: [[0006-blokkbeolvasas-a-pi-elott|ADR 0006]].
+Első éles használat: a 6. sprint vége (2027-01-24), amikor működik a blokkbeolvasás és a telefonos feltöltés. Addig a rendszer a laptopon fut, mock adattal és néhány saját próbablokkal, és az éles használat előtt a `finance` adatbázis üresen újraépül (FIN-309). A sorrend indoka: [[0006-blokkbeolvasas-a-pi-elott|ADR 0006]].
 
 ```mermaid
 gantt
@@ -100,7 +100,7 @@ Kész, ha: telefonról feltöltött vagy e-mailben továbbított számla eljut a
 - [ ] FIN-308 Webapp és postaláda költözése a Pi-re: `pi/` Compose, Caddy és Authelia mögött · 3 SP #E3 #sprint/S6 📅 2027-01-24
     - Elfogadás: telefonról feltölthető, a worker a Pi postaládájából húz
 - [ ] FIN-309 A `finance` adatbázis üres újraépítése az első éles használat előtt · 1 SP #E3 #sprint/S6 📅 2027-01-24
-    - Elfogadás: a bronz és a Garage `raw` bucket üres, a mock adat eltűnt, a Metabase dashboardjai megmaradnak
+    - Elfogadás: a bronz és a Garage `raw` bucket üres, a mock adat és a próbablokkok eltűntek a restic-pillanatképekből is, a Metabase dashboardjai megmaradnak
 
 ## FIN-E4 Blokkbeolvasás (S3–S5, 25 SP)
 
@@ -108,7 +108,7 @@ Kész, ha: a blokkból tétel szintű silver lesz, kivételnél ellenőrzéssel.
 
 - [ ] FIN-401 Ollama és GLM-OCR a Compose-ban, egyelőre a laptop CPU-ján · 2 SP #E4 #sprint/S3 📅 2026-12-13
     - Elfogadás: egy mintablokkra JSON jön vissza
-- [ ] FIN-402 Kinyerési JSON-séma és prompt; modellverzió mentése · 5 SP #E4 #sprint/S4 📅 2026-12-27
+- [ ] FIN-402 Kinyerési séma ellenőrzése, normalizálás és prompt · 2 SP #E4 #sprint/S4 📅 2026-12-27
     - Elfogadás: 20 mintablokkon a kimenet mindig érvényes a sémára
 - [ ] FIN-403 PaddleOCR második olvasat bizonytalan esetekre · 3 SP #E4 #sprint/S4 📅 2026-12-27
     - Elfogadás: bizonytalan blokknál az OCR-szöveg is a bronzba kerül
@@ -120,6 +120,8 @@ Kész, ha: a blokkból tétel szintű silver lesz, kivételnél ellenőrzéssel.
     - Elfogadás: javítás után a silver a javított értéket mutatja, a bronz változatlan
 - [ ] FIN-407 Mérés 20–30 saját blokkon · 2 SP #E4 #sprint/S5 📅 2027-01-10
     - Elfogadás: a mezőnkénti pontosság le van írva
+- [ ] FIN-408 Kiolvasás a workerben: GLM-OCR hívás, nyers eredmény és modellverzió a bronzba · 3 SP #E4 #sprint/S3 📅 2026-12-13
+    - Elfogadás: egy feltöltött blokk kiolvasása a `bronze.extraction` táblába kerül, modellverzióval
 
 ## FIN-E5 Címkézés és tanulás (S5, S7, 21 SP)
 

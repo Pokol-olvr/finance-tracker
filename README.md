@@ -2,13 +2,14 @@
 
 Kétszemélyes háztartási pénzügyi nyomkövető medallion adatrétegekkel és helyi blokkbeolvasással. A tervek a `docs/` mappában vannak: [Üzleti koncepció](docs/Üzleti%20koncepció.md), [Technikai terv](docs/Technikai%20terv.md), [Fejlesztési terv](docs/Fejlesztési%20terv.md).
 
-A jelenlegi állapot az otthoni stack: Postgres a bronz, silver és gold sémákkal, Garage object store, kézi bejegyzés API, dbt és Metabase Áttekintés dashboard, napi mentéssel. Egyelőre minden helyben fut, és csak mock adatot kap.
+A jelenlegi állapot az otthoni stack: Postgres a bronz, silver és gold sémákkal, Garage object store, kézi bejegyzés API és blokkfeltöltés, a GLM-OCR kiolvasásával, dbt és Metabase Áttekintés dashboard, napi mentéssel. Egyelőre minden helyben fut, mock adattal és néhány saját próbablokkal.
 
 ## Előfeltételek
 
 - Rootless Podman, a `scripts/setup-podman.sh` egyszeri beállításával (Fedora); a CI Dockert használ, az is működik
 - `openssl`, `curl`, `jq`
-- 3 GB szabad memória a Metabase miatt
+- 3 GB szabad memória a Metabase miatt, és további 5 GB a kiolvasás idejére
+- 3 GB szabad lemez a modellnek
 
 ## Gyorsindítás
 
@@ -16,7 +17,8 @@ A jelenlegi állapot az otthoni stack: Postgres a bronz, silver és gold sémák
 git clone <repo-url> finance-tracker && cd finance-tracker
 scripts/setup-podman.sh
 scripts/init-env.sh
-podman compose -f home/docker-compose.yml up -d
+scripts/ollama-pull.sh
+podman compose -f home/docker-compose.yml up -d --build
 ```
 
 A Metabase az első indításkor pár percig készül, utána a `http://127.0.0.1:3000` címen érhető el. Az első beállításhoz töltsd ki a `home/.env` `MB_ADMIN_*` és `MB_SECOND_*` mezőit, majd futtasd a `scripts/metabase-setup.sh`-t. A script létrehozza a két felhasználót, és felveszi a `finance` adatbázist `mb_reader`-ként. A `scripts/metabase-dashboard.sh` ezután elkészíti az Áttekintés dashboardot. Mindkettő újrafuttatható.
@@ -29,7 +31,7 @@ A `scripts/init-env.sh` által generált `MB_ENCRYPTION_SECRET_KEY` és `RESTIC_
 home/        otthoni Compose, Postgres init, Garage config
 pi/          a Pi Compose-fájlja (Sprint 6-tól)
 webapp/      FastAPI webapp (Sprint 2-től)
-worker/      lehúzás és kinyerés (Sprint 3-tól)
+worker/      lehúzás és kiolvasás (Sprint 3-tól)
 dbt/         transzformációk (Sprint 2-től)
 migrations/  bronz sémák SQL-migrációi
 scripts/     mentés, visszaállítás, segédscriptek
@@ -41,12 +43,15 @@ docs/adr/    döntési jegyzetek
 | `postgres` | `127.0.0.1:5432` | `finance` és `metabase` adatbázis |
 | `migrate` | nincs | Induláskor lefuttatja a `migrations/` mappát, majd kilép |
 | `garage` | `127.0.0.1:3900` | S3 API, `raw` bucket |
-| `webapp` | `127.0.0.1:8000` | Kézi bejegyzés API, belépés nélkül, ezért csak helyben látszik |
+| `inbox-init` | nincs | Induláskor beállítja a postaláda mappájának tulajdonosát, majd kilép |
+| `webapp` | `127.0.0.1:8000` | Feltöltő képernyő, kézi bejegyzés API és postaláda; belépés nélkül, ezért csak helyben látszik |
+| `ollama` | nincs | A GLM-OCR modell futtatója, csak a Compose-hálózaton |
+| `worker` | nincs | A postaládából a Garage-ba és a bronzba viszi a feltöltéseket, és kiolvastatja őket |
 | `metabase` | `127.0.0.1:3000` | Dashboardok |
 
 Minden adat a `home/data/` alatt van, a helyét a `DATA_DIR` állítja. A Metabase és a Garage címe a `BIND_ADDRESS` változóval a gép Tailscale-címére tehető. A Postgres mindig csak helyben látszik, a Garage admin és RPC portja pedig csak a Compose-hálózaton.
 
-A konténerek rootless Podmanben a felhasználóhoz tartoznak, ezért a `home/data/postgres` törléséhez `podman unshare rm -rf home/data` kell.
+A konténerek rootless Podmanben a felhasználóhoz tartoznak, ezért a `home/data/postgres` törléséhez `podman unshare rm -rf home/data` kell. A `home/data/inbox` és a `home/data/ollama` nem kerül a mentésbe: az első átmeneti tároló, a második újra letölthető.
 
 ### Szerepkörök a `finance` adatbázisban
 
@@ -76,6 +81,36 @@ scripts/dbt.sh
 ```
 
 A `purchased_by` és a `payer` a `HOUSEHOLD_MEMBERS` kódjait használja, a `payer` lehet `shared` is. A `scripts/mock-entries.sh` hat hónapnyi kitalált adatot tölt be, és újrafuttatható. A webapp tesztjei a `scripts/test-webapp.sh` paranccsal futnak, és a bronzban nem hagynak adatot.
+
+## Blokk feltöltése és kiolvasása
+
+A `http://127.0.0.1:8000` oldalon kell megadni a fotót, a feltöltőt, a vásárlót, a blokk dátumát, a fizető felet és legalább egy címkét. A képet JPEG, PNG, HEIC vagy WebP formátumban, legfeljebb 20 MB-ig fogadja. A telefon a FIN-308-ig nem éri el az oldalt, ezért a fotót előbb a laptopra kell áttenni.
+
+A worker percenként megnézi a postaládát, és tételenként végigviszi a folyamatot:
+
+1. Letölti a fájlt, és ellenőrzi a hash-t.
+2. Ha ez a kép még nincs a bronzban, a `raw` bucketbe teszi `photo/ÉÉÉÉ/HH/<sha256>.<kiterjesztés>` kulccsal, és beírja a `bronze.raw_document` táblába.
+3. Kétszer kiolvastatja a modellel, JSON-ként és szövegként, és az eredményt a `bronze.extraction` táblába teszi.
+4. Lezárja a tételt, a fájl ekkor törlődik a postaládából.
+
+Egy fotó a laptopon kb. 2,5–3,5 perc, a tételek sorban futnak. Ha az Ollama vagy a Garage nem érhető el, a tétel nyitva marad, és a worker a következő körben folytatja. A rossz kimenet is a bronzba kerül, és lezárja a tételt. Az indoklás: [ADR 0007](docs/adr/0007-ket-olvasat-1400-pixelen.md).
+
+A legutóbbi kiolvasás, illetve az utolsó három:
+
+```sh
+scripts/last-extraction.sh
+scripts/last-extraction.sh 3
+```
+
+A kimenet saját blokk adatát is tartalmazhatja, ezért nem kerülhet a repóba vagy hibajegybe. A bronzba került blokk nem törölhető, csak a FIN-309 építi újra üresen az adatbázist és a Garage-ot. A fotót a napi mentés a restic-pillanatképekbe is beviszi.
+
+A modell kitalált mintablokkon így próbálható ki, ez a bronzba nem ír:
+
+```sh
+podman compose -f home/docker-compose.yml run --rm --no-deps worker python -m tools.smoke_receipt
+```
+
+A worker tesztjei a `scripts/test-worker.sh` paranccsal futnak, valódi Garage-dzsal és Postgresszel, a modellt egy csonk helyettesíti.
 
 ## Migrációk
 
@@ -129,7 +164,7 @@ git config core.hooksPath .githooks
 ```
 
 - A `main` ágra csak pull requestből kerül kód, zöld pipeline-nal. Egy fejlesztő van, ezért kötelező jóváhagyás nincs.
-- A CI (`.github/workflows/ci.yml`) minden pushra futtatja a lintet (ruff, sqlfluff), az adatfájlok tiltását, a titokkeresést (gitleaks), a Compose-ellenőrzést, a migrációkat és a bronz tesztet.
+- A CI (`.github/workflows/ci.yml`) minden pushra futtatja a lintet (ruff, sqlfluff), az adatfájlok tiltását, a titokkeresést (gitleaks), a Compose-ellenőrzést, a migrációkat, a bronz tesztet, a dbt-t, valamint a webapp és a worker tesztjeit.
 - A döntési jegyzetek a [docs/adr/](docs/adr/) mappában vannak.
 - A változások a [Változásnapló](docs/Változásnapló.md) Kiadatlan részébe kerülnek, a kiadás menete a [Release folyamat](docs/Release%20folyamat.md) dokumentumban van.
 - A scriptek a `docker compose` és a `podman compose` közül maguk választanak, a `COMPOSE` változó ezt felülírja.

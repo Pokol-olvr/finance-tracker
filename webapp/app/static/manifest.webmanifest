@@ -1,0 +1,12 @@
+{
+  "name": "Pénzügyi nyomkövető",
+  "short_name": "Blokkok",
+  "lang": "hu",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f5f1",
+  "theme_color": "#1f6f54",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

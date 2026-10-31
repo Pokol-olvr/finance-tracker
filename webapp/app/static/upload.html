@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Blokk feltöltése</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f6f5f1;
+      --panel: #ffffff;
+      --text: #1f2421;
+      --muted: #5d6660;
+      --line: #d6d6cf;
+      --accent: #1f6f54;
+      --on-accent: #ffffff;
+      --error: #a32a22;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #161a18;
+        --panel: #1f2522;
+        --text: #e9ece9;
+        --muted: #a4ada7;
+        --line: #38403b;
+        --accent: #63c29f;
+        --on-accent: #10231c;
+        --error: #f19a92;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 24px 16px;
+      background: var(--bg);
+      color: var(--text);
+      font: 16px/1.5 system-ui, sans-serif;
+    }
+    main { max-width: 440px; margin: 0 auto; }
+    h1 { margin: 0 0 16px; font-size: 24px; line-height: 1.25; }
+    form {
+      display: grid;
+      gap: 16px;
+      padding: 16px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+    label, legend { display: grid; gap: 4px; font-weight: 600; }
+    input[type="file"], input[type="date"], select {
+      width: 100%;
+      min-height: 44px;
+      padding: 8px;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      font: inherit;
+      font-weight: 400;
+    }
+    fieldset { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; }
+    legend { margin-bottom: 4px; padding: 0; }
+    .tag { display: flex; align-items: center; gap: 8px; min-height: 32px; font-weight: 400; }
+    .tag input { width: 20px; height: 20px; margin: 0; accent-color: var(--accent); }
+    button {
+      min-height: 44px;
+      background: var(--accent);
+      color: var(--on-accent);
+      border: 0;
+      border-radius: 6px;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.6; cursor: progress; }
+    #status { min-height: 24px; margin: 0; color: var(--muted); }
+    #status.error { color: var(--error); }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Blokk feltöltése</h1>
+    <form id="upload">
+      <label>Fotó
+        <input type="file" name="file" required
+               accept="image/jpeg,image/png,image/heic,image/webp,.heic">
+      </label>
+      <label>Feltöltő
+        <select name="uploaded_by" required>{{members}}</select>
+      </label>
+      <label>Vásárló
+        <select name="purchased_by" required>{{members}}</select>
+      </label>
+      <label>A blokk dátuma
+        <input type="date" name="purchase_date" required>
+      </label>
+      <label>Ki fizetett
+        <select name="payer" required>
+          <option value="shared">Közös kártya</option>{{members}}
+        </select>
+      </label>
+      <fieldset>
+        <legend>Címkék</legend>
+        {{tags}}
+      </fieldset>
+      <button type="submit">Feltöltés</button>
+      <p id="status" role="status"></p>
+    </form>
+  </main>
+  <script>
+    const form = document.getElementById("upload");
+    const statusLine = document.getElementById("status");
+    const uploader = form.elements.uploaded_by;
+    const purchaser = form.elements.purchased_by;
+    const dateField = form.elements.purchase_date;
+    let purchaserChosen = false;
+
+    function rememberedUploader() {
+      try {
+        return localStorage.getItem("uploaded_by");
+      } catch {
+        return null;
+      }
+    }
+
+    function rememberUploader(value) {
+      try {
+        localStorage.setItem("uploaded_by", value);
+      } catch {
+        // Tiltott tároló mellett a következő feltöltésnél újra választani kell.
+      }
+    }
+
+    function localToday() {
+      const now = new Date();
+      const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+      return local.toISOString().slice(0, 10);
+    }
+
+    function showStatus(message, isError) {
+      statusLine.textContent = message;
+      statusLine.classList.toggle("error", isError);
+    }
+
+    function setDefaults() {
+      const saved = rememberedUploader();
+      if ([...uploader.options].some((option) => option.value === saved)) {
+        uploader.value = saved;
+      }
+      purchaser.value = uploader.value;
+      purchaserChosen = false;
+      dateField.value = localToday();
+      dateField.max = localToday();
+    }
+
+    async function errorMessage(response) {
+      if (response.status === 413) return "A fájl nagyobb 20 MB-nál.";
+      if (response.status === 415) return "Csak JPEG, PNG, HEIC vagy WebP tölthető fel.";
+      if (response.status === 422) return "Ellenőrizd a mezőket.";
+      return `A feltöltés nem sikerült (${response.status}).`;
+    }
+
+    uploader.addEventListener("change", () => {
+      if (!purchaserChosen) purchaser.value = uploader.value;
+    });
+    purchaser.addEventListener("change", () => {
+      purchaserChosen = true;
+    });
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (!form.querySelector('input[name="tags"]:checked')) {
+        showStatus("Válassz legalább egy címkét.", true);
+        return;
+      }
+      const button = form.querySelector("button");
+      button.disabled = true;
+      showStatus("Feltöltés…", false);
+      try {
+        const response = await fetch("/uploads", { method: "POST", body: new FormData(form) });
+        if (response.ok) {
+          rememberUploader(uploader.value);
+          form.reset();
+          setDefaults();
+          showStatus("Feltöltve, a kiolvasás pár percen belül elkészül.", false);
+        } else {
+          showStatus(await errorMessage(response), true);
+        }
+      } catch {
+        showStatus("A szerver nem érhető el.", true);
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    setDefaults();
+  </script>
+</body>
+</html>
