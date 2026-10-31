@@ -60,7 +60,7 @@ Mentés: naponta adatbázis-dump és az object store szinkronja külső meghajt�
 
 ## Adatfelvétel: webapp a Pi-n és e-mail
 
-A webapp a Pi-n fut, a telefonon PWA-ként jelenik meg, és eléri a kamerát. A backend Python (FastAPI, MIT licenc), a függő tételeket egy kis SQLite tárolja. A Pi csak postaláda: amit az otthoni stack lezárt, azt törli.
+A webapp a Pi-n fut, a telefonon PWA-ként jelenik meg, és eléri a kamerát. Amíg a Pi nincs beállítva, átmenetileg az otthoni stackben fut, csak helyben elérhetően ([[0005-monorepo-es-atmeneti-otthoni-webapp|ADR 0005]]). A backend Python (FastAPI, MIT licenc), a függő tételeket egy kis SQLite tárolja. A Pi csak postaláda: amit az otthoni stack lezárt, azt törli.
 
 | Képernyő | Mit csinál |
 | --- | --- |
@@ -138,7 +138,7 @@ Egy PostgreSQL adatbázis három sémával (bronze, silver, gold), mellette a ny
 
 | Réteg | Fő táblák | Jelleg |
 | --- | --- | --- |
-| Bronz | nyers dokumentum (fájl, hash, feltöltő, időpontok, forrástípus), modellkimenet (JSON + modellverzió), kézi bejegyzés, bérpapír, kivonatsor, hitel- és tartozásbejegyzés | Csak hozzáfűz, változatlan |
+| Bronz | nyers dokumentum (fájl, hash, feltöltő, vásárló, időpontok, forrástípus), modellkimenet (JSON + modellverzió), kézi bejegyzés, bérpapír, kivonatsor, hitel- és tartozásbejegyzés | Csak hozzáfűz, változatlan |
 | Silver | blokk, blokktétel, egységes tranzakció (kiadás, bevétel, átvezetés), bolt, kategória, fizető fél, korrekció, hitel, tartozás | Tisztított, deduplikált, szabályokkal kategorizált |
 | Gold | havi cash-flow (közös és személyes), kategória-hónap, közös kassza (befizetés, kiadás, javasolt utalás), célok állása, hitelek állása, tételár-történet, modellpontosság | Kész mutatók a BI-nak |
 

@@ -136,7 +136,7 @@ Egy fogalomra mindig ugyanazt a szót használd.
 | kategória | A tételhez rendelt besorolás a silverben |
 | feltöltő | Aki rögzítette (`uploaded_by`) |
 | fizető fél | A közös kártya vagy valamelyikünk (`payer`) |
-| vásárló | A feltöltéskor megadott személy, aki vásárolt; a fizető féllel ne cseréld fel |
+| vásárló | Aki vásárolt, mindig személy (`purchased_by`); a fizető féllel ne cseréld fel |
 | átvezetés | Saját zsebek közötti pénzmozgás; soha nem kiadás |
 | közös kártya | A mindennapi közös kiadások kártyája, 50/50 befizetéssel |
 | Revolut-zseb | A közös célok pénze, külön a közös kártyától |
