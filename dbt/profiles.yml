@@ -1,0 +1,12 @@
+finance:
+  target: home
+  outputs:
+    home:
+      type: postgres
+      host: "{{ env_var('DBT_HOST', 'postgres') }}"
+      port: 5432
+      user: dbt_runner
+      password: "{{ env_var('DBT_RUNNER_PASSWORD') }}"
+      dbname: finance
+      schema: silver
+      threads: 2

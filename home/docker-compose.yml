@@ -87,6 +87,59 @@ services:
       retries: 8
       start_period: 180s
 
+  # Egyelőre itt fut, a Pi-re költözéssel átkerül a pi/ Compose-fájlba (ADR 0005).
+  webapp:
+    build: ../webapp
+    image: localhost/finance-tracker-webapp
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgresql://app_writer:${APP_WRITER_PASSWORD:?}@postgres:5432/finance
+      HOUSEHOLD_MEMBERS: ${HOUSEHOLD_MEMBERS:-person_a,person_b}
+    ports:
+      # Belépés a FIN-303-ig nincs, ezért csak helyben látszhat.
+      - 127.0.0.1:${WEBAPP_PORT:-8000}:8000
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request as u; u.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+  webapp-test:
+    image: docker.io/library/python:3.13.18-slim
+    profiles: [tools]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      TEST_DATABASE_URL: postgresql://app_writer:${APP_WRITER_PASSWORD:?}@postgres:5432/finance
+      PYTHONDONTWRITEBYTECODE: "1"
+      PIP_ROOT_USER_ACTION: ignore
+    working_dir: /repo/webapp
+    volumes:
+      - ..:/repo:ro,z
+    entrypoint: [sh, -c, "pip install -q --no-cache-dir -r requirements-dev.txt && python -m pytest -q -p no:cacheprovider"]
+
+  # Csak olvassa a dbt mappát, a futás melléktermékei a konténerben maradnak.
+  dbt:
+    build: ../dbt
+    image: localhost/finance-tracker-dbt:1.12.6
+    profiles: [tools]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DBT_RUNNER_PASSWORD: ${DBT_RUNNER_PASSWORD:?}
+      DBT_PROFILES_DIR: /dbt
+      DBT_TARGET_PATH: /tmp/dbt/target
+      DBT_LOG_PATH: /tmp/dbt/logs
+      DBT_PACKAGES_INSTALL_PATH: /tmp/dbt/packages
+    volumes:
+      - ../dbt:/dbt:ro,z
+
   # Eszközök a mentéshez: csak a scripts/ mappából, `run`-nal indulnak.
   rclone:
     image: docker.io/rclone/rclone:1.75.2

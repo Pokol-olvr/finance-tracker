@@ -1,0 +1,24 @@
+name: finance
+version: "1.0"
+config-version: 2
+profile: finance
+
+flags:
+  send_anonymous_usage_stats: false
+
+vars:
+  # SQL-kifejezés: a unit tesztek rögzített dátummal írják felül.
+  as_of_date: current_date
+
+models:
+  finance:
+    silver:
+      +schema: silver
+      +materialized: table
+    gold:
+      +schema: gold
+      +materialized: table
+
+seeds:
+  finance:
+    +schema: silver

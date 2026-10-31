@@ -1,0 +1,8 @@
+[Unit]
+Description=Pénzügyi nyomkövető éjszakai dbt build
+After=podman.socket podman-restart.service
+
+[Service]
+Type=oneshot
+# Az útvonalat a scripts/install-timers.sh írja a repó tényleges helyére.
+ExecStart=%h/finance-tracker/scripts/dbt.sh

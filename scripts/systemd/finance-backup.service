@@ -4,5 +4,5 @@ After=podman.socket podman-restart.service
 
 [Service]
 Type=oneshot
-# Az útvonalat a scripts/install-backup-timer.sh írja a repó tényleges helyére.
+# Az útvonalat a scripts/install-timers.sh írja a repó tényleges helyére.
 ExecStart=%h/finance-tracker/scripts/backup.sh

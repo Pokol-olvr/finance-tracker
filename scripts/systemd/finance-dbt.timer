@@ -1,0 +1,10 @@
+[Unit]
+Description=Pénzügyi nyomkövető éjszakai dbt build ütemezése
+
+[Timer]
+# A 03:30-as mentés előtt, hogy az a friss silvert és goldot vigye.
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
