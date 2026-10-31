@@ -99,7 +99,15 @@ docker compose run --rm rclone copyto /backup/restore/backup/garage-raw/fajl.jpg
 
 ## Fejlesztés
 
+A repó nyilvános, ezért csak a szoftver váza kerül bele. Valódi blokk, bérpapír, kivonat, dump, modell és titok soha; a tesztekhez csak kitalált adat használható.
+
+Klónozás után kapcsold be a commit előtti ellenőrzést. Ez a tiltott fájltípusokat és a titkokat keresi, és Docker vagy Podman kell hozzá:
+
+```sh
+git config core.hooksPath .githooks
+```
+
 - A `main` ágra csak pull requestből kerül kód, a másik fél jóváhagyásával és zöld pipeline-nal.
-- A CI (`.github/workflows/ci.yml`) minden pushra futtatja a lintet (ruff, sqlfluff), a titokkeresést (gitleaks), a Compose-ellenőrzést, a migrációkat és a bronz tesztet.
+- A CI (`.github/workflows/ci.yml`) minden pushra futtatja a lintet (ruff, sqlfluff), az adatfájlok tiltását, a titokkeresést (gitleaks), a Compose-ellenőrzést, a migrációkat és a bronz tesztet.
 - A döntési jegyzetek a [docs/adr/](docs/adr/) mappában vannak.
 - Podman esetén a scriptek a `COMPOSE` változóval kapják meg a Compose-parancsot.

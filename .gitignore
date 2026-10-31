@@ -18,3 +18,20 @@ logs/
 
 # Obsidian helyi beállítások
 .obsidian/
+
+# A repó nyilvános: valódi adat nem kerülhet bele
+*.jpg
+*.jpeg
+*.png
+*.heic
+*.webp
+*.pdf
+*.eml
+*.csv
+*.xls
+*.xlsx
+*.ods
+*.dump
+*.gguf
+*.safetensors
+!dbt/seeds/*.csv

@@ -32,7 +32,7 @@ Javasolt sorrend: először a FIN-101 és a FIN-102. Utána párhuzamosan mehet 
 
 **Részfeladatok**
 
-- [ ] Repo létrehozása (a hely a sprinttervezésen dől el, lásd lent) 📅 2026-11-15
+- [x] Repo létrehozása: nyilvános GitHub-repó 📅 2026-11-15
 - [x] Mappaszerkezet a lenti minta szerint, üres helyeken `.gitkeep` 📅 2026-11-15
 - [x] `.gitignore`: `data/`, `backup/`, `.env`, Python- és dbt-melléktermékek 📅 2026-11-15
 - [x] `home/.env.example` minden szükséges változóval, értékek nélkül 📅 2026-11-15
@@ -190,7 +190,7 @@ create trigger raw_document_append_only
 
 **Részfeladatok**
 
-- [ ] Pipeline a választott helyen (GitHub Actions vagy Forgejo Actions; a kettő munkafolyamat-formátuma nagyon hasonló) 📅 2026-11-15
+- [x] Pipeline GitHub Actionsben 📅 2026-11-15
 - [x] Lint: ruff a Python-kódra, SQL-lint a migrációkra 📅 2026-11-15
 - [x] `docker compose config` ellenőrzés a `home/` mappára 📅 2026-11-15
 - [x] Migrációk futtatása egy Postgres-szolgáltatáskonténeren, utána egy rövid teszt: beszúrás működik, UPDATE hibát ad 📅 2026-11-15
@@ -212,6 +212,6 @@ create trigger raw_document_append_only
 
 **A tervezésen eldöntendő**
 
-- [ ] Hol legyen a repo: GitHub, vagy saját Forgejo a Proxmoxon? A Forgejo teljesen nyílt forrású, de nektek kell üzemeltetni. 📅 2026-11-02
+- [x] Hol legyen a repo: nyilvános GitHub-repó, amelybe valódi adat nem kerül. 📅 2026-11-02
 - [ ] Mi a mentés célja: külső USB-lemez, vagy a Proxmox egy másik lemeze? Egy példány érdemes házon kívül is. 📅 2026-11-02
 - [ ] Ki melyik jegyet viszi? Javaslat: az egyikőtök a FIN-102 → FIN-103 → FIN-104 vonalat, a másik a FIN-201 → FIN-105 vonalat. 📅 2026-11-02
