@@ -1,0 +1,7 @@
+[Unit]
+Description=Pénzügyi nyomkövető napi mentés
+
+[Service]
+Type=oneshot
+# Írd át a repó tényleges helyére.
+ExecStart=%h/finance-tracker/scripts/backup.sh

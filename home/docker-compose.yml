@@ -1,0 +1,125 @@
+name: finance-tracker
+
+services:
+  postgres:
+    image: docker.io/library/postgres:18.6
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?a .env nincs kitöltve}
+      FINANCE_OWNER_PASSWORD: ${FINANCE_OWNER_PASSWORD:?}
+      APP_WRITER_PASSWORD: ${APP_WRITER_PASSWORD:?}
+      DBT_RUNNER_PASSWORD: ${DBT_RUNNER_PASSWORD:?}
+      MB_READER_PASSWORD: ${MB_READER_PASSWORD:?}
+      METABASE_DB_PASSWORD: ${METABASE_DB_PASSWORD:?}
+    volumes:
+      # A Postgres 18-as kép a PGDATA-t ez alatt, verziózott mappában tartja.
+      - ${DATA_DIR:-./data}/postgres:/var/lib/postgresql:z
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro,z
+    ports:
+      - 127.0.0.1:${POSTGRES_PORT:-5432}:5432
+    healthcheck:
+      # TCP-n kérdezünk: az init scriptek alatt a szerver csak unix socketen figyel.
+      test: [CMD, pg_isready, -h, 127.0.0.1, -U, postgres, -d, finance]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  migrate:
+    image: ghcr.io/amacneil/dbmate:2.37.0
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://finance_owner:${FINANCE_OWNER_PASSWORD:?}@postgres:5432/finance?sslmode=disable
+    volumes:
+      - ../migrations:/migrations:ro,z
+    command: [--migrations-dir, /migrations, --no-dump-schema, up]
+
+  garage:
+    image: docker.io/dxflrs/garage:v2.5.0
+    restart: unless-stopped
+    # Egycsomópontos layout, a raw bucket és a kulcs az első induláskor jön létre.
+    command: [/garage, server, --single-node, --default-bucket]
+    environment:
+      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:?}
+      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:?}
+      GARAGE_DEFAULT_ACCESS_KEY: ${GARAGE_ACCESS_KEY:?}
+      GARAGE_DEFAULT_SECRET_KEY: ${GARAGE_SECRET_KEY:?}
+      GARAGE_DEFAULT_BUCKET: raw
+    volumes:
+      - ./garage/garage.toml:/etc/garage.toml:ro,z
+      - ${DATA_DIR:-./data}/garage/meta:/var/lib/garage/meta:z
+      - ${DATA_DIR:-./data}/garage/data:/var/lib/garage/data:z
+    ports:
+      # Csak az S3 API; az RPC és az admin port a Compose-hálózaton belül marad.
+      - ${BIND_ADDRESS:-127.0.0.1}:${GARAGE_S3_PORT:-3900}:3900
+    healthcheck:
+      test: [CMD, /garage, status]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+  metabase:
+    image: docker.io/metabase/metabase:v0.65.2.4
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_HOST: postgres
+      MB_DB_PORT: 5432
+      MB_DB_DBNAME: metabase
+      MB_DB_USER: metabase_owner
+      MB_DB_PASS: ${METABASE_DB_PASSWORD:?}
+      MB_ENCRYPTION_SECRET_KEY: ${MB_ENCRYPTION_SECRET_KEY:?}
+      MB_ANON_TRACKING_ENABLED: "false"
+    ports:
+      - ${BIND_ADDRESS:-127.0.0.1}:${METABASE_PORT:-3000}:3000
+    healthcheck:
+      test: [CMD, curl, -fsS, http://localhost:3000/api/health]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 180s
+
+  # Eszközök a mentéshez: csak a scripts/ mappából, `run`-nal indulnak.
+  rclone:
+    image: docker.io/rclone/rclone:1.75.2
+    profiles: [tools]
+    environment:
+      RCLONE_CONFIG_GARAGE_TYPE: s3
+      RCLONE_CONFIG_GARAGE_PROVIDER: Other
+      RCLONE_CONFIG_GARAGE_ENDPOINT: http://garage:3900
+      RCLONE_CONFIG_GARAGE_REGION: garage
+      RCLONE_CONFIG_GARAGE_FORCE_PATH_STYLE: "true"
+      RCLONE_CONFIG_GARAGE_ACCESS_KEY_ID: ${GARAGE_ACCESS_KEY:?}
+      RCLONE_CONFIG_GARAGE_SECRET_ACCESS_KEY: ${GARAGE_SECRET_KEY:?}
+    volumes:
+      - ${BACKUP_DIR:-./backup}:/backup:z
+
+  restic:
+    image: docker.io/restic/restic:0.19.1
+    profiles: [tools]
+    hostname: finance-home
+    environment:
+      RESTIC_REPOSITORY: /repo
+      RESTIC_PASSWORD: ${RESTIC_PASSWORD:?}
+    volumes:
+      - ${RESTIC_REPO_DIR:-./backup/restic}:/repo:z
+      - ${BACKUP_DIR:-./backup}:/backup:z
+
+  # A visszaállítási próba eldobható adatbázisa: memóriában fut, nincs portja.
+  restore-db:
+    image: docker.io/library/postgres:18.6
+    profiles: [tools]
+    environment:
+      POSTGRES_PASSWORD: restore-test-only
+    tmpfs:
+      - /var/lib/postgresql
+    volumes:
+      - ${BACKUP_DIR:-./backup}:/backup:ro,z

@@ -1,0 +1,10 @@
+[Unit]
+Description=Pénzügyi nyomkövető napi mentés ütemezése
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+# Ha a gép éjjel ki volt kapcsolva, a mentés induláskor pótlódik.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,11 @@
+[sqlfluff]
+dialect = postgres
+templater = raw
+max_line_length = 120
+
+[sqlfluff:indentation]
+tab_space_size = 2
+
+# Az oszlopok adattípusai egymás alá igazíthatók, mint a Sprint 1 mintájában.
+[sqlfluff:layout:type:data_type]
+spacing_before = any

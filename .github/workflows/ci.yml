@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Python-lint
+        run: docker run --rm -v "$PWD:/io" -w /io ghcr.io/astral-sh/ruff:0.17.3 check .
+      - name: SQL-lint
+        run: docker run --rm -v "$PWD:/sql" -w /sql docker.io/sqlfluff/sqlfluff:4.5.0 lint migrations
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Titokkeresés
+        run: docker run --rm -v "$PWD:/repo" docker.io/zricethezav/gitleaks:v8.30.1 git --redact --verbose /repo
+
+  stack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Tesztkörnyezet
+        run: scripts/init-env.sh
+      - name: Compose-ellenőrzés
+        working-directory: home
+        run: docker compose config --quiet
+      - name: Postgres indítása
+        working-directory: home
+        run: docker compose up -d --wait postgres
+      - name: Migrációk
+        working-directory: home
+        run: docker compose run --rm migrate
+      - name: Migrációk újrafuttatása
+        working-directory: home
+        run: docker compose run --rm migrate
+      - name: Bronz teszt
+        run: scripts/test-bronze.sh
+      - name: dbt build
+        # Helyőrző, a FIN-202 kapcsolja be a 2. sprintben.
+        run: echo "A dbt lépés a FIN-202-vel kapcsol be."

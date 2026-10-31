@@ -1,0 +1,20 @@
+# Futásidejű adat és titkok
+data/
+backup/
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.ruff_cache/
+.pytest_cache/
+
+# dbt
+target/
+dbt_packages/
+logs/
+.user.yml
+
+# Obsidian helyi beállítások
+.obsidian/
