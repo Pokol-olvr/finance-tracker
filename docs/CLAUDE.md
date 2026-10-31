@@ -15,6 +15,8 @@ Minden állítás egy helyen él, a többi csak hivatkozik rá.
 | [[Fejlesztési terv]] | Mikor és milyen sorrendben? Epicek, story-k, sprintek, munkaszabályok | Részfeladatok, megvalósítási minták |
 | `Sprint N.md` | Pontosan mit csinálunk ebben a sprintben? | Új üzleti vagy technikai döntés |
 | `adr/NNNN-cim.md` | Miért ezt választottuk, és mi volt az alternatíva? | Általános leírás |
+| [[Release folyamat]] | Hogyan adunk ki és telepítünk? Verziózás, kiadási lépések, visszaállás | Az egyes kiadások tartalma |
+| [[Változásnapló]] | Mi változott kiadásonként? | Tervek, indoklások |
 
 Ütközésnél az üzleti kérdésben az Üzleti koncepció, a technikaiban a Technikai terv az irányadó. Ütközést ne javíts csendben: ha nem egyértelmű, melyik a helyes, kérdezz rá.
 
@@ -33,6 +35,7 @@ Minden állítás egy helyen él, a többi csak hivatkozik rá.
 | Story címe, pontja vagy epicje | Fejlesztési terv story-sora és epic-fejléce, a teljes SP a bevezetőben, az érintett sprintdokumentum |
 | Sprint dátuma | Sprint-táblázat, Gantt-ábra, a 📅 dátumok, a sprintdokumentum frontmattere és bevezetője |
 | Sprint story-listája | A sprintdokumentum `story_pont` mezője, cél-mondata, táblázata és javasolt sorrendje |
+| A szoftver működése, telepítése vagy biztonsága | [[Változásnapló]] `## Kiadatlan` része |
 
 ## Dokumentumszerkezet
 
@@ -99,6 +102,10 @@ Sorrend: `## Sprint cél` (félkövér cél-mondat, időszak, SP), jegytábláza
 - A részfeladat dátuma a sprint vége; eseménynél és a tervezésen eldöntendő kérdésnél a saját napja.
 - Elfogadási feltétel csak olyan lehet, ami igaz vagy hamis; a „jól működik” nem elég.
 - Szakasz végén szerepelhet minta (SQL, mappaszerkezet, szerepkörtábla), ha a megvalósításhoz kell. A jegy kulcsa, címe és SP-je egyezzen a Fejlesztési tervvel; a cím lehet rövidebb.
+
+### Változásnapló
+
+A `## Kiadatlan` és a `## v0.1.0 · 2026-11-15` címsorokat a `scripts/release.sh` olvassa és írja, ezért a formájuk nem változhat. A bejegyzések szabályai: [[Release folyamat]].
 
 ### ADR
 
