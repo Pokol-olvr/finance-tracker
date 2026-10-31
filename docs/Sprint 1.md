@@ -210,7 +210,7 @@ create trigger raw_document_append_only
 - [ ] Sprinttervezés, kb. 30 perc 📅 2026-11-02
 - [ ] Heti áttekintés, kb. 15 perc 📅 2026-11-09
 - [ ] Demó és retró, kb. 30 perc 📅 2026-11-15
-- [ ] Kiadás: `v0.1.0` a [[Release folyamat]] szerint 📅 2026-11-15
+- [x] Kiadás: `v0.1.0` a [[Release folyamat]] szerint 📅 2026-11-15
 
 **A tervezésen eldöntendő**
 
