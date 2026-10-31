@@ -43,7 +43,7 @@ Javasolt sorrend: FIN-202, FIN-203, FIN-204, végül a FIN-205. A FIN-204 kital�
 - [x] `silver.transactions` a `manual_entry` táblából (lásd lent) 📅 2026-11-29
 - [x] Tesztek: egyedi és kitöltött `transaction_id`, a `kind` megengedett értékei, `amount > 0`, kiadás kategóriája a seedben szerepel 📅 2026-11-29
 - [x] A CI `dbt build` helyőrzője helyett valódi lépés a migrációk után 📅 2026-11-29
-- [ ] Éjszakai `dbt build`: `finance-dbt.timer` 03:00-kor, hogy a 03:30-as mentés a friss silvert és goldot vigye 📅 2026-11-29
+- [x] Éjszakai `dbt build`: `finance-dbt.timer` 03:00-kor, hogy a 03:30-as mentés a friss silvert és goldot vigye 📅 2026-11-29
 - [x] README: a `dbt build` futtatása 📅 2026-11-29
 
 **Elfogadási feltételek**
@@ -195,7 +195,7 @@ A számok kitaláltak, valódi adat nem kerülhet a repóba.
 - [ ] Sprinttervezés, kb. 30 perc 📅 2026-11-16
 - [ ] Heti áttekintés, kb. 15 perc 📅 2026-11-23
 - [ ] Demó és retró, kb. 30 perc 📅 2026-11-29
-- [ ] Kiadás: `v0.2.0` a [[Release folyamat]] szerint 📅 2026-11-29
+- [x] Kiadás: `v0.2.0` a [[Release folyamat]] szerint 📅 2026-11-29
 
 **Eldöntve a tervezés előtt**
 

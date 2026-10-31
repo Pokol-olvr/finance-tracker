@@ -13,6 +13,8 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 
 ## Kiadatlan
 
+## v0.2.0 · 2026-10-31
+
 ### Hozzáadva
 
 - FIN-202 dbt projekt, `silver.transactions`, adattesztek és éjszakai `dbt build`.
