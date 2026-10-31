@@ -174,7 +174,7 @@ create trigger raw_document_append_only
 - [x] restic tároló a főgépen (`home/backup/restic`); a mentés a dumpot és a tükröt viszi 📅 2026-11-15
 - [ ] A restic tároló áthelyezése külső meghajtóra, ha lesz: addig a mentés lemezhiba ellen nem véd
 - [x] Megőrzés: `restic forget --keep-daily 7 --keep-weekly 4 --keep-monthly 6 --prune` 📅 2026-11-15
-- [ ] Ütemezés a gazdagépen (systemd timer vagy cron), naponta egyszer 📅 2026-11-15
+- [x] Ütemezés a gazdagépen (systemd timer), naponta egyszer 📅 2026-11-15
 - [ ] A restic jelszó a jelszókezelőben is legyen: nélküle a mentés használhatatlan 📅 2026-11-15
 - [x] `scripts/restore-test.sh`: ideiglenes Postgres-konténerbe visszatölti a legutóbbi mentést, és összeveti a sorok számát 📅 2026-11-15
 

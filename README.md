@@ -79,13 +79,10 @@ A `RESTIC_REPO_DIR` éles használatra külső meghajtóra mutasson; alapból ug
 
 A konténerek rootless Podmanben a felhasználóhoz tartoznak, ezért a `home/data/postgres` törléséhez `podman unshare rm -rf home/data` kell.
 
-A systemd timer naponta 03:30-kor futtatja a mentést, és ha a gép ki volt kapcsolva, induláskor pótolja. A `scripts/systemd/finance-backup.service` fájlban írd át a repó helyét, majd:
+A systemd timer naponta 03:30-kor futtatja a mentést, és ha a gép ki volt kapcsolva, induláskor pótolja. A telepítés:
 
 ```sh
-cp scripts/systemd/finance-backup.* ~/.config/systemd/user/
-systemctl --user daemon-reload
-systemctl --user enable --now finance-backup.timer
-loginctl enable-linger "$USER"
+scripts/install-backup-timer.sh
 ```
 
 ### Visszaállítás
