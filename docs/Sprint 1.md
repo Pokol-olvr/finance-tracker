@@ -171,7 +171,8 @@ create trigger raw_document_append_only
 
 - [x] `scripts/backup.sh`: `pg_dump -Fc` a `finance` és a `metabase` adatbázisról a `backup/` mappába 📅 2026-11-15
 - [x] A Garage `raw` bucket tükrözése rclone-nal egy helyi mappába 📅 2026-11-15
-- [x] restic tároló a külső meghajtón; a mentés a dumpot és a tükröt viszi 📅 2026-11-15
+- [x] restic tároló a főgépen (`home/backup/restic`); a mentés a dumpot és a tükröt viszi 📅 2026-11-15
+- [ ] A restic tároló áthelyezése külső meghajtóra, ha lesz: addig a mentés lemezhiba ellen nem véd
 - [x] Megőrzés: `restic forget --keep-daily 7 --keep-weekly 4 --keep-monthly 6 --prune` 📅 2026-11-15
 - [ ] Ütemezés a gazdagépen (systemd timer vagy cron), naponta egyszer 📅 2026-11-15
 - [ ] A restic jelszó a jelszókezelőben is legyen: nélküle a mentés használhatatlan 📅 2026-11-15
@@ -214,6 +215,6 @@ create trigger raw_document_append_only
 **A tervezésen eldöntendő**
 
 - [x] Hol legyen a repo: nyilvános GitHub-repó, amelybe valódi adat nem kerül. 📅 2026-11-02
-- [ ] Mi a mentés célja: külső USB-lemez, vagy a Proxmox egy másik lemeze? Egy példány érdemes házon kívül is. 📅 2026-11-02
+- [x] Mi a mentés célja: egyelőre a főgép, külső lemez később. Egy példány érdemes házon kívül is. 📅 2026-11-02
 - [x] Konténer-futtató: rootless Podman a főgépen ([[0004-rootless-podman-a-docker-helyett|ADR 0004]])
 - [ ] Ki melyik jegyet viszi? Javaslat: az egyikőtök a FIN-102 → FIN-103 → FIN-104 vonalat, a másik a FIN-201 → FIN-105 vonalat. 📅 2026-11-02
