@@ -215,4 +215,5 @@ create trigger raw_document_append_only
 
 - [x] Hol legyen a repo: nyilvános GitHub-repó, amelybe valódi adat nem kerül. 📅 2026-11-02
 - [ ] Mi a mentés célja: külső USB-lemez, vagy a Proxmox egy másik lemeze? Egy példány érdemes házon kívül is. 📅 2026-11-02
+- [x] Konténer-futtató: rootless Podman a főgépen ([[0004-rootless-podman-a-docker-helyett|ADR 0004]])
 - [ ] Ki melyik jegyet viszi? Javaslat: az egyikőtök a FIN-102 → FIN-103 → FIN-104 vonalat, a másik a FIN-201 → FIN-105 vonalat. 📅 2026-11-02

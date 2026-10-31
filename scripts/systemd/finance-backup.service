@@ -1,5 +1,6 @@
 [Unit]
 Description=Pénzügyi nyomkövető napi mentés
+After=podman.socket
 
 [Service]
 Type=oneshot
