@@ -53,7 +53,7 @@ A bejegyzések ezek alá a címsorok alá kerülnek, és ami üres, az elmarad:
    git commit -m "Kiadás: v0.1.0"
    git push -u origin release/v0.1.0
    ```
-3. **Pull request:** a másik fél átnézi a kiadás szövegét, majd merge.
+3. **Pull request:** a CI zöld, a kiadás szövege át van nézve, majd merge.
 4. **Címke:** a frissített `main` ágon a script elkészíti és felküldi a címkét.
    ```sh
    git switch main
