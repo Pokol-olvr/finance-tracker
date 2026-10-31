@@ -110,4 +110,5 @@ git config core.hooksPath .githooks
 - A `main` ágra csak pull requestből kerül kód, a másik fél jóváhagyásával és zöld pipeline-nal.
 - A CI (`.github/workflows/ci.yml`) minden pushra futtatja a lintet (ruff, sqlfluff), az adatfájlok tiltását, a titokkeresést (gitleaks), a Compose-ellenőrzést, a migrációkat és a bronz tesztet.
 - A döntési jegyzetek a [docs/adr/](docs/adr/) mappában vannak.
+- A változások a [Változásnapló](docs/Változásnapló.md) Kiadatlan részébe kerülnek, a kiadás menete a [Release folyamat](docs/Release%20folyamat.md) dokumentumban van.
 - Podman esetén a scriptek a `COMPOSE` változóval kapják meg a Compose-parancsot.

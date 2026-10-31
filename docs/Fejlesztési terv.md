@@ -10,7 +10,7 @@ tags: [penzugy, projekt]
 
 8 epic, 10 kéthetes sprint, kb. 154 story pont. Minden story egy feladat: a 📅 dátum a sprint vége, a címkék az epicet és a sprintet jelölik. A [Tasks](https://publish.obsidian.md/tasks/) bővítménnyel szűrhető, pl. `tags include #sprint/S1`.
 
-Részletes sprintterv: [[Sprint 1]] · Kapcsolódó: [[Üzleti koncepció]] · [[Technikai terv]]
+Részletes sprintterv: [[Sprint 1]] · Kapcsolódó: [[Üzleti koncepció]] · [[Technikai terv]] · [[Release folyamat]] · [[Változásnapló]]
 
 ## Sprintek
 
@@ -188,8 +188,9 @@ Kész, ha: a finomhangolt 4B-s modell a Proxmoxon fut, a számok egyeznek.
 - A kód pull requestben van, és a másik fél átnézte.
 - A `dbt build` és a tesztek zöldek a CI-ban.
 - A README vagy egy döntési jegyzet (ADR) frissítve, ha a működés változott.
+- A változás bekerült a [[Változásnapló]] Kiadatlan részébe.
 - Saját, valós adaton ki van próbálva.
 
-**Ritmus:** sprinttervezés kb. 30 perc, heti egyeztetés kb. 15 perc, sprint végén demó és retró kb. 30 perc.
+**Ritmus:** sprinttervezés kb. 30 perc, heti egyeztetés kb. 15 perc, sprint végén demó és retró kb. 30 perc, utána kiadás a [[Release folyamat]] szerint.
 
 **Jelölések:** FIN-E1…E8 az epicek, FIN-101… a story-k (az első számjegy az epic). Story pont Fibonacci-skálán (1, 2, 3, 5, 8); ami 8 fölé menne, azt bontani kell.
