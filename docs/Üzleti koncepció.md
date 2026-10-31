@@ -1,7 +1,7 @@
 ---
 projekt: Pénzügyi nyomkövető
 tipus: üzleti koncepció
-datum: 2026-10-27
+datum: 2026-10-31
 tags: [penzugy, projekt]
 ---
 
@@ -104,6 +104,7 @@ A legnagyobb kockázat nem technikai, hanem a fegyelem: ha a blokk feltöltése 
 ### Eldöntve
 
 - Ketten használjuk, minden tételnél rögzítjük, ki fizetett: a közös kártya vagy valamelyikünk.
+- Külön rögzítjük, ki vásárolt: ő mindig személy, akkor is, ha a közös kártyával fizetett.
 - Van egy közös kártya, amelyre mindketten fix összeget utalunk havonta, 50/50 arányban.
 - A BI-ban egy közös háztartás fül és fejenként egy személyes fül lesz; egymás személyes fülét is látjuk.
 - Közös célokra egyforma összeget utalunk, amelynek nagyságát a tervezett kiadások utáni szabad keret alapján döntjük el.

@@ -10,7 +10,7 @@ tags: [penzugy, projekt]
 
 8 epic, 10 kéthetes sprint, kb. 154 story pont. Minden story egy feladat: a 📅 dátum a sprint vége, a címkék az epicet és a sprintet jelölik. A [Tasks](https://publish.obsidian.md/tasks/) bővítménnyel szűrhető, pl. `tags include #sprint/S1`.
 
-Részletes sprintterv: [[Sprint 1]] · Kapcsolódó: [[Üzleti koncepció]] · [[Technikai terv]] · [[Release folyamat]] · [[Változásnapló]]
+Részletes sprintterv: [[Sprint 1]] · [[Sprint 2]] · Kapcsolódó: [[Üzleti koncepció]] · [[Technikai terv]] · [[Release folyamat]] · [[Változásnapló]]
 
 ## Sprintek
 
@@ -27,7 +27,7 @@ Részletes sprintterv: [[Sprint 1]] · Kapcsolódó: [[Üzleti koncepció]] · [
 | S9 | 2027-02-22 | 2027-03-07 |
 | S10 | 2027-03-08 | 2027-03-21 |
 
-Első éles használat: a 6. sprint vége (2027-01-24), amikor működik a blokkbeolvasás.
+Első éles használat: a 6. sprint vége (2027-01-24), amikor működik a blokkbeolvasás. Addig a rendszer helyben fut, mock adattal, és az éles használat előtt a `finance` adatbázis üresen újraépül.
 
 ```mermaid
 gantt
