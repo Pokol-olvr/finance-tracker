@@ -1,7 +1,7 @@
 ---
 projekt: Pénzügyi nyomkövető
 tipus: technikai terv
-datum: 2026-10-27
+datum: 2026-10-31
 tags: [penzugy, projekt, architektura]
 ---
 
@@ -162,7 +162,7 @@ A BI eszköz a Metabase nyílt forrású kiadása (AGPL), amely csak a gold sém
 
 ## Docker Compose és költözés a Proxmoxra
 
-Két Compose-fájl van: egy a Pi-n, egy az otthoni stackhez. Az otthoni stack minden adata egy mappában van, így a költözés néhány lépés.
+Két Compose-fájl van: egy a Pi-n, egy az otthoni stackhez. A főgépen rootless Podman futtatja őket ([[0004-rootless-podman-a-docker-helyett|ADR 0004]]), a CI Dockerrel. Az otthoni stack minden adata egy mappában van, így a költözés néhány lépés.
 
 | Hol | Szolgáltatás | Feladat |
 | --- | --- | --- |

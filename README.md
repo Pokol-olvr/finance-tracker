@@ -6,7 +6,7 @@ A jelenlegi állapot az otthoni alapstack: Postgres a bronz, silver és gold sé
 
 ## Előfeltételek
 
-- Docker Engine és Docker Compose v2
+- Rootless Podman, a `scripts/setup-podman.sh` egyszeri beállításával (Fedora); a CI Dockert használ, az is működik
 - `openssl`, `curl`, `jq`
 - 3 GB szabad memória a Metabase miatt
 
@@ -14,8 +14,9 @@ A jelenlegi állapot az otthoni alapstack: Postgres a bronz, silver és gold sé
 
 ```sh
 git clone <repo-url> finance-tracker && cd finance-tracker
+scripts/setup-podman.sh
 scripts/init-env.sh
-docker compose -f home/docker-compose.yml up -d
+podman compose -f home/docker-compose.yml up -d
 ```
 
 A Metabase az első indításkor pár percig készül, utána a `http://127.0.0.1:3000` címen érhető el. Az első beállításhoz töltsd ki a `home/.env` `MB_ADMIN_*` és `MB_SECOND_*` mezőit, majd futtasd a `scripts/metabase-setup.sh`-t. A script létrehozza a két felhasználót, és felveszi a `finance` adatbázist `mb_reader`-ként.
@@ -44,6 +45,8 @@ docs/adr/    döntési jegyzetek
 
 Minden adat a `home/data/` alatt van, a helyét a `DATA_DIR` állítja. A Metabase és a Garage címe a `BIND_ADDRESS` változóval a gép Tailscale-címére tehető. A Postgres mindig csak helyben látszik, a Garage admin és RPC portja pedig csak a Compose-hálózaton.
 
+A konténerek rootless Podmanben a felhasználóhoz tartoznak, ezért a `home/data/postgres` törléséhez `podman unshare rm -rf home/data` kell.
+
 ### Szerepkörök a `finance` adatbázisban
 
 | Szerepkör | Jog | Ki használja |
@@ -58,7 +61,7 @@ Minden adat a `home/data/` alatt van, a helyét a `DATA_DIR` állítja. A Metaba
 A migrációk sima SQL-fájlok a `migrations/` mappában, a [dbmate](https://github.com/amacneil/dbmate) futtatja őket. Az új fájl nevének eleje időbélyeg, és az alkalmazásukhoz elég újra lefuttatni a `migrate` szolgáltatást:
 
 ```sh
-docker compose -f home/docker-compose.yml run --rm migrate
+podman compose -f home/docker-compose.yml run --rm migrate
 scripts/test-bronze.sh
 ```
 
@@ -76,13 +79,10 @@ A `RESTIC_REPO_DIR` éles használatra külső meghajtóra mutasson; alapból ug
 
 ### Ütemezés
 
-A systemd timer naponta 03:30-kor futtatja a mentést, és ha a gép ki volt kapcsolva, induláskor pótolja. A `scripts/systemd/finance-backup.service` fájlban írd át a repó helyét, majd:
+A systemd timer naponta 03:30-kor futtatja a mentést, és ha a gép ki volt kapcsolva, induláskor pótolja. A telepítés:
 
 ```sh
-cp scripts/systemd/finance-backup.* ~/.config/systemd/user/
-systemctl --user daemon-reload
-systemctl --user enable --now finance-backup.timer
-loginctl enable-linger "$USER"
+scripts/install-backup-timer.sh
 ```
 
 ### Visszaállítás
@@ -92,9 +92,9 @@ A `scripts/restore-test.sh` ellenőrzi a restic tárolót, a legutóbbi pillanat
 Egy elveszett fájl visszahozása a Garage-ba, a `home/` mappából futtatva:
 
 ```sh
-docker compose run --rm restic snapshots
-docker compose run --rm restic restore latest --target /backup/restore --include /backup/garage-raw/fajl.jpg
-docker compose run --rm rclone copyto /backup/restore/backup/garage-raw/fajl.jpg garage:raw/fajl.jpg
+podman compose run --rm restic snapshots
+podman compose run --rm restic restore latest --target /backup/restore --include /backup/garage-raw/fajl.jpg
+podman compose run --rm rclone copyto /backup/restore/backup/garage-raw/fajl.jpg garage:raw/fajl.jpg
 ```
 
 ## Fejlesztés
@@ -107,8 +107,8 @@ Klónozás után kapcsold be a commit előtti ellenőrzést. Ez a tiltott fájlt
 git config core.hooksPath .githooks
 ```
 
-- A `main` ágra csak pull requestből kerül kód, a másik fél jóváhagyásával és zöld pipeline-nal.
+- A `main` ágra csak pull requestből kerül kód, zöld pipeline-nal. Egy fejlesztő van, ezért kötelező jóváhagyás nincs.
 - A CI (`.github/workflows/ci.yml`) minden pushra futtatja a lintet (ruff, sqlfluff), az adatfájlok tiltását, a titokkeresést (gitleaks), a Compose-ellenőrzést, a migrációkat és a bronz tesztet.
 - A döntési jegyzetek a [docs/adr/](docs/adr/) mappában vannak.
 - A változások a [Változásnapló](docs/Változásnapló.md) Kiadatlan részébe kerülnek, a kiadás menete a [Release folyamat](docs/Release%20folyamat.md) dokumentumban van.
-- Podman esetén a scriptek a `COMPOSE` változóval kapják meg a Compose-parancsot.
+- A scriptek a `docker compose` és a `podman compose` közül maguk választanak, a `COMPOSE` változó ezt felülírja.

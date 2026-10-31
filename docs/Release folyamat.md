@@ -53,7 +53,7 @@ A bejegyzések ezek alá a címsorok alá kerülnek, és ami üres, az elmarad:
    git commit -m "Kiadás: v0.1.0"
    git push -u origin release/v0.1.0
    ```
-3. **Pull request:** a másik fél átnézi a kiadás szövegét, majd merge.
+3. **Pull request:** a CI zöld, a kiadás szövege át van nézve, majd merge.
 4. **Címke:** a frissített `main` ágon a script elkészíti és felküldi a címkét.
    ```sh
    git switch main
@@ -70,8 +70,8 @@ A frissítés előtt mindig készül mentés. Előtte nézd át a kiadás `Friss
 scripts/backup.sh
 git fetch --tags
 git checkout v0.1.0
-docker compose -f home/docker-compose.yml up -d
-docker compose -f home/docker-compose.yml run --rm migrate
+podman compose -f home/docker-compose.yml up -d
+podman compose -f home/docker-compose.yml run --rm migrate
 scripts/test-bronze.sh
 ```
 
@@ -79,7 +79,7 @@ A Metabase-t a demó előtt nyisd meg, és nézd át a fő dashboardot: a bronz 
 
 ## Visszaállás
 
-- **Kód:** `git checkout` az előző címkére, majd `docker compose -f home/docker-compose.yml up -d`.
+- **Kód:** `git checkout` az előző címkére, majd `podman compose -f home/docker-compose.yml up -d`.
 - **Migráció:** a bronz migrációk nem görgethetők vissza, ezért hibás migrációt új patch-kiadás javít. A migrációk csak bővítik a sémát, így a korábbi kód tovább működik.
 - **Adat:** csak adatvesztésnél kell a restic mentéshez nyúlni, a README „Mentés” része szerint.
 

@@ -24,6 +24,10 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 - FIN-105 CI: lint, Compose-ellenőrzés, migrációk, bronz teszt és titokkeresés.
 - Release folyamat, változásnapló és automatikus GitHub Release.
 
+### Módosítva
+
+- A főgépen rootless Podman futtatja a stacket; a scriptek maguk választanak Podman és Docker között.
+
 ### Biztonság
 
 - Adatfájlok tiltása a repóban, commit előtti titokkereséssel, mert a repó nyilvános.

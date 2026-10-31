@@ -2,7 +2,7 @@
 
 Ez a fájl a `docs/` mappa dokumentumainak írását és módosítását szabályozza. A mérce a meglévő négy dokumentum: ha egy eset nincs itt leírva, a hozzá legközelebb álló dokumentum mintáját kövesd. Ez a fájl nem projektdokumentum, ezért nincs frontmatterje, és nem hivatkozunk rá a többiből.
 
-A projekt egy kétszemélyes háztartási pénzügyi nyomkövető, medallion adatrétegekkel és helyi blokkbeolvasással. A két olvasó egyben a két fejlesztő és a két felhasználó is.
+A projekt egy kétszemélyes háztartási pénzügyi nyomkövető, medallion adatrétegekkel és helyi blokkbeolvasással. A szoftvert egy ember fejleszti, a rendszert ketten használják.
 
 ## Dokumentumok és felelősségük
 

@@ -1,10 +1,18 @@
 # A scripts/ mappa közös része; forrásként töltődik be, önállóan nem fut.
 #
-# COMPOSE: a Compose-parancs, alapból `docker compose`
+# COMPOSE: a Compose-parancs, alapból `docker compose`, Docker nélkül `podman compose`
 # ENV_FILE: a használt .env, alapból home/.env
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-COMPOSE=${COMPOSE:-docker compose}
+if [[ -z ${COMPOSE:-} ]]; then
+  # A szervert nézzük, nem a parancsot: a docker-compose csomag behúzhatja a docker CLI-t
+  # futó daemon nélkül, a CI futtatóin viszont a Podman is ott van a Docker mellett.
+  if docker info >/dev/null 2>&1; then
+    COMPOSE="docker compose"
+  else
+    COMPOSE="podman compose"
+  fi
+fi
 ENV_FILE=${ENV_FILE:-$REPO_ROOT/home/.env}
 
 if [[ ! -f $ENV_FILE ]]; then

@@ -28,7 +28,7 @@ Javasolt sorrend: először a FIN-101 és a FIN-102. Utána párhuzamosan mehet 
 
 ## FIN-101 Git repo és mappaszerkezet · 2 SP
 
-**Story:** fejlesztőként egy közös repót szeretnék, egyértelmű mappákkal, hogy mindketten ugyanabból dolgozzunk, és minden új gépen percek alatt induljon a stack.
+**Story:** fejlesztőként egy repót szeretnék, egyértelmű mappákkal, hogy minden új gépen percek alatt induljon a stack.
 
 **Részfeladatok**
 
@@ -38,7 +38,7 @@ Javasolt sorrend: először a FIN-101 és a FIN-102. Utána párhuzamosan mehet 
 - [x] `home/.env.example` minden szükséges változóval, értékek nélkül 📅 2026-11-15
 - [x] README: mi ez, előfeltételek, gyorsindítás három parancsban 📅 2026-11-15
 - [x] `docs/adr/0001-adr-sablon.md` és az első két ADR: Garage a MinIO helyett, Tailscale a WireGuard helyett 📅 2026-11-15
-- [ ] Ág-szabály: `main` csak pull requestből, a másik fél jóváhagyásával 📅 2026-11-15
+- [ ] Ág-szabály: `main` csak pull requestből, zöld pipeline-nal 📅 2026-11-15
 
 **Elfogadási feltételek**
 
@@ -171,9 +171,10 @@ create trigger raw_document_append_only
 
 - [x] `scripts/backup.sh`: `pg_dump -Fc` a `finance` és a `metabase` adatbázisról a `backup/` mappába 📅 2026-11-15
 - [x] A Garage `raw` bucket tükrözése rclone-nal egy helyi mappába 📅 2026-11-15
-- [x] restic tároló a külső meghajtón; a mentés a dumpot és a tükröt viszi 📅 2026-11-15
+- [x] restic tároló a főgépen (`home/backup/restic`); a mentés a dumpot és a tükröt viszi 📅 2026-11-15
+- [ ] A restic tároló áthelyezése külső meghajtóra, ha lesz: addig a mentés lemezhiba ellen nem véd
 - [x] Megőrzés: `restic forget --keep-daily 7 --keep-weekly 4 --keep-monthly 6 --prune` 📅 2026-11-15
-- [ ] Ütemezés a gazdagépen (systemd timer vagy cron), naponta egyszer 📅 2026-11-15
+- [x] Ütemezés a gazdagépen (systemd timer), naponta egyszer 📅 2026-11-15
 - [ ] A restic jelszó a jelszókezelőben is legyen: nélküle a mentés használhatatlan 📅 2026-11-15
 - [x] `scripts/restore-test.sh`: ideiglenes Postgres-konténerbe visszatölti a legutóbbi mentést, és összeveti a sorok számát 📅 2026-11-15
 
@@ -207,12 +208,13 @@ create trigger raw_document_append_only
 ## Események és nyitott kérdések
 
 - [ ] Sprinttervezés, kb. 30 perc 📅 2026-11-02
-- [ ] Heti egyeztetés, kb. 15 perc 📅 2026-11-09
+- [ ] Heti áttekintés, kb. 15 perc 📅 2026-11-09
 - [ ] Demó és retró, kb. 30 perc 📅 2026-11-15
 - [ ] Kiadás: `v0.1.0` a [[Release folyamat]] szerint 📅 2026-11-15
 
 **A tervezésen eldöntendő**
 
 - [x] Hol legyen a repo: nyilvános GitHub-repó, amelybe valódi adat nem kerül. 📅 2026-11-02
-- [ ] Mi a mentés célja: külső USB-lemez, vagy a Proxmox egy másik lemeze? Egy példány érdemes házon kívül is. 📅 2026-11-02
-- [ ] Ki melyik jegyet viszi? Javaslat: az egyikőtök a FIN-102 → FIN-103 → FIN-104 vonalat, a másik a FIN-201 → FIN-105 vonalat. 📅 2026-11-02
+- [x] Mi a mentés célja: egyelőre a főgép, külső lemez később. Egy példány érdemes házon kívül is. 📅 2026-11-02
+- [x] Konténer-futtató: rootless Podman a főgépen ([[0004-rootless-podman-a-docker-helyett|ADR 0004]])
+- [x] Ki melyik jegyet viszi: mindegyiket egy fejlesztő, ezért kötelező jóváhagyás nincs. 📅 2026-11-02

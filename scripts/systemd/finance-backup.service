@@ -1,7 +1,8 @@
 [Unit]
 Description=Pénzügyi nyomkövető napi mentés
+After=podman.socket podman-restart.service
 
 [Service]
 Type=oneshot
-# Írd át a repó tényleges helyére.
+# Az útvonalat a scripts/install-backup-timer.sh írja a repó tényleges helyére.
 ExecStart=%h/finance-tracker/scripts/backup.sh
