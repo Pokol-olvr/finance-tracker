@@ -13,6 +13,8 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 
 ## Kiadatlan
 
+## v0.1.0 · 2026-10-31
+
 ### Hozzáadva
 
 - FIN-101 Repó, mappaszerkezet, README, ADR-sablon és az első két ADR.
