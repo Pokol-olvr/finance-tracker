@@ -155,8 +155,8 @@ create trigger raw_document_append_only
 
 - [x] A Metabase a saját adatait a `metabase` adatbázisban tárolja, a `MB_DB_TYPE`, `MB_DB_HOST`, `MB_DB_PORT`, `MB_DB_DBNAME`, `MB_DB_USER`, `MB_DB_PASS` változókkal 📅 2026-11-15
 - [ ] `MB_ENCRYPTION_SECRET_KEY` beállítása, és a kulcs elmentése a jelszókezelőbe: enélkül költözés után a mentett adatbázis-kapcsolatok nem olvashatók 📅 2026-11-15
-- [ ] Két felhasználó létrehozása a Metabase-ben 📅 2026-11-15
-- [ ] Adatforrásként a `finance` adatbázis felvétele `mb_reader`-ként, így a Metabase csak a goldot látja 📅 2026-11-15
+- [x] Két felhasználó létrehozása a Metabase-ben 📅 2026-11-15
+- [x] Adatforrásként a `finance` adatbázis felvétele `mb_reader`-ként, így a Metabase csak a goldot látja 📅 2026-11-15
 
 **Elfogadási feltételek**
 

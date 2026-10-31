@@ -20,10 +20,13 @@ if [[ ! -f $ENV_FILE ]]; then
   exit 1
 fi
 
-set -a
-# shellcheck disable=SC1090
-source "$ENV_FILE"
-set +a
+# Szövegként olvassuk, nem `source`-szal: így a jelszó bármilyen karaktere szó szerint marad,
+# és semmi nem hajtódik végre a fájlból.
+while IFS= read -r line; do
+  if [[ $line =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
+    export "${line?}"
+  fi
+done <"$ENV_FILE"
 
 # A relatív utak a home/ mappához képest értendők, a Compose-zal egyezően.
 cd "$REPO_ROOT/home"
