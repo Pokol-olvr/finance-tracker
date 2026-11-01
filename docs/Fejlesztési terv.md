@@ -8,9 +8,9 @@ tags: [penzugy, projekt]
 
 # Fejlesztési terv
 
-8 epic, 10 kéthetes sprint, kb. 166 story pont. Minden story egy feladat: a 📅 dátum a sprint vége, a címkék az epicet és a sprintet jelölik. A [Tasks](https://publish.obsidian.md/tasks/) bővítménnyel szűrhető, pl. `tags include #sprint/S1`.
+8 epic, 10 kéthetes sprint, kb. 176 story pont. Minden story egy feladat: a 📅 dátum a sprint vége, a címkék az epicet és a sprintet jelölik. A [Tasks](https://publish.obsidian.md/tasks/) bővítménnyel szűrhető, pl. `tags include #sprint/S1`.
 
-Részletes sprintterv: [[Sprint 1]] · [[Sprint 2]] · [[Sprint 3]] · Kapcsolódó: [[Üzleti koncepció]] · [[Technikai terv]] · [[Release folyamat]] · [[Változásnapló]]
+Részletes sprintterv: [[Sprint 1]] · [[Sprint 2]] · [[Sprint 3]] · [[Sprint 4]] · Kapcsolódó: [[Üzleti koncepció]] · [[Technikai terv]] · [[Release folyamat]] · [[Változásnapló]]
 
 ## Sprintek
 
@@ -105,18 +105,18 @@ Kész, ha: telefonról feltöltött vagy e-mailben továbbított számla eljut a
 - [ ] FIN-309 A `finance` adatbázis üres újraépítése az első éles használat előtt · 1 SP #E3 #sprint/S6 📅 2027-01-24
     - Elfogadás: a bronz és a Garage `raw` bucket üres, a mock adat és a próbablokkok eltűntek a restic-pillanatképekből is, a Metabase dashboardjai megmaradnak
 
-## FIN-E4 Blokkbeolvasás (S3–S5, 28 SP)
+## FIN-E4 Blokkbeolvasás (S3–S5, 38 SP)
 
-Kész, ha: a blokkból tétel szintű silver lesz, kivételnél ellenőrzéssel.
+Kész, ha: a blokkból tétel szintű silver lesz, kivételnél ellenőrzéssel. A FIN-403 csak akkor kell, ha a FIN-410 mérése szerint a szöveges olvasat hibái miatt túl sok blokk kerül ellenőrzésre.
 
 - [ ] FIN-401 Ollama és GLM-OCR a Compose-ban, egyelőre a laptop CPU-ján · 2 SP #E4 #sprint/S3 📅 2026-12-13
     - Elfogadás: egy mintablokkra JSON jön vissza
-- [ ] FIN-402 Kinyerési séma ellenőrzése, normalizálás és prompt · 2 SP #E4 #sprint/S4 📅 2026-12-27
-    - Elfogadás: 20 mintablokkon a kimenet mindig érvényes a sémára
-- [ ] FIN-403 PaddleOCR második olvasat bizonytalan esetekre · 3 SP #E4 #sprint/S4 📅 2026-12-27
+- [ ] FIN-402 Szabályalapú blokkfeldolgozó a szöveges olvasatra, a JSON-olvasat kivezetése · 5 SP #E4 #sprint/S4 📅 2026-12-27
+    - Elfogadás: a kitalált mintablokkokon a tételek és az összegek pontosak, és a feldolgozó modell nélkül újrafuttatható
+- [ ] FIN-403 PaddleOCR második olvasat bizonytalan esetekre, feltételes · 3 SP #E4 #sprint/S5 📅 2027-01-10
     - Elfogadás: bizonytalan blokknál az OCR-szöveg is a bronzba kerül
-- [ ] FIN-404 Automatikus ellenőrzés: tételösszeg = végösszeg, beírt dátum = beolvasott dátum · 3 SP #E4 #sprint/S4 📅 2026-12-27
-    - Elfogadás: eltérésnél a blokk az ellenőrzési sorba kerül
+- [ ] FIN-404 Automatikus ellenőrzés: összeg, tételszorzat, fizetés, dátum, ismételt blokk · 5 SP #E4 #sprint/S4 📅 2026-12-27
+    - Elfogadás: eltérésnél a blokk az ellenőrzési sorba kerül, és az állapotoldalon sem „rendben”
 - [ ] FIN-405 Javaslat visszatöltése a postaládába, kivétel alapú Ellenőrzés képernyő · 5 SP #E4 #sprint/S5 📅 2027-01-10
     - Elfogadás: böngészőből javítható, a döntés eljut a bronzba; telefonról a FIN-308 után
 - [ ] FIN-406 Silver tétel szint: blokk, blokktétel, bolt-egységesítés, korrekciós tábla · 5 SP #E4 #sprint/S5 📅 2027-01-10
@@ -127,6 +127,10 @@ Kész, ha: a blokkból tétel szintű silver lesz, kivételnél ellenőrzéssel.
     - Elfogadás: egy feltöltött blokk kiolvasása a `bronze.extraction` táblába kerül, modellverzióval
 - [ ] FIN-409 DRS-betétdíj külön vezetése: várható összeg, kézi állítás és nullázás · 3 SP #E4 #sprint/S5 📅 2027-01-10
     - Elfogadás: a betétdíj nincs a kiadások között, a várható összeg látszik, nullázás után 0, a bronz változatlan
+- [ ] FIN-410 Mérés 5–10 saját blokkon, legalább 3 boltból · 2 SP #E4 #sprint/S4 📅 2026-12-27
+    - Elfogadás: a mezőnkénti pontosság le van írva, és a FIN-403-ról döntés született
+- [ ] FIN-411 Visszaváltási bizonylat feltöltése és az utalványsor párosítása · 3 SP #E4 #sprint/S5 📅 2027-01-10
+    - Elfogadás: a feltöltött bizonylat csökkenti a várható betétdíjat, és a hozzá tartozó utalványsor nem csökkenti másodszor
 
 ## FIN-E5 Címkézés és tanulás (S5, S7, 21 SP)
 
