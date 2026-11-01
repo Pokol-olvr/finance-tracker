@@ -76,7 +76,7 @@ scripts/dbt.sh
 scripts/test-bronze.sh
 ```
 
-A Metabase-t a demó előtt nyisd meg, és nézd át a fő dashboardot: a bronz teszt csak az adatbázist ellenőrzi.
+A riportoldalakat a demó előtt nyisd meg, és nézd át az Áttekintést: a bronz teszt csak az adatbázist ellenőrzi.
 
 ## Visszaállás
 
