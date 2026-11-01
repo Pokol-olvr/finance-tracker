@@ -164,7 +164,7 @@ Az alap 1400 px, mert 2000 px-nél 2,5-szer lassabb, és nem pontosabb. Az 1000 
 | `status` | `new` vagy `closed` |
 | `closed_at` | Lezárás ideje |
 
-A lezárás a 3. sprintben a kiolvasás után történik. A FIN-405-tel a jóváhagyás utánra kerül, mert az Ellenőrzés képernyőnek is kell a kép.
+A lezárás a kiolvasás után történik. Az Ellenőrzés képernyő képét a FIN-405-ben a worker tölti vissza külön csomagként ([[0011-ellenorzes-kepernyo-csomagokkal|ADR 0011]]).
 
 ## FIN-306 Worker: Garage, duplikációszűrés, bronz rekord · 5 SP
 

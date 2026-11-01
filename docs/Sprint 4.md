@@ -3,7 +3,7 @@ projekt: Pénzügyi nyomkövető
 sprint: S4
 kezdes: 2026-12-14
 vege: 2026-12-27
-story_pont: 27
+story_pont: 35
 tags: [penzugy, sprint]
 ---
 
@@ -13,7 +13,7 @@ Vissza: [[Fejlesztési terv]]
 
 ## Sprint cél
 
-**Több blokk egyszerre és a több képből álló hosszú blokk is feltölthető, a szöveges olvasatból pontos tételek és összegek lesznek, a hibás blokk pedig ellenőrzésre jelölve látszik. Az A4-es számla fotóról és PDF-ből is feldolgozódik.** A sprint 2026-12-14 és 2026-12-27 között tart, 27 story ponttal.
+**Több blokk egyszerre és a több képből álló hosszú blokk is feltölthető, a szöveges olvasatból pontos tételek és összegek lesznek, a hibás blokk pedig ellenőrzésre jelölve látszik. Az A4-es számla fotóról és PDF-ből is feldolgozódik, a kivételek pedig az eredeti mellett jóváhagyhatók vagy javíthatók.** A sprint 2026-12-14 és 2026-12-27 között tart, 35 story ponttal.
 
 | Kulcs | Jegy | SP | Függ tőle |
 | --- | --- | --- | --- |
@@ -23,13 +23,16 @@ Vissza: [[Fejlesztési terv]]
 | FIN-404 | Automatikus ellenőrzés | 5 | FIN-402 |
 | FIN-412 | Számlafeldolgozó | 5 | FIN-402, FIN-404 |
 | FIN-312 | PDF-feltöltés és -olvasás | 3 | FIN-304, FIN-412 |
+| FIN-405 | Ellenőrzés képernyő | 8 | FIN-404, FIN-412, FIN-312 |
 | FIN-410 | Mérés 5–10 saját blokkon | 2 | FIN-402, FIN-404 |
 
-Javasolt sorrend: FIN-310, FIN-402, FIN-311, FIN-404, FIN-412, FIN-312, végül a FIN-410. A tömeges feltöltés kerül előre, mert a saját blokkokat érdemes a sprint elején feltölteni: a szabályok ezek szöveges olvasatából pontosíthatók. A FIN-412 megelőzi a PDF-et, mert a számlafotók már itt vannak, és a PDF ugyanazt a feldolgozót használja.
+Javasolt sorrend: FIN-310, FIN-402, FIN-311, FIN-404, FIN-412, FIN-312, FIN-405, végül a FIN-410. A tömeges feltöltés kerül előre, mert a saját blokkokat érdemes a sprint elején feltölteni: a szabályok ezek szöveges olvasatából pontosíthatók. A FIN-412 megelőzi a PDF-et, mert a számlafotók már itt vannak, és a PDF ugyanazt a feldolgozót használja. A FIN-405 a mérés elé kerül, mert az eredeti és a feldolgozott adat egymás mellett gyorsítja a papírral való összevetést.
 
 **Bővítés 2026-11-01-én:** a tömeges feltöltés első körében két A4-es számla, egy szállítólevél és egy új formátumú blokk érkezett. Mind a négy `unparsed` lett, mert a feldolgozó csak az ismert blokksorokat kezeli. A számla és a PDF ezért nem vár a Sprint 6-ig ([[0010-pdf-olvasas-es-szamlafeldolgozo|ADR 0010]]). Az új blokkformátum a FIN-410 része.
 
 A feldolgozó után a tárolt 11 dokumentumból 8 blokk és 2 számla `ok`, minden ellenőrzéssel, a szállítólevél pedig `unparsed` marad, és nem kerül a kiadások közé. A szabályok ezeken a dokumentumokon készültek, ezért ez sem pontossági mérés.
+
+**Második bővítés 2026-11-01-én:** a `review` eddig csak jelölés volt, a dokumentumot nem lehetett sem jóváhagyni, sem az eredetivel összevetni. A FIN-405 ezért az 5. sprintből ide került, és 5 helyett 8 SP lett, mert a csomagok visszatöltése és megőrzése is a része ([[0011-ellenorzes-kepernyo-csomagokkal|ADR 0011]]).
 
 **Irányváltás:** a Sprint 3 után egy saját blokkon a JSON-olvasat összekeverte a neveket és az árakat, a szöveges olvasatban viszont minden szám helyes volt. Ezért a szerkezetet saját, szabályalapú feldolgozó adja, a JSON-olvasat kikerül ([[0009-szabalyalapu-blokkfeldolgozo|ADR 0009]]). A FIN-403 feltételes lett, és az 5. sprintbe került.
 
@@ -298,6 +301,60 @@ Az ellenőrzési sor képernyője a FIN-405 feladata. Addig a `review` blokkok a
 - [x] A több képes módban a PDF hibaüzenetet kap
 - [ ] Egy saját szöveges PDF-en a sorok sorrendje helyes, vagy a hiba le van írva
 
+## FIN-405 Ellenőrzés képernyő · 8 SP
+
+**Story:** adatgazdaként az eredeti dokumentumot a feldolgozott adatok mellett akarom látni, és a kivételeket jóvá akarom hagyni, javítani vagy elvetni, hogy csak ellenőrzött adat kerüljön a kiadások közé.
+
+**Részfeladatok**
+
+- [ ] Migráció: `bronze.review_decision`, csak hozzáfűzhető, a `scripts/test-bronze.sh` ellenőrzésével 📅 2026-12-27
+- [ ] Postaláda: `review` és `review_decision` tábla az SQLite-ban, `user_version` 2, a fájlok a `reviews/` mappában 📅 2026-12-27
+- [ ] Worker API: csomag feltöltése, ismert csomagok listája, nyitott döntések listája, döntés nyugtázása, tokennel védve 📅 2026-12-27
+- [ ] Worker: körönként összeveti a bronzot a csomagokkal, és pótolja a hiányzót vagy a régit, a fájlt a Garage-ból véve 📅 2026-12-27
+- [ ] Worker: a döntések lehúzása a bronzba, utána nyugtázás 📅 2026-12-27
+- [ ] Megőrzés: a lezárt csomag 30 nap után törlődik, a nyitott soha; a régebbi `ok` dokumentumot a worker nem tölti vissza 📅 2026-12-27
+- [ ] `/review`: lista, elöl a döntésre várók, utána az elmúlt 30 nap többi dokumentuma 📅 2026-12-27
+- [ ] `/review/{group_id}`: balra az eredeti, jobbra a feldolgozott adatok, kiemelve az elbukott ellenőrzéseket; a szöveges olvasat lenyitható 📅 2026-12-27
+- [ ] Eredeti megjelenítése: kép, több képes blokk lapozva, PDF beágyazva és új lapon; HEIC-nél a worker JPEG-előnézete 📅 2026-12-27
+- [ ] Jóváhagyás, elvetés és javítás; a javításnál a bolt, a dátum, a végösszeg és a tételek szerkeszthetők, a sor hozzáadható és törölhető, az eltérés élőben látszik 📅 2026-12-27
+- [ ] Döntést hozó személy: háztartástag, a böngészőben megjegyezve; a FIN-303 után a belépésből jön 📅 2026-12-27
+- [ ] Állapotoldal: az „Ellenőrzésre vár” csak a nyitott dokumentumokat számolja, és a `/review` oldalra visz; a „Legutóbbi” lista az újrafeldolgozott eredményt mutatja 📅 2026-12-27
+- [ ] Teszt kitalált dokumentumokkal; a képernyő valódi Firefoxban, keskeny szélességen is 📅 2026-12-27
+
+**Elfogadási feltételek**
+
+- [ ] A `review` dokumentum eredetije és feldolgozott adatai egymás mellett látszanak, keskeny képernyőn egymás alatt
+- [ ] JPEG, PNG, WebP, HEIC, PDF és több képes blokk is megjelenik
+- [ ] Jóváhagyás után az „Ellenőrzésre vár” szám csökken, és a bronzban `approved` döntés van
+- [ ] Javítás után a bronzban `corrected` döntés van a javított adatokkal, a `receipt_parse` sora nem változik
+- [ ] Ha a javított tételek összege 2 Ft-nál jobban eltér a végösszegtől, a mentés hibaüzenetet ad
+- [ ] Elvetés után a bronzban `rejected` döntés van
+- [ ] Leállított workernél a döntés a webappban vár, és újraindítás után a bronzba kerül
+- [ ] Kétszer elküldött döntésből egy bronzsor lesz
+- [ ] Az `ok` és a nem kiadás dokumentum megnyitható, de nem kér döntést
+- [ ] A lezárt csomag fájlja 30 nap után eltűnik, a nyitotté nem
+- [ ] A `PARSER_VERSION` növelése után a már `ok` dokumentum döntés nélkül lezárul, a meghozott döntés pedig megmarad
+- [ ] A meglévő 12 dokumentum a frissítés után kézi lépés nélkül megnyitható
+- [ ] A webapp az Ellenőrzés képernyőhöz nem olvas bronzot és nem éri el a Garage-ot
+- [ ] Saját dokumentum tartalma nem került a repóba
+
+**Ami nem része:** a javított érték a FIN-406-tal jelenik meg a silverben, a bizonytalan címkére vonatkozó kérdés a FIN-502 feladata, a telefonos elérés pedig a FIN-308-é.
+
+```sql
+create table bronze.review_decision (
+  id          uuid primary key,
+  group_id    uuid not null,
+  parse_id    uuid not null references bronze.receipt_parse (id),
+  action      text not null check (action in ('approved', 'corrected', 'rejected')),
+  corrected   jsonb,
+  decided_by  text not null,
+  decided_at  timestamptz not null,
+  ingested_at timestamptz not null default now()
+);
+```
+
+Az `id` a webappban készül, ezért a lehúzás ismételhető. Egy dokumentumhoz a tábla több döntést is elbír, a FIN-406 a legutóbbit veszi. A `corrected` csak `corrected` döntésnél van kitöltve.
+
 ## FIN-410 Mérés 5–10 saját blokkon · 2 SP
 
 **Story:** adatgazdaként saját blokkokon akarom mérni a feldolgozót, hogy lássam, elég-e a szöveges olvasat, vagy kell a második olvasat.
@@ -349,3 +406,5 @@ Az ellenőrzési sor képernyője a FIN-405 feladata. Addig a `review` blokkok a
 - [x] A szállítólevél nem kiadás: a feldolgozó nem veszi számlának, ezért nem számolódik kétszer a hozzá tartozó számlával.
 - [x] A vevő neve és címe csak a nyers szövegben marad, a feldolgozott adatba nem kerül be.
 - [x] Az e-mailes lehúzás marad a FIN-307-ben, a Sprint 6-ban, mert a Pi-s költözéshez tartozik; a PDF olvasását viszont már a FIN-312 adja.
+- [x] Az Ellenőrzés képernyő a worker által visszatöltött csomagokból dolgozik, így a Pi-re költözéskor nem kell újraírni ([[0011-ellenorzes-kepernyo-csomagokkal|ADR 0011]]).
+- [x] A rendben lévő dokumentum nem kér döntést, de 30 napig visszanézhető.
