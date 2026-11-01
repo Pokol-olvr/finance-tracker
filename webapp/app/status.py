@@ -23,7 +23,7 @@ RESULT_LABELS = {
     "ok": "rendben",
     "review": "ellenőrzés kell",
     "unparsed": "nem feldolgozható",
-    "unreadable": "olvashatatlan kép",
+    "unreadable": "olvashatatlan fájl",
     "duplicate": "már megvolt",
 }
 NO_DATA = "Nincs friss adat"

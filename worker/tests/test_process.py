@@ -13,10 +13,12 @@ from conftest import (
     SECOND_PAGE,
     FakeInbox,
     FakeReader,
+    invented_pdf,
     invented_receipt,
     make_group,
     make_item,
     no_report,
+    scanned_pdf,
 )
 
 
@@ -60,6 +62,59 @@ def test_item_reaches_garage_and_bronze_then_closes(conn, storage):
     ]
     assert inbox.closed == [item["id"]]
     assert inbox.outcomes == [{"result": "ok", "seconds": 80.0, "items": 2}]
+
+
+def pdf_item(content):
+    return make_item(content) | {"content_type": "application/pdf"}
+
+
+def test_text_pdf_is_stored_as_pdf_without_the_model(conn, storage):
+    rows = [(50, 800 - 15 * row, line) for row, line in enumerate(SAMPLE_TEXT.splitlines())]
+    content = invented_pdf([*rows, (50, 500, "Ez a sor a szovegreteg elegendo hosszat adja meg.")])
+    item = pdf_item(content)
+    inbox = FakeInbox({item["id"]: content})
+    reader = FakeReader()
+
+    process([item], conn, inbox, storage, reader, no_report)
+
+    document_id, key, source_type, *_ = documents(conn, item["sha256"])[0]
+    assert key == f"pdf/2026/11/{item['sha256']}.pdf"
+    assert source_type == "pdf"
+    assert reader.calls == 0
+    model_name, _version, _prompt, payload = extractions(conn, document_id)[0]
+    assert model_name == "pdfium"
+    assert "1 048 FT" in payload["ocr_text"]
+    assert inbox.outcomes == [{"result": "ok", "seconds": None, "items": 2}]
+
+
+def test_scanned_pdf_goes_through_the_model(conn, storage):
+    content = scanned_pdf(2)
+    item = pdf_item(content)
+    inbox = FakeInbox({item["id"]: content})
+    reader = FakeReader({"ocr_text": SAMPLE_TEXT, "seconds": 80.0})
+
+    process([item], conn, inbox, storage, reader, no_report)
+
+    document_id = documents(conn, item["sha256"])[0][0]
+    assert len(reader.images) == 2
+    assert extractions(conn, document_id)[0][0] == "teszt-modell"
+    assert inbox.outcomes[0]["seconds"] == 160.0
+
+
+def test_broken_pdf_closes_as_unreadable_and_the_next_one_runs(conn, storage):
+    broken = b"%PDF-1.7 serult, nincs benne semmi"
+    next_content = invented_receipt()
+    first = pdf_item(broken)
+    second = make_item(next_content)
+    inbox = FakeInbox({first["id"]: broken, second["id"]: next_content})
+    reader = FakeReader()
+
+    process([first], conn, inbox, storage, reader, no_report)
+    process([second], conn, inbox, storage, reader, no_report)
+
+    assert inbox.closed == [first["id"], second["id"]]
+    assert inbox.outcomes[0] == {"result": "unreadable"}
+    assert inbox.outcomes[1]["result"] == "ok"
 
 
 def test_same_image_twice_is_written_once_and_both_close(conn, storage):
@@ -315,6 +370,12 @@ def test_object_key_uses_month_and_extension(content_type, extension):
     item = {"purchase_date": "2026-12-05", "sha256": "ab", "content_type": content_type}
 
     assert object_key(item) == f"photo/2026/12/ab.{extension}"
+
+
+def test_object_key_keeps_pdfs_apart():
+    item = {"purchase_date": "2026-12-05", "sha256": "ab", "content_type": "application/pdf"}
+
+    assert object_key(item) == "pdf/2026/12/ab.pdf"
 
 
 def test_object_key_falls_back_to_upload_month():

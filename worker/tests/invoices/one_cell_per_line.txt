@@ -1,0 +1,73 @@
+Számla
+Sorszám: MWS12345/2026
+Szállító
+Minta Webshop Kft.
+1095 Budapest, Példa út 10. 4. em.
+1095 Budapest, Raktár út 1.
+Adószám: 87654321-2-42
+Közösségi adószám: HU87654321
+Vevő
+Teszt Elek
+2000 Szentendre, Kitalált köz 1
+Adószám:
+Közösségi adószám:
+Telefon: +36 30 123 4567
+Bankszámlaszám: 11111111-
+22222222-33333333
+www.mintawebshop.hu
+Fizetési mód
+Teljesítés
+Kelte
+Esedékesség
+online bankkártya
+2026.10.20.
+2026.10.21.
+2026.10.22.
+Termék
+Egységár
+Áfa (%)
+Nettó
+Kedv. ár
+Áfa
+Bruttó
+123456
+Példa laptop 15 col 16 GB RAM, 512 GB SSD,
+fekete (2026), 2 év garancia,
+gyári csomagolás
+1 db
+Nincs
+236 220,00 Ft
+27%
+236 220 Ft
+63 780 Ft
+300 000 Ft
+1 db
+SN12345678 ;
+Garancia kód: ABCD-1234-EFGH-5678
+szolgáltatás kiszállítási díja
+1 db
+1 574,80 Ft
+27%
+1 575 Ft
+425 Ft
+2 000 Ft
+Áfa összesítő
+Nettó
+Áfa
+Áfa (EUR)
+Bruttó
+27%-os áfa
+237 795 Ft
+64 205 Ft
+€ 180,50
+302 000 Ft
+Összesen
+237 795 Ft
+64 205 Ft
+€ 180,50
+302 000 Ft
+Fizetendő végösszeg:
+302 000 Ft
+A kitalált számla átutalással is fizethető lenne.
+(Áfa árfolyam: 355,7 HUF/EUR)
+Oldal: 1/1

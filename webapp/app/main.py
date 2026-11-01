@@ -118,11 +118,11 @@ def status_data() -> dict:
     )
 
 
-def read_image(file: UploadFile) -> tuple[bytes, str, str]:
+def read_upload(file: UploadFile) -> tuple[bytes, str, str]:
     content = file.file.read(MAX_UPLOAD_BYTES + 1)
     if len(content) > MAX_UPLOAD_BYTES:
         raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, "A fájl nagyobb 20 MB-nál.")
-    content_type = inbox.detect_image_type(content)
+    content_type = inbox.detect_file_type(content)
     if content_type is None:
         raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "Nem támogatott fájltípus.")
     return content, file.filename or "", content_type
@@ -130,7 +130,7 @@ def read_image(file: UploadFile) -> tuple[bytes, str, str]:
 
 @app.post("/uploads", status_code=status.HTTP_201_CREATED)
 def create_upload(file: UploadFile, form: Annotated[UploadForm, Form()]) -> dict[str, str]:
-    item = inbox.add(form, *read_image(file))
+    item = inbox.add(form, *read_upload(file))
     return {"id": item["id"], "sha256": item["sha256"]}
 
 
@@ -143,7 +143,12 @@ def create_group_upload(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             f"Egy blokkhoz {MIN_GROUP_PAGES}–{MAX_GROUP_PAGES} kép tartozhat.",
         )
-    return {"group_id": inbox.add_group(form, [read_image(file) for file in files])}
+    pages = [read_upload(file) for file in files]
+    if any(content_type == inbox.PDF_TYPE for *_, content_type in pages):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, "A PDF önmagában egy dokumentum, csak képek fűzhetők össze."
+        )
+    return {"group_id": inbox.add_group(form, pages)}
 
 
 @worker_api.get("/items")

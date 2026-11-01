@@ -12,7 +12,7 @@ import httpx
 import psycopg
 from botocore.exceptions import BotoCoreError, ClientError
 
-from app import bronze
+from app import bronze, pdf
 from app.config import Settings, get_settings
 from app.extract import PROMPT_VERSION, ModelMissing, ReceiptReader
 from app.inbox import Inbox
@@ -28,6 +28,7 @@ EXTENSIONS = {
     "image/png": "png",
     "image/heic": "heic",
     "image/webp": "webp",
+    pdf.CONTENT_TYPE: "pdf",
 }
 
 
@@ -51,10 +52,15 @@ RETRYABLE = (
 )
 
 
+def source_type(item: dict) -> str:
+    return "pdf" if item["content_type"] == pdf.CONTENT_TYPE else "photo"
+
+
 def object_key(item: dict) -> str:
     """Dátum nélküli feltöltésnél a feltöltés hónapja adja a mappát."""
     year, month = (item["purchase_date"] or item["uploaded_at"]).split("-")[:2]
-    return f"photo/{year}/{month}/{item['sha256']}.{EXTENSIONS[item['content_type']]}"
+    extension = EXTENSIONS[item["content_type"]]
+    return f"{source_type(item)}/{year}/{month}/{item['sha256']}.{extension}"
 
 
 def outcome_of(status: str, items: int, seconds: float | None, readable: bool) -> dict:
@@ -82,13 +88,14 @@ def store_page(
         report("storage")
         key = object_key(item)
         storage.put(key, content, item["content_type"])
-        document_id = bronze.insert_document(conn, item, key)
+        document_id = bronze.insert_document(conn, item, key, source_type(item))
 
     payload = None
-    version = reader.version()
-    if not bronze.has_extraction(conn, document_id, reader.name, version, PROMPT_VERSION):
-        payload = reader.read(content, report)
-        bronze.insert_extraction(conn, document_id, reader.name, version, PROMPT_VERSION, payload)
+    active = pdf.reader_for(content, reader) if source_type(item) == "pdf" else reader
+    version = active.version()
+    if not bronze.has_extraction(conn, document_id, active.name, version, PROMPT_VERSION):
+        payload = active.read(content, report)
+        bronze.insert_extraction(conn, document_id, active.name, version, PROMPT_VERSION, payload)
     return document_id, payload
 
 

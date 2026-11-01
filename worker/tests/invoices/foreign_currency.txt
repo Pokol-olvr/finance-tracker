@@ -1,0 +1,10 @@
+SZÁMLA
+Sorszám: EU-77
+Szállító: Example Shop GmbH
+Adószám: 99887766-2-41
+Vevő: Teszt Elek
+Teljesítés: 2026.07.01.
+Megnevezés
+Egységár Nettó Áfa Bruttó
+Könyv 1 db 10,00 10,00 27% 2,70 12,70
+Fizetendő végösszeg: € 12,70

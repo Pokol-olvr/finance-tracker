@@ -1,0 +1,16 @@
+Szállítólevél
+Minta Webshop Kft.
+1095 Budapest, Példa út 10.
+Adószám: 87654321-2-42
+Bankszámlaszám: 11111111-22222222-33333333
+Rendelés dátuma: 2026. 10. 18.
+Számlázási cím
+Teszt Elek
+Szállítási cím
+Teszt Elek
+Termék Mennyiség Egység Egységár Nettó összesen
+Példa tok 1 db 2.000 Ft 2.000 Ft
+ÁFA (27%): 540 Ft
+Nettó összesen: 2.000 Ft
+Bruttó összesen: 2.540 Ft
+Fizetési mód bankkártya

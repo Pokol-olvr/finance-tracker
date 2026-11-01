@@ -1,0 +1,12 @@
+SZÁMLA
+Sorszám: ISM-2026-5
+Szállító: Ismeretlen Táblázat Kft.
+Adószám: 55667788-2-13
+Vevő: Teszt Elek
+Teljesítés: 2026.08.15.
+Fizetési mód: bankkártya
+Megnevezés
+Nettó
+Bruttó
+Havi díj | 1000 | 1270 | csomag
+Összesen bruttó: 1 270 Ft

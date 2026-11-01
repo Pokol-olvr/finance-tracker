@@ -82,32 +82,37 @@ scripts/dbt.sh
 
 A `purchased_by` és a `payer` a `HOUSEHOLD_MEMBERS` kódjait használja, a `payer` lehet `shared` is. A `scripts/mock-entries.sh` hat hónapnyi kitalált adatot tölt be, és újrafuttatható. A webapp tesztjei a `scripts/test-webapp.sh` paranccsal futnak, és a bronzban nem hagynak adatot.
 
-## Blokk feltöltése és kiolvasása
+## Blokk és számla feltöltése és kiolvasása
 
-A `http://127.0.0.1:8000` oldalon kell megadni a fotókat, a feltöltőt, a vásárlót, a fizető felet és legalább egy címkét. A képet JPEG, PNG, HEIC vagy WebP formátumban, fájlonként legfeljebb 20 MB-ig fogadja. A telefon a FIN-308-ig nem éri el az oldalt, ezért a fotót előbb a laptopra kell áttenni.
+A `http://127.0.0.1:8000` oldalon kell megadni a fájlokat, a feltöltőt, a vásárlót, a fizető felet és legalább egy címkét. Az oldal JPEG, PNG, HEIC, WebP vagy PDF fájlt fogad, fájlonként legfeljebb 20 MB-ig. A telefon a FIN-308-ig nem éri el az oldalt, ezért a fotót előbb a laptopra kell áttenni.
 
-- **Több blokk egyszerre:** legfeljebb 20 fájl tölthető fel körönként, behúzással is. A megadott adatok mindegyikre érvényesek, és egy rossz fájl nem állítja meg a többit. Több fájlnál a dátum üres marad, és a blokkról olvassuk ki.
-- **Hosszú blokk több képből:** az „Egy hosszú blokk több képből” kapcsolóval 2–5 kép tartozik egy blokkhoz, a nyilakkal rendezhető sorrendben. A két képen is látszó sorok egyszer számítanak. Ha bármelyik fájl hibás, egyik sem kerül be.
+- **Több blokk egyszerre:** legfeljebb 20 fájl tölthető fel körönként, behúzással is. A megadott adatok mindegyikre érvényesek, és egy rossz fájl nem állítja meg a többit. Több fájlnál a dátum üres marad, és a dokumentumról olvassuk ki.
+- **Hosszú blokk több képből:** az „Egy hosszú blokk több képből” kapcsolóval 2–5 kép tartozik egy blokkhoz, a nyilakkal rendezhető sorrendben. A két képen is látszó sorok egyszer számítanak. Ha bármelyik fájl hibás, egyik sem kerül be. PDF ebben a módban nem választható, mert önmagában egy dokumentum.
+- **PDF:** a szöveges PDF modell nélkül, a szövegrétegéből olvasódik ki. A szkennelt PDF első 5 lapja képként a modellhez megy, lapjaként kb. másfél perc alatt. A jelszavas vagy sérült PDF „olvashatatlan” eredménnyel zár.
 
 A worker percenként megnézi a postaládát, és tételenként végigviszi a folyamatot:
 
 1. Letölti a fájlt, és ellenőrzi a hash-t.
-2. Ha ez a kép még nincs a bronzban, a `raw` bucketbe teszi `photo/ÉÉÉÉ/HH/<sha256>.<kiterjesztés>` kulccsal, és beírja a `bronze.raw_document` táblába.
-3. Szöveggé olvastatja a modellel, és az eredményt a `bronze.extraction` táblába teszi.
-4. A szövegből a saját feldolgozó tételeket, végösszeget és fizetési adatokat készít, ellenőrzi őket, és az eredményt a `bronze.receipt_parse` táblába teszi.
+2. Ha ez a fájl még nincs a bronzban, a `raw` bucketbe teszi `photo/ÉÉÉÉ/HH/<sha256>.<kiterjesztés>` vagy `pdf/ÉÉÉÉ/HH/<sha256>.pdf` kulccsal, és beírja a `bronze.raw_document` táblába.
+3. Szöveggé olvastatja, és az eredményt a `bronze.extraction` táblába teszi. A szöveges PDF-hez itt nem kell modell, ilyenkor a `model_name` értéke `pdfium`.
+4. A szöveg dönti el, hogy blokkról vagy számláról van szó. A saját feldolgozó ebből tételeket, végösszeget és fizetési adatokat készít, ellenőrzi őket, és az eredményt a `bronze.receipt_parse` táblába teszi.
 5. Lezárja a tételt, a fájl ekkor törlődik a postaládából.
 
-Ha az Ollama vagy a Garage nem érhető el, a tétel nyitva marad, és a worker a következő körben folytatja. A rossz kimenet is a bronzba kerül, és lezárja a tételt. A tételek sorban futnak. Az indoklás: [ADR 0009](docs/adr/0009-szabalyalapu-blokkfeldolgozo.md).
+Ha az Ollama vagy a Garage nem érhető el, a tétel nyitva marad, és a worker a következő körben folytatja. A rossz kimenet is a bronzba kerül, és lezárja a tételt. A tételek sorban futnak. Az indoklás: [ADR 0009](docs/adr/0009-szabalyalapu-blokkfeldolgozo.md) és [ADR 0010](docs/adr/0010-pdf-olvasas-es-szamlafeldolgozo.md).
 
 | Ellenőrzés | Szabály |
 | --- | --- |
 | `sum` | A tételek, a betétdíj, a kedvezmény és az utalvány összege a végösszeg |
-| `line_total` | Mennyiség × egységár = érték, 1 Ft tűréssel |
+| `line_total` | Mennyiség × egységár = érték, 1 Ft tűréssel; számlánál soronként nettó + áfa = bruttó is |
 | `payment` | Fizetett − visszajáró = végösszeg, készpénznél 2 Ft tűréssel |
-| `date` | A beírt és a beolvasott dátum egyezik |
-| `duplicate` | Az adószám és a nyugtaszám másik blokkon nem szerepel |
+| `date` | A beírt és a beolvasott dátum egyezik; a feltöltés napja nem számít beírt dátumnak, mert az űrlap azt kínálja fel |
+| `duplicate` | Az adószám és a nyugta- vagy számlaszám máshol nem szerepel |
+| `vat_summary` | Csak számlánál: az áfaösszesítő bruttója a végösszeg, 2 Ft tűréssel |
+| `currency` | Csak számlánál: a végösszeg forintban van |
 
-A blokk állapota `ok`, ha egyik ellenőrzés sem bukott el, `review`, ha valamelyik igen, és `unparsed`, ha nincs tétel vagy végösszeg. Egy ellenőrzés kimarad, ha hiányzik hozzá az adat. A `worker/app/receipt_parser.py` szabályai magyar blokkformátumokra készültek. Új formátumhoz szabályt és kitalált tesztblokkot kell felvenni a `worker/tests/receipts/` mappába, majd növelni a `PARSER_VERSION` értékét. A worker induláskor a tárolt szövegeket modell nélkül újra feldolgozza.
+A dokumentum állapota `ok`, ha egyik ellenőrzés sem bukott el, `review`, ha valamelyik igen, és `unparsed`, ha nincs tétel vagy végösszeg. Egy ellenőrzés kimarad, ha hiányzik hozzá az adat. Az ismeretlen táblázatú számla `review` lesz a végösszeggel, és nem kap kitalált tételt. A szállítólevél, a díjbekérő és a proforma nem kiadás, ezért `unparsed` marad, és a `payload` `document_type` mezője `non_expense`. A számla kiadásának dátuma a teljesítés dátuma, a vevő neve és címe pedig csak a nyers szövegben marad.
+
+A `worker/app/receipt_parser.py` és a `worker/app/invoice_parser.py` szabályai magyar formátumokra készültek. Új formátumhoz szabályt és kitalált tesztfájlt kell felvenni a `worker/tests/receipts/` vagy a `worker/tests/invoices/` mappába, majd növelni a `PARSER_VERSION` értékét. A worker induláskor a tárolt szövegeket modell nélkül újra feldolgozza.
 
 A legutóbbi kiolvasás, illetve az utolsó három:
 
@@ -124,7 +129,7 @@ A modell kitalált mintablokkon így próbálható ki, ez a bronzba nem ír:
 podman compose -f home/docker-compose.yml run --rm --no-deps worker python -m tools.smoke_receipt
 ```
 
-Egy repón kívüli mappa képei a bronz érintése nélkül is kiolvashatók. Képenként egy `.txt` és egy `.json` fájl készül, megszakítás után a futás folytatható:
+Egy repón kívüli mappa képei és PDF-jei a bronz érintése nélkül is kiolvashatók. Fájlonként egy `.txt` és egy `.json` fájl készül, megszakítás után a futás folytatható:
 
 ```sh
 podman compose -f home/docker-compose.yml run --rm --no-deps --user 0 \

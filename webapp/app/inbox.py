@@ -95,11 +95,14 @@ values
 """
 
 # A HEIC fájl a típusát az ftyp dobozban adja meg.
+PDF_TYPE = "application/pdf"
 HEIC_BRANDS = frozenset({b"heic", b"heix", b"hevc", b"hevx", b"heim", b"heis", b"mif1", b"msf1"})
 
 
-def detect_image_type(content: bytes) -> str | None:
-    """A fájl típusa a tartalma alapján; None, ha nem támogatott kép."""
+def detect_file_type(content: bytes) -> str | None:
+    """A fájl típusa a tartalma alapján; None, ha nem támogatott."""
+    if content.startswith(b"%PDF-"):
+        return PDF_TYPE
     if content.startswith(b"\xff\xd8\xff"):
         return "image/jpeg"
     if content.startswith(b"\x89PNG\r\n\x1a\n"):

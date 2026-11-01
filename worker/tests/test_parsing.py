@@ -112,6 +112,20 @@ def test_rephotographed_receipt_needs_review(conn):
     assert parses(conn, second)[0][3]["duplicate"]["ok"] is False
 
 
+def test_upload_day_does_not_count_as_an_entered_date(conn):
+    item = make_item(invented_receipt()) | {
+        "purchase_date": "2026-12-20",
+        "uploaded_at": "2026-12-20T10:00:00+00:00",
+    }
+    group_id = stored(conn, item, {"ocr_text": STORE_TEXT})
+
+    parse_pending(conn, group_id)
+
+    _, status, _, checks = parses(conn, group_id)[0]
+    assert checks["date"]["ok"] is None
+    assert status == "ok"
+
+
 def test_entered_date_is_compared_with_the_read_date(conn):
     item = make_item(invented_receipt()) | {"purchase_date": "2026-12-13"}
     group_id = stored(conn, item, {"ocr_text": STORE_TEXT})
@@ -126,7 +140,7 @@ def test_parser_failure_does_not_stop_the_worker(conn, monkeypatch):
     def broken(_texts):
         raise ValueError("váratlan formátum")
 
-    monkeypatch.setattr(app.parsing, "parse_pages", broken)
+    monkeypatch.setattr(app.parsing, "parse_document", broken)
     group_id = stored(conn, make_item(invented_receipt()), {"ocr_text": SAMPLE_TEXT})
 
     parse_pending(conn, group_id)
