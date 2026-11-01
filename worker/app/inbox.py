@@ -51,5 +51,16 @@ class Inbox:
             json={"id": str(decision_id), "decided_by": decided_by},
         ).raise_for_status()
 
+    def open_events(self) -> list[dict]:
+        response = self.client.get("/inbox/events")
+        response.raise_for_status()
+        return response.json()["events"]
+
+    def close_event(self, event_id: str) -> None:
+        self.client.post(f"/inbox/events/{event_id}/close").raise_for_status()
+
+    def report_deposit(self, report: dict) -> None:
+        self.client.post("/inbox/status/deposit", json=report).raise_for_status()
+
     def close_decision(self, decision_id: str) -> None:
         self.client.post(f"/inbox/decisions/{decision_id}/close").raise_for_status()

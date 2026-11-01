@@ -1,5 +1,5 @@
 [Unit]
-Description=Pénzügyi nyomkövető éjszakai dbt build
+Description=Pénzügyi nyomkövető dbt build
 After=podman.socket podman-restart.service
 
 [Service]

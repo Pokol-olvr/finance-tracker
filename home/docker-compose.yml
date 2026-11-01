@@ -10,8 +10,7 @@ services:
       FINANCE_OWNER_PASSWORD: ${FINANCE_OWNER_PASSWORD:?}
       APP_WRITER_PASSWORD: ${APP_WRITER_PASSWORD:?}
       DBT_RUNNER_PASSWORD: ${DBT_RUNNER_PASSWORD:?}
-      MB_READER_PASSWORD: ${MB_READER_PASSWORD:?}
-      METABASE_DB_PASSWORD: ${METABASE_DB_PASSWORD:?}
+      REPORT_READER_PASSWORD: ${REPORT_READER_PASSWORD:?}
     volumes:
       # A Postgres 18-as kép a PGDATA-t ez alatt, verziózott mappában tartja.
       - ${DATA_DIR:-./data}/postgres:/var/lib/postgresql:z
@@ -63,29 +62,26 @@ services:
       retries: 6
       start_period: 10s
 
-  metabase:
-    image: docker.io/metabase/metabase:v0.65.2.4
+  # Csak a goldot olvassa, a beállításai a reports/.streamlit mappában vannak.
+  reports:
+    build: ../reports
+    image: localhost/finance-tracker-reports
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      MB_DB_TYPE: postgres
-      MB_DB_HOST: postgres
-      MB_DB_PORT: 5432
-      MB_DB_DBNAME: metabase
-      MB_DB_USER: metabase_owner
-      MB_DB_PASS: ${METABASE_DB_PASSWORD:?}
-      MB_ENCRYPTION_SECRET_KEY: ${MB_ENCRYPTION_SECRET_KEY:?}
-      MB_ANON_TRACKING_ENABLED: "false"
+      DATABASE_URL: postgresql://report_reader:${REPORT_READER_PASSWORD:?}@postgres:5432/finance
+      WEBAPP_URL: http://${BIND_ADDRESS:-127.0.0.1}:${WEBAPP_PORT:-8000}
+      STREAMLIT_BROWSER_SERVER_ADDRESS: ${BIND_ADDRESS:-localhost}
     ports:
-      - ${BIND_ADDRESS:-127.0.0.1}:${METABASE_PORT:-3000}:3000
+      - ${BIND_ADDRESS:-127.0.0.1}:${REPORTS_PORT:-8501}:8501
     healthcheck:
-      test: [CMD, curl, -fsS, http://localhost:3000/api/health]
+      test: [CMD, python, -c, "import urllib.request as u; u.urlopen('http://localhost:8501/_stcore/health')"]
       interval: 15s
       timeout: 5s
-      retries: 8
-      start_period: 180s
+      retries: 6
+      start_period: 15s
 
   # A mappa a gazdagép felhasználójáé, a webapp viszont nobody-ként fut.
   inbox-init:
@@ -111,7 +107,7 @@ services:
       HOUSEHOLD_MEMBERS: ${HOUSEHOLD_MEMBERS:-person_a,person_b}
       INBOX_DIR: /inbox
       WORKER_API_TOKEN: ${WORKER_API_TOKEN:?}
-      METABASE_URL: http://${BIND_ADDRESS:-127.0.0.1}:${METABASE_PORT:-3000}
+      REPORTS_URL: http://${BIND_ADDRESS:-127.0.0.1}:${REPORTS_PORT:-8501}
     volumes:
       - ${DATA_DIR:-./data}/inbox:/inbox:z
     ports:
@@ -180,6 +176,18 @@ services:
       PYTHONDONTWRITEBYTECODE: "1"
       PIP_ROOT_USER_ACTION: ignore
     working_dir: /repo/webapp
+    volumes:
+      - ..:/repo:ro,z
+    entrypoint: [sh, -c, "pip install -q --no-cache-dir -r requirements-dev.txt && python -m pytest -q -p no:cacheprovider"]
+
+  reports-test:
+    image: docker.io/library/python:3.13.18-slim
+    profiles: [tools]
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONPATH: /repo/reports
+      PIP_ROOT_USER_ACTION: ignore
+    working_dir: /repo/reports
     volumes:
       - ..:/repo:ro,z
     entrypoint: [sh, -c, "pip install -q --no-cache-dir -r requirements-dev.txt && python -m pytest -q -p no:cacheprovider"]

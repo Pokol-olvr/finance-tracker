@@ -116,6 +116,21 @@ values
 on conflict (id) do nothing
 """
 
+INSERT_RULE_EVENT = """
+insert into bronze.rule_event
+  (id, rule_id, rule_type, pattern, target_value, active, created_by, created_at)
+values
+  (%(id)s, %(rule_id)s, %(rule_type)s, %(pattern)s, %(target_value)s, %(active)s,
+   %(created_by)s, %(created_at)s)
+on conflict (id) do nothing
+"""
+
+INSERT_DEPOSIT_CORRECTION = """
+insert into bronze.deposit_correction (id, kind, amount, created_by, created_at)
+values (%(id)s, %(kind)s, %(amount)s, %(created_by)s, %(created_at)s)
+on conflict (id) do nothing
+"""
+
 # A webapp 30 napig tartja a lezárt csomagot, ezért ennél régebbit nem érdemes visszatölteni.
 REVIEW_KEEP_DAYS = 30
 
@@ -237,6 +252,36 @@ def insert_decision(conn: psycopg.Connection, decision: dict) -> None:
         INSERT_DECISION,
         decision | {"corrected": Jsonb(corrected) if corrected is not None else None},
     )
+
+
+def insert_rule_event(conn: psycopg.Connection, event: dict) -> None:
+    conn.execute(INSERT_RULE_EVENT, event)
+
+
+def insert_deposit_correction(conn: psycopg.Connection, event: dict) -> None:
+    conn.execute(INSERT_DEPOSIT_CORRECTION, event)
+
+
+def deposit_report(conn: psycopg.Connection) -> dict:
+    """A goldból a webappnak: egyenleg és a legutóbbi mozgások, bolt és tétel nélkül."""
+    balance = conn.execute("select balance from gold.expected_deposit").fetchone()[0]
+    with conn.cursor(row_factory=dict_row) as cursor:
+        cursor.execute(
+            "select movement, moved_at, amount, balance from gold.deposit_history "
+            "order by position desc limit 10"
+        )
+        movements = cursor.fetchall()
+    return {
+        "balance": float(balance),
+        "movements": [
+            row | {
+                "moved_at": row["moved_at"].isoformat(),
+                "amount": float(row["amount"]),
+                "balance": float(row["balance"]),
+            }
+            for row in movements
+        ],
+    }
 
 
 def insert_parse(

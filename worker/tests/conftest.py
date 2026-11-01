@@ -102,6 +102,9 @@ class FakeInbox:
         self.decided: set[str] = set()
         self.synced: list[str] = []
         self.reopened: list[tuple[str, str, str]] = []
+        self.events: list[dict] = []
+        self.closed_events: list[str] = []
+        self.deposit_reports: list[dict] = []
 
     def download(self, item_id: str) -> bytes:
         return self.files[item_id]
@@ -131,6 +134,15 @@ class FakeInbox:
 
     def close_decision(self, decision_id: str) -> None:
         self.synced.append(decision_id)
+
+    def open_events(self) -> list[dict]:
+        return [row for row in self.events if row["id"] not in self.closed_events]
+
+    def close_event(self, event_id: str) -> None:
+        self.closed_events.append(event_id)
+
+    def report_deposit(self, report: dict) -> None:
+        self.deposit_reports.append(report)
 
     def reopen_review(self, group_id, decision_id, decided_by: str) -> None:
         self.reopened.append((str(group_id), str(decision_id), decided_by))

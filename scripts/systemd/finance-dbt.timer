@@ -1,9 +1,9 @@
 [Unit]
-Description=Pénzügyi nyomkövető éjszakai dbt build ütemezése
+Description=Pénzügyi nyomkövető óránkénti dbt build ütemezése
 
 [Timer]
-# A 03:30-as mentés előtt, hogy az a friss silvert és goldot vigye.
-OnCalendar=*-*-* 03:00:00
+# A döntés így egy órán belül a riportokban is látszik, és a 03:30-as mentés is friss adatot visz.
+OnCalendar=hourly
 Persistent=true
 
 [Install]

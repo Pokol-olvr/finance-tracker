@@ -7,3 +7,7 @@ sources:
       - name: raw_document
       - name: extraction
       - name: manual_entry
+      - name: receipt_parse
+      - name: review_decision
+      - name: rule_event
+      - name: deposit_correction

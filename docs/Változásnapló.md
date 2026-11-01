@@ -13,6 +13,29 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 
 ## Kiadatlan
 
+### Hozzáadva
+
+- FIN-406 Silver tétel szint: `documents`, `receipt_items`, `document_payments`, `stores`; a kiadásba csak a rendben lévő, jóváhagyott vagy javított dokumentum számít, a kiszerelés a tételnévből jön.
+- FIN-206 Riportfelület Streamlitben a `reports/` mappában: Áttekintés és Kiadások, lefúrással az Ellenőrzés képernyőig, közös menüvel a webappal.
+- FIN-501 Szabályok oldal a `/rules` címen: tétel- és boltszabályok, amelyek a régi dokumentumokra is érvényesek.
+- FIN-409 Betétdíj oldal a `/deposit` címen: a várható DRS-betétdíj, kézi állítás és nullázás; a betétdíj nem kiadás, a beváltott utalvány csökkenti.
+
+### Módosítva
+
+- A dbt éjszaka helyett óránként fut, így a döntés egy órán belül a riportokban is látszik.
+- A dokumentumok kiadása megjelenik a gold táblákban.
+
+### Eltávolítva
+
+- A Metabase, a `metabase` adatbázis és a `scripts/metabase-*.sh`; a riportok a Streamlitben vannak.
+
+### Frissítési teendők
+
+- `scripts/backup.sh`, majd `scripts/replace-metabase.sh`: friss jelszót állít be a `report_reader` szerepkörnek, és törli a Metabase adatbázisát. Ez nem visszafordítható, a korábbi `metabase.dump` a mentésben marad.
+- `podman compose -f home/docker-compose.yml up -d --build --remove-orphans`, majd `scripts/dbt.sh`.
+- `scripts/install-timers.sh`: ez állítja át a dbt-t óránkénti futásra.
+- A `home/.env` `MB_*` és `METABASE_*` sorai ezután törölhetők.
+
 ## v0.4.0 · 2026-11-01
 
 ### Hozzáadva

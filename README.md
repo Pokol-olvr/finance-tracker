@@ -2,13 +2,13 @@
 
 Kétszemélyes háztartási pénzügyi nyomkövető medallion adatrétegekkel és helyi blokkbeolvasással. A tervek a `docs/` mappában vannak: [Üzleti koncepció](docs/Üzleti%20koncepció.md), [Technikai terv](docs/Technikai%20terv.md), [Fejlesztési terv](docs/Fejlesztési%20terv.md).
 
-A jelenlegi állapot az otthoni stack: Postgres a bronz, silver és gold sémákkal, Garage object store, kézi bejegyzés API és blokkfeltöltés, a GLM-OCR kiolvasásával, dbt és Metabase Áttekintés dashboard, napi mentéssel, és egy állapot képernyő a stack minden részéről. Egyelőre minden helyben fut, mock adattal és néhány saját próbablokkal.
+A jelenlegi állapot az otthoni stack: Postgres a bronz, silver és gold sémákkal, Garage object store, kézi bejegyzés API és blokkfeltöltés, a GLM-OCR kiolvasásával, dbt és Streamlit riportok, napi mentéssel, és egy állapot képernyő a stack minden részéről. Egyelőre minden helyben fut, mock adattal és néhány saját próbablokkal.
 
 ## Előfeltételek
 
 - Rootless Podman, a `scripts/setup-podman.sh` egyszeri beállításával (Fedora); a CI Dockert használ, az is működik
 - `openssl`, `curl`, `jq`
-- 3 GB szabad memória a Metabase miatt, és további 5 GB a kiolvasás idejére
+- 5 GB szabad memória a kiolvasás idejére
 - 3 GB szabad lemez a modellnek
 
 ## Gyorsindítás
@@ -21,9 +21,9 @@ scripts/ollama-pull.sh
 podman compose -f home/docker-compose.yml up -d --build
 ```
 
-A Metabase az első indításkor pár percig készül, utána a `http://127.0.0.1:3000` címen érhető el. Az első beállításhoz töltsd ki a `home/.env` `MB_ADMIN_*` és `MB_SECOND_*` mezőit, majd futtasd a `scripts/metabase-setup.sh`-t. A script létrehozza a két felhasználót, és felveszi a `finance` adatbázist `mb_reader`-ként. A `scripts/metabase-dashboard.sh` ezután elkészíti az Áttekintés dashboardot. Mindkettő újrafuttatható.
+A riportok a `http://127.0.0.1:8501` címen érhetők el. A feltöltés, az Ellenőrzés, a szabályok és a betétdíj a `http://127.0.0.1:8000` címen van.
 
-A `scripts/init-env.sh` által generált `MB_ENCRYPTION_SECRET_KEY` és `RESTIC_PASSWORD` értékét mentsd el a jelszókezelőbe. Az első nélkül költözés után a mentett adatbázis-kapcsolatok nem olvashatók, a második nélkül a mentés használhatatlan.
+A `scripts/init-env.sh` által generált `RESTIC_PASSWORD` értékét mentsd el a jelszókezelőbe, nélküle a mentés használhatatlan.
 
 ## Felépítés
 
@@ -31,6 +31,7 @@ A `scripts/init-env.sh` által generált `MB_ENCRYPTION_SECRET_KEY` és `RESTIC_
 home/        otthoni Compose, Postgres init, Garage config
 pi/          a Pi Compose-fájlja (Sprint 6-tól)
 webapp/      FastAPI webapp (Sprint 2-től)
+reports/     riportok Streamlitben (Sprint 5-től)
 worker/      lehúzás és kiolvasás (Sprint 3-tól)
 dbt/         transzformációk (Sprint 2-től)
 migrations/  bronz sémák SQL-migrációi
@@ -40,16 +41,16 @@ docs/adr/    döntési jegyzetek
 
 | Szolgáltatás | Cím | Feladat |
 | --- | --- | --- |
-| `postgres` | `127.0.0.1:5432` | `finance` és `metabase` adatbázis |
+| `postgres` | `127.0.0.1:5432` | `finance` adatbázis |
 | `migrate` | nincs | Induláskor lefuttatja a `migrations/` mappát, majd kilép |
 | `garage` | `127.0.0.1:3900` | S3 API, `raw` bucket |
 | `inbox-init` | nincs | Induláskor beállítja a postaláda mappájának tulajdonosát, majd kilép |
-| `webapp` | `127.0.0.1:8000` | Feltöltő és állapot képernyő, kézi bejegyzés API és postaláda; belépés nélkül, ezért csak helyben látszik |
+| `webapp` | `127.0.0.1:8000` | Feltöltés, Ellenőrzés, Szabályok, Betétdíj és állapot képernyő, kézi bejegyzés API és postaláda; belépés nélkül, ezért csak helyben látszik |
 | `ollama` | nincs | A GLM-OCR modell futtatója, csak a Compose-hálózaton |
 | `worker` | nincs | A postaládából a Garage-ba és a bronzba viszi a feltöltéseket, és kiolvastatja őket |
-| `metabase` | `127.0.0.1:3000` | Dashboardok |
+| `reports` | `127.0.0.1:8501` | Riportok Streamlitben, csak a goldot olvassa; belépés nélkül, ezért csak helyben látszik |
 
-Minden adat a `home/data/` alatt van, a helyét a `DATA_DIR` állítja. A Metabase és a Garage címe a `BIND_ADDRESS` változóval a gép Tailscale-címére tehető. A Postgres mindig csak helyben látszik, a Garage admin és RPC portja pedig csak a Compose-hálózaton.
+Minden adat a `home/data/` alatt van, a helyét a `DATA_DIR` állítja. A riportok és a Garage címe a `BIND_ADDRESS` változóval a gép Tailscale-címére tehető. A Postgres mindig csak helyben látszik, a Garage admin és RPC portja pedig csak a Compose-hálózaton.
 
 A konténerek rootless Podmanben a felhasználóhoz tartoznak, ezért a `home/data/postgres` törléséhez `podman unshare rm -rf home/data` kell. A `home/data/inbox` és a `home/data/ollama` nem kerül a mentésbe: az első átmeneti tároló, a második újra letölthető.
 
@@ -58,9 +59,9 @@ A konténerek rootless Podmanben a felhasználóhoz tartoznak, ezért a `home/da
 | Szerepkör | Jog | Ki használja |
 | --- | --- | --- |
 | `finance_owner` | A sémák tulajdonosa | Migrációk |
-| `app_writer` | Csak beszúrás és olvasás a bronzban | Webapp, worker |
+| `app_writer` | Beszúrás és olvasás a bronzban, olvasás a goldból | Webapp, worker |
 | `dbt_runner` | Olvasás a bronzból, írás a silverbe és a goldba | dbt |
-| `mb_reader` | Csak olvasás a goldból | Metabase |
+| `report_reader` | Csak olvasás a goldból | Riportok |
 
 ## Kézi bejegyzés és adatút
 
@@ -129,7 +130,7 @@ Ami nem kiadás, például a szállítólevél, annál a képernyő ezt kiírja,
 
 A modell ugyanarra a fájlra ugyanazt adja, ezért nincs újraolvasó gomb: rossz fotónál új fotó kell, annak más a hash-e. Ha egy elvetett dokumentum fájlját töltöd fel újra, a dokumentum modellfutás nélkül újranyílik, minden más esetben az eredmény „már megvolt”.
 
-A döntés előbb a webappba kerül, innen a worker a következő körben a `bronze.review_decision` táblába írja, a `bronze.receipt_parse` nem változik. A javított érték a FIN-406 után látszik a silverben és a Metabase-ben. A csomag a döntésig marad, a lezárt dokumentumé 30 nap után törlődik a webappból, a fájl a Garage-ban megmarad. A 30 napnál régebbi `ok` dokumentumot a worker nem tölti vissza. A HEIC fájlt a böngésző nem jeleníti meg, ezért ott a worker JPEG-előnézetet küld. Az indoklás: [ADR 0011](docs/adr/0011-ellenorzes-kepernyo-csomagokkal.md) és [ADR 0012](docs/adr/0012-ujranyitas-az-ujraolvasas-helyett.md).
+A döntés előbb a webappba kerül, innen a worker a következő körben a `bronze.review_decision` táblába írja, a `bronze.receipt_parse` nem változik. A javított érték a dbt következő futása után látszik a silverben és a riportokban. A csomag a döntésig marad, a lezárt dokumentumé 30 nap után törlődik a webappból, a fájl a Garage-ban megmarad. A 30 napnál régebbi `ok` dokumentumot a worker nem tölti vissza. A HEIC fájlt a böngésző nem jeleníti meg, ezért ott a worker JPEG-előnézetet küld. Az indoklás: [ADR 0011](docs/adr/0011-ellenorzes-kepernyo-csomagokkal.md) és [ADR 0012](docs/adr/0012-ujranyitas-az-ujraolvasas-helyett.md).
 
 A legutóbbi kiolvasás, illetve az utolsó három:
 
@@ -156,11 +157,35 @@ podman compose -f home/docker-compose.yml run --rm --no-deps --user 0 \
 
 A kimenet nem kerülhet a repóba: a szöveges fájlokat a commit előtti ellenőrzés nem szűri.
 
-A worker tesztjei a `scripts/test-worker.sh` paranccsal futnak, valódi Garage-dzsal és Postgresszel, a modellt egy csonk helyettesíti.
+A worker tesztjei a `scripts/test-worker.sh` paranccsal futnak, valódi Garage-dzsal és Postgresszel, a modellt egy csonk helyettesíti. A riportok tesztjei a `scripts/test-reports.sh` paranccsal futnak, kitalált adatokkal.
+
+## Szabályok és betétdíj
+
+A `http://127.0.0.1:8000/rules` oldalon vehetők fel a szabályok:
+
+- **Tételszabály:** ha a tétel neve tartalmazza a mintát, a tétel megkapja a kategóriát. Az egyeztetés ékezet nélkül történik. Több találatnál a hosszabb minta nyer, egyezésnél a régebbi szabály.
+- **Boltszabály:** az adószámhoz egységes boltnév tartozik.
+
+A szabály a régi dokumentumokra is érvényes, a kikapcsolt szabály a bronzban megmarad. Szabály nélkül az egy címkés blokk tétele a címkét kapja, a több címkésé `besorolatlan` lesz.
+
+A `http://127.0.0.1:8000/deposit` oldal a várható DRS-betétdíjat mutatja. A blokkon fizetett betétdíj növeli, a beváltott utalvány csökkenti, egyik sem kiadás. Az összeg kézzel állítható és nullázható, a kézi művelet a következő dbt-futás után látszik. A negatív összeg azt jelzi, hogy régebbi vásárlás betétdíja nincs a rendszerben, ilyenkor egy kézi állítás adja a nyitó egyenleget. A nullázás a napra vonatkozik: az aznap vagy előtte kelt blokkok betétdíja elvész.
+
+Mindkét oldal adata a webapp kimenő sorába kerül, innen a worker írja a bronzba. A várható összeget a worker tölti vissza a goldból, mert a webapp azt nem éri el.
+
+## Riportok
+
+A `http://127.0.0.1:8501` oldalon két riport van, a kód a `reports/` mappában:
+
+- **Áttekintés:** bevétel, kiadás, egyenleg, megtakarítási ráta és várható betétdíj, a hónap összevetése az előzővel és az átlaggal, kiadás kategóriánként.
+- **Kiadások:** a dokumentumok listája szűrhető arra, ki fizetett. Egy sor kiválasztása után a tételek látszanak, a gomb pedig az Ellenőrzésre visz az eredetihez.
+
+A kiadásba csak a rendben lévő, jóváhagyott vagy javított dokumentum számít, ezt egyedül a `silver.documents` dönti el ([ADR 0013](docs/adr/0013-beszamitas-a-silverben.md)). A dbt óránként fut, ezért a változás legfeljebb egy órán belül látszik.
+
+A riport kizárólag a goldot olvassa, és csak olvasható kapcsolattal. A Streamlit használati statisztikája ki van kapcsolva, a `browser.serverAddress` beállítása pedig megakadályozza a nyilvános IP lekérdezését. Az indoklás: [ADR 0014](docs/adr/0014-streamlit-a-metabase-helyett.md).
 
 ## Állapot képernyő
 
-A `http://127.0.0.1:8000/status` oldal kilenc kártyán mutatja a stack részeit: Feltöltés, Worker, Ollama, Garage, Postgres, Metabase, dbt, Mentés és Gép. Fölöttük látszik az összkép és az aktuális feldolgozási lépés az eltelt idővel, alattuk a legutóbbi feldolgozások. Az oldal 5 másodpercenként frissül, az adatai a `/status.json` címen is elérhetők.
+A `http://127.0.0.1:8000/status` oldal kilenc kártyán mutatja a stack részeit: Feltöltés, Worker, Ollama, Garage, Postgres, Riportok, dbt, Mentés és Gép. Fölöttük látszik az összkép és az aktuális feldolgozási lépés az eltelt idővel, alattuk a legutóbbi feldolgozások. Az oldal 5 másodpercenként frissül, az adatai a `/status.json` címen is elérhetők.
 
 | Felirat | Jelentés |
 | --- | --- |
@@ -189,7 +214,7 @@ A bronz csak hozzáfűzhető: az UPDATE, a DELETE és a TRUNCATE a tulajdonosná
 
 A `scripts/backup.sh` a futó stacken dolgozik:
 
-1. `pg_dump` a `finance` és a `metabase` adatbázisról a `home/backup/dumps/` mappába, a `finance` táblák sorszámával együtt.
+1. `pg_dump` a `finance` adatbázisról a `home/backup/dumps/` mappába, a `finance` táblák sorszámával együtt.
 2. A Garage `raw` bucket tükrözése a `home/backup/garage-raw/` mappába.
 3. restic pillanatkép a `RESTIC_REPO_DIR` tárolóba, 7 napi, 4 heti és 6 havi megőrzéssel.
 
@@ -197,7 +222,7 @@ A `RESTIC_REPO_DIR` éles használatra külső meghajtóra mutasson; alapból ug
 
 ### Ütemezés
 
-A systemd timerek naponta 03:00-kor a `dbt build`-et, 03:30-kor a mentést futtatják, és ha a gép ki volt kapcsolva, induláskor pótolják. A harmadik timer 15 másodpercenként az állapotjelentést küldi. A telepítés:
+A systemd timerek óránként a `dbt build`-et, naponta 03:30-kor a mentést futtatják, és ha a gép ki volt kapcsolva, induláskor pótolják. A harmadik timer 15 másodpercenként az állapotjelentést küldi. A telepítés:
 
 ```sh
 scripts/install-timers.sh

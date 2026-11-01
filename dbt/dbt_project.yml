@@ -9,6 +9,8 @@ flags:
 vars:
   # SQL-kifejezés: a unit tesztek rögzített dátummal írják felül.
   as_of_date: current_date
+  # Technikai érték, nem kategória: a több címkés blokk szabály nélküli tétele (ADR 0013).
+  uncategorized: besorolatlan
 
 models:
   finance:

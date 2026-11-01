@@ -147,10 +147,10 @@ def postgres_card(host: dict | None) -> dict:
     return card("postgres", "Postgres", state, summary, facts)
 
 
-def metabase_card(host: dict | None, metabase_url: str) -> dict:
-    state, summary = service_state(host, "metabase")
-    result = card("metabase", "Metabase", state, summary)
-    return result | {"link": {"label": "Dashboardok megnyitása", "url": metabase_url}}
+def reports_card(host: dict | None, reports_url: str) -> dict:
+    state, summary = service_state(host, "reports")
+    result = card("reports", "Riportok", state, summary)
+    return result | {"link": {"label": "Riportok megnyitása", "url": reports_url}}
 
 
 def job_card(host: dict | None, name: str, title: str) -> dict:
@@ -218,7 +218,7 @@ def overall_state(cards: list[dict], host: dict | None, processing: dict | None)
 
 
 def build(
-    reports: dict, queue: dict, recent: list[dict], metabase_url: str, now: datetime | None = None
+    reports: dict, queue: dict, recent: list[dict], reports_url: str, now: datetime | None = None
 ) -> dict:
     now = now or datetime.now(UTC)
     host = fresh_payload(reports.get("host"), now)
@@ -229,7 +229,7 @@ def build(
         ollama_card(host, worker),
         garage_card(host),
         postgres_card(host),
-        metabase_card(host, metabase_url),
+        reports_card(host, reports_url),
         job_card(host, "dbt", "dbt"),
         job_card(host, "backup", "Mentés"),
         machine_card(host),

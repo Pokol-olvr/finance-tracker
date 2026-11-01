@@ -14,10 +14,8 @@ if [[ $RESTIC_REPO_DIR == ./backup/restic ]]; then
   echo "Figyelem: a restic tároló ugyanazon a lemezen van, állítsd be a RESTIC_REPO_DIR-t." >&2
 fi
 
-for db in finance metabase; do
-  compose exec -T postgres pg_dump -Fc -U postgres "$db" >"$dumps/$db.dump.tmp"
-  mv "$dumps/$db.dump.tmp" "$dumps/$db.dump"
-done
+compose exec -T postgres pg_dump -Fc -U postgres finance >"$dumps/finance.dump.tmp"
+mv "$dumps/finance.dump.tmp" "$dumps/finance.dump"
 
 # A visszaállítási próba ehhez hasonlítja a visszatöltött adatbázist.
 row_counts postgres >"$dumps/finance.rowcounts"
