@@ -124,7 +124,7 @@ Javasolt sorrend: FIN-406, FIN-206, FIN-501, FIN-409, FIN-407. A FIN-406 kerül 
 - [x] Indításkor és használat közben nem megy kérés külső szolgáltatáshoz, sem statisztika
 - [x] Telefonméretben nincs vízszintes görgetés, és a menü elérhető
 - [x] Az állapotoldal jelzi, ha a riportfelület leáll
-- [ ] A Metabase után a `scripts/backup.sh`, a `scripts/restore-test.sh` és a CI hibátlanul fut
+- [x] A Metabase után a `scripts/backup.sh`, a `scripts/restore-test.sh` és a CI hibátlanul fut
 - [x] Saját adat nem került a repóba
 
 **Próba 2026-11-01-én:** egy eldobható, repón kívüli próba három oldalt épített meg. Működött a felső menü, a kiválasztható táblázatsor, a csúszkás what-if, a mondatos javaslat és a link az Ellenőrzés képernyőre. Használat közben kb. 140 MB memóriát foglalt, a futó Metabase kb. 1,5 GB-ot.
@@ -136,7 +136,7 @@ Javasolt sorrend: FIN-406, FIN-206, FIN-501, FIN-409, FIN-407. A FIN-406 kerül 
 - **Főoldal:** az alapértelmezett oldal a `/` címen van, a saját útvonala „Page not found” ablakot ad.
 - **Telefon:** a felső menü összecsukódik, és egy nyitógombbal érhető el. Keskeny böngészőablakban ellenőrizve, valódi telefonon még nem.
 
-**Ami nem része:** a Közös háztartás és a Személyes fül a FIN-605-tel, a Célok és a what-if a FIN-703-mal készül, mert ezekhez hiányzik a gold adat, például a közös kassza. A külső elérés és a belépés külön döntés, amikor a riport helye eldől.
+**Ami nem része:** a Közös háztartás és a Személyes fül a FIN-605-tel, a Célok és a what-if a FIN-703-mal készül, mert ezekhez hiányzik a gold adat, például a közös kassza. A külső elérés és a belépés külön döntés, amikor a riport helye eldől. A kinézet a FIN-207-ben készül, amikor már van elég valódi adat.
 
 ## FIN-501 Címke- és boltszabályok · 5 SP
 
