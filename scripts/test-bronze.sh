@@ -33,6 +33,8 @@ insert into bronze.extraction (document_id, model_name, model_version, prompt_ve
 select id, 'teszt', '1', '1', '{}' from bronze.raw_document where sha256 = repeat('a', 64);
 insert into bronze.manual_entry (entered_by, kind, amount, occurred_on)
 values ('teszt', 'expense', 18450.00, current_date);
+insert into bronze.receipt_parse (group_id, extraction_ids, parser_version, status, payload, checks)
+values (gen_random_uuid(), '{}', 'teszt', 'ok', '{}', '{}');
 reset role;
 
 -- Ugyanaz a fájl-hash másodszorra nem szúrható be.
@@ -48,7 +50,7 @@ from (values
   ('finance_owner', 'P0001'), ('postgres', 'P0001'),
   ('app_writer', '42501'), ('dbt_runner', '42501'), ('mb_reader', '42501')
 ) as roles (who, state)
-cross join (values ('raw_document'), ('extraction'), ('manual_entry')) as tables (name)
+cross join (values ('raw_document'), ('extraction'), ('manual_entry'), ('receipt_parse')) as tables (name)
 cross join lateral (values
   (format('update bronze.%I set id = id', name)),
   (format('delete from bronze.%I', name)),

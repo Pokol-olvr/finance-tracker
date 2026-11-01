@@ -22,5 +22,5 @@ class Inbox:
         response.raise_for_status()
         return response.content
 
-    def close(self, item_id: str, outcome: dict) -> None:
+    def close(self, item_id: str, outcome: dict | None) -> None:
         self.client.post(f"/inbox/items/{item_id}/close", json=outcome).raise_for_status()

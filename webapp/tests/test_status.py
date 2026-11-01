@@ -317,6 +317,16 @@ def test_result_shows_in_recent_list_without_file_name(client):
     assert "titkos-bolt" not in response.text
 
 
+def test_receipts_needing_review_are_counted(client):
+    item_id = upload_item(client)
+
+    client.post(f"/inbox/items/{item_id}/close", json={"result": "review"}, headers=HEADERS)
+    data = client.get("/status.json").json()
+
+    assert {"label": "Ellenőrzésre vár", "value": "1"} in card(data, "upload")["facts"]
+    assert data["recent"][0]["result"] == "ellenőrzés kell"
+
+
 def test_close_without_result_still_works(client):
     item_id = upload_item(client)
 

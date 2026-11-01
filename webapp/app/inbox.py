@@ -48,13 +48,50 @@ create table if not exists status_report (
 """,
 )
 
+# Az 1-es verzió: opcionális dátum és több képből álló blokk. A SQLite egy oszlop kötelezőségét
+# nem tudja módosítani, ezért a tábla újraépül.
+MIGRATE_TO_1 = (
+    """
+create table inbox_item_new (
+  id            text primary key,
+  sha256        text not null,
+  filename      text not null,
+  content_type  text not null,
+  size_bytes    integer not null,
+  uploaded_by   text not null,
+  uploaded_at   text not null,
+  purchased_by  text not null,
+  purchase_date text,
+  payer         text not null,
+  tags          text not null,
+  group_id      text,
+  page_no       integer not null default 1,
+  page_count    integer not null default 1,
+  status        text not null default 'new' check (status in ('new', 'closed')),
+  closed_at     text
+)
+""",
+    """
+insert into inbox_item_new
+  (id, sha256, filename, content_type, size_bytes, uploaded_by, uploaded_at,
+   purchased_by, purchase_date, payer, tags, status, closed_at)
+select
+  id, sha256, filename, content_type, size_bytes, uploaded_by, uploaded_at,
+  purchased_by, purchase_date, payer, tags, status, closed_at
+from inbox_item
+""",
+    "drop table inbox_item",
+    "alter table inbox_item_new rename to inbox_item",
+    "pragma user_version = 1",
+)
+
 INSERT_ITEM = """
 insert into inbox_item
   (id, sha256, filename, content_type, size_bytes, uploaded_by, uploaded_at,
-   purchased_by, purchase_date, payer, tags)
+   purchased_by, purchase_date, payer, tags, group_id, page_no, page_count)
 values
   (:id, :sha256, :filename, :content_type, :size_bytes, :uploaded_by, :uploaded_at,
-   :purchased_by, :purchase_date, :payer, :tags)
+   :purchased_by, :purchase_date, :payer, :tags, :group_id, :page_no, :page_count)
 """
 
 # A HEIC fájl a típusát az ftyp dobozban adja meg.
@@ -79,7 +116,18 @@ def connect() -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     for statement in CREATE_TABLES:
         conn.execute(statement)
+    if conn.execute("pragma user_version").fetchone()[0] < 1:
+        migrate(conn)
     return conn
+
+
+def migrate(conn: sqlite3.Connection) -> None:
+    conn.execute("begin immediate")
+    # A zárolás után újra kell nézni: közben egy másik kérés is elvégezhette.
+    if conn.execute("pragma user_version").fetchone()[0] < 1:
+        for statement in MIGRATE_TO_1:
+            conn.execute(statement)
+    conn.commit()
 
 
 def file_path(item_id: UUID) -> Path:
@@ -90,9 +138,8 @@ def to_item(row: sqlite3.Row) -> dict:
     return dict(row) | {"tags": json.loads(row["tags"])}
 
 
-def add(form: UploadForm, content: bytes, filename: str, content_type: str) -> dict:
-    """Elteszi a fájlt változatlanul; a sor csak a teljes fájl után jelenik meg a workernek."""
-    item = {
+def new_item(form: UploadForm, content: bytes, filename: str, content_type: str) -> dict:
+    return {
         "id": str(uuid4()),
         "sha256": hashlib.sha256(content).hexdigest(),
         "filename": filename,
@@ -101,19 +148,46 @@ def add(form: UploadForm, content: bytes, filename: str, content_type: str) -> d
         "uploaded_by": form.uploaded_by,
         "uploaded_at": datetime.now(UTC).isoformat(),
         "purchased_by": form.purchased_by,
-        "purchase_date": form.purchase_date.isoformat(),
+        "purchase_date": form.purchase_date.isoformat() if form.purchase_date else None,
         "payer": form.payer,
         "tags": json.dumps(form.tags, ensure_ascii=False),
+        "group_id": None,
+        "page_no": 1,
+        "page_count": 1,
     }
-    path = file_path(item["id"])
-    path.write_bytes(content)
+
+
+def store_items(items: list[dict], contents: list[bytes]) -> None:
+    """A sorok egyszerre, a teljes fájlok után jelennek meg a workernek."""
+    paths = [file_path(item["id"]) for item in items]
     try:
+        for path, content in zip(paths, contents, strict=True):
+            path.write_bytes(content)
         with closing(connect()) as conn, conn:
-            conn.execute(INSERT_ITEM, item)
-    except sqlite3.Error:
-        path.unlink(missing_ok=True)
+            conn.executemany(INSERT_ITEM, items)
+    except (OSError, sqlite3.Error):
+        for path in paths:
+            path.unlink(missing_ok=True)
         raise
+
+
+def add(form: UploadForm, content: bytes, filename: str, content_type: str) -> dict:
+    """Elteszi a fájlt változatlanul."""
+    item = new_item(form, content, filename, content_type)
+    store_items([item], [content])
     return item
+
+
+def add_group(form: UploadForm, files: list[tuple[bytes, str, str]]) -> str:
+    """Egy hosszú blokk képei: vagy mind bekerül, vagy egyik sem."""
+    group_id = str(uuid4())
+    items = [
+        new_item(form, content, filename, content_type)
+        | {"group_id": group_id, "page_no": page_no, "page_count": len(files)}
+        for page_no, (content, filename, content_type) in enumerate(files, 1)
+    ]
+    store_items(items, [content for content, _, _ in files])
+    return group_id
 
 
 def list_items(status: str) -> list[dict]:
@@ -151,9 +225,15 @@ def close_item(item_id: UUID, outcome: CloseResult | None = None) -> bool:
 
 
 def queue_counts() -> dict[str, int]:
+    """Blokkokat számol: a több képből álló blokk egynek számít."""
     with closing(connect()) as conn:
-        rows = conn.execute("select status, count(*) from inbox_item group by status").fetchall()
-    return {row[0]: row[1] for row in rows}
+        rows = conn.execute(
+            "select status, count(distinct coalesce(group_id, id)) from inbox_item group by status"
+        ).fetchall()
+        review = conn.execute(
+            "select count(*) from inbox_result where result = 'review'"
+        ).fetchone()[0]
+    return {row[0]: row[1] for row in rows} | {"review": review}
 
 
 def recent_results(limit: int) -> list[dict]:

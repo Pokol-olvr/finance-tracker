@@ -15,13 +15,14 @@ STEP_LABELS = {
     "idle": "Nincs feldolgozás",
     "download": "Letöltés a postaládából",
     "storage": "Mentés a Garage-ba",
-    "read_json": "JSON olvasat",
     "read_text": "Szöveges olvasat",
+    "parse": "Feldolgozás",
     "close": "Lezárás",
 }
 RESULT_LABELS = {
     "ok": "rendben",
-    "unparsed": "hibás JSON",
+    "review": "ellenőrzés kell",
+    "unparsed": "nem feldolgozható",
     "unreadable": "olvashatatlan kép",
     "duplicate": "már megvolt",
 }
@@ -78,6 +79,7 @@ def upload_card(host: dict | None, queue: dict) -> dict:
     facts = [
         fact("Várakozik", format_number(queue.get("new", 0))),
         fact("Lezárt", format_number(queue.get("closed", 0))),
+        fact("Ellenőrzésre vár", format_number(queue.get("review", 0))),
     ]
     return card("upload", "Feltöltés", state, summary, facts)
 
