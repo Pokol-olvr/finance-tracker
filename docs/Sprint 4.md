@@ -432,7 +432,9 @@ Az `id` a webappban készül, ezért a lehúzás ismételhető. Egy dokumentumho
 - [ ] Sprinttervezés, kb. 30 perc 📅 2026-12-14
 - [ ] Heti áttekintés, kb. 15 perc 📅 2026-12-21
 - [ ] Demó és retró, kb. 30 perc 📅 2026-12-27
-- [ ] Kiadás: `v0.4.0` a [[Release folyamat]] szerint 📅 2026-12-27
+- [x] Kiadás: `v0.4.0` a [[Release folyamat]] szerint 📅 2026-12-27
+
+A `v0.4.0` a FIN-410 mérése, valamint a FIN-412 és a FIN-312 saját dokumentumos pontjai előtt készült, mert ezekhez nem kell kód. Ha a mérés javítást kér, az a következő kiadásba kerül.
 
 **Eldöntve a tervezés előtt**
 
