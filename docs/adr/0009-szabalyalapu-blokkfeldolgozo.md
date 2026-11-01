@@ -8,7 +8,9 @@
 
 Az [[0007-ket-olvasat-1400-pixelen|ADR 0007]] szerint a tételek a JSON-olvasatból, a végösszeg a szöveges olvasatból jött volna. Ez kitalált képeken készült. Az első saját blokkon a JSON-olvasat rosszul párosította a neveket és az árakat, a tételei nem adták ki a végösszeget, és a végösszege sem szerepelt a szöveges olvasatban.
 
-Ugyanitt a szöveges olvasatban minden szám helyes volt: a tételek, a mennyiségek, a végösszeg, a fizetett összeg és a visszajáró is, és a blokk ezekből önmagát igazolta. A sorszerkezet is megmaradt. Az ékezetek viszont hibásak voltak. Ez egyetlen blokk, ezért a FIN-410 mérése ellenőrzi.
+Ugyanitt a szöveges olvasatban minden szám helyes volt: a tételek, a mennyiségek, a végösszeg, a fizetett összeg és a visszajáró is, és a blokk ezekből önmagát igazolta. A sorszerkezet is megmaradt. Az ékezetek viszont hibásak voltak.
+
+Egy hét blokkos próba ezt megerősítette: a JSON-olvasat tételei 1 blokkon adták ki a végösszeget, a szöveges olvasatból egy rövid próbaszabály 4 blokkon, köztük egy 48 tételesen. A saját fotókon a pontosságot a FIN-410 méri.
 
 ## Döntés
 

@@ -114,6 +114,7 @@ A legnagyobb kockázat nem technikai, hanem a fegyelem: ha a blokk feltöltése 
 - Alap kategóriák: élelmiszer, háztartás, lakbér, közlekedés, szórakozás, egészség.
 - Források: blokkfotó, PDF, e-mailben továbbított számla, kézi bejegyzés, elektronikus bérpapír, kézzel felvitt banki kivonat.
 - Hitelek kézzel, mellettük egyéb tartozások is könyvelhetők.
+- Egyszerre több blokk is feltölthető, és egy hosszú blokk több képből is állhat.
 - A DRS-betétdíj nem kiadás: külön, várható összegként vezetjük, kézzel állítható, és visszaváltáskor nullázható.
 - A visszaváltás bizonylata feltölthető, és egy visszaváltás csak egyszer csökkenti a várható betétdíjat: a blokk utalványsora csak akkor, ha nincs hozzá feltöltött bizonylat. Minden automatikus csökkentés kézzel felülírható.
 

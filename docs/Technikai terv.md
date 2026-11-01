@@ -63,7 +63,7 @@ Mentés: naponta adatbázis-dump és az object store szinkronja külső meghajt�
 
 ## Adatfelvétel: webapp a Pi-n és e-mail
 
-A webapp a Pi-n fut, a telefonon PWA-ként jelenik meg, és eléri a kamerát. Amíg a Pi nincs beállítva, átmenetileg az otthoni stackben fut, csak helyben elérhetően ([[0005-monorepo-es-atmeneti-otthoni-webapp|ADR 0005]]). A backend Python (FastAPI, MIT licenc), a függő tételeket egy kis SQLite tárolja. A Pi csak postaláda: amit az otthoni stack lezárt, azt törli.
+A webapp a Pi-n fut, a telefonon PWA-ként jelenik meg, és eléri a kamerát. Amíg a Pi nincs beállítva, átmenetileg az otthoni stackben fut, csak helyben elérhetően ([[0005-monorepo-es-atmeneti-otthoni-webapp|ADR 0005]]). A backend Python (FastAPI, MIT licenc), a függő tételeket egy kis SQLite tárolja. A Pi csak postaláda: amit az otthoni stack lezárt, azt törli. Több blokk egyszerre is feltölthető, és egy hosszú blokk több képből is állhat: ekkor a képek külön dokumentumok egy közös csoportazonosítóval, a feldolgozó pedig egy blokként kezeli őket.
 
 | Képernyő | Mit csinál |
 | --- | --- |
