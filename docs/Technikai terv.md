@@ -1,7 +1,7 @@
 ---
 projekt: Pénzügyi nyomkövető
 tipus: technikai terv
-datum: 2026-10-31
+datum: 2026-11-01
 tags: [penzugy, projekt, architektura]
 ---
 
@@ -139,12 +139,13 @@ Egy PostgreSQL adatbázis három sémával (bronze, silver, gold), mellette a ny
 - **Object store a nyers fájloknak:** [Garage](https://garagehq.deuxfleurs.fr/) (AGPLv3), egy csomópontos, S3-kompatibilis store, három mappával: `raw/` (nyers fájlok), `datasets/` (tanítási adatkészletek), `models/` (modellek). Költözéskor rclone-nal egy lépésben átszinkronizálható. A MinIO-t nem javaslom: a közösségi kiadás 2025 októberétől nem kap Docker image-et, 2026-ban a repót archiválták ([forrás](https://itsfoss.com/news/minio-moves-away-from-open-source/)).
 - **Bronz csak hozzáfűz:** soha nincs UPDATE vagy DELETE. A javítás a silverben, külön korrekciós táblában történik.
 - **Szabályok:** a kategória- és boltszabályokat a jóváhagyások hozzák létre; a worker a Pi-ről a bronzba hozza őket, a silver forrásként olvassa.
+- **Betétdíj:** a DRS-sor a silverben külön típusú tétel, ezért nem kerül a kiadások közé. A várható összeg a betétdíj-tételek és a kézi korrekciók összege. A nullázás is korrekció, amely az aktuális egyenleget vonja le, így a bronz csak hozzáfűzhető marad. A blokk összegellenőrzésében és a kivonat párosításában a betétdíj benne marad, mert a kifizetett összeg tartalmazza.
 
 | Réteg | Fő táblák | Jelleg |
 | --- | --- | --- |
-| Bronz | nyers dokumentum (fájl, hash, feltöltő, vásárló, időpontok, forrástípus), modellkimenet (JSON + modellverzió), kézi bejegyzés, bérpapír, kivonatsor, hitel- és tartozásbejegyzés | Csak hozzáfűz, változatlan |
-| Silver | blokk, blokktétel, egységes tranzakció (kiadás, bevétel, átvezetés), bolt, kategória, fizető fél, korrekció, hitel, tartozás | Tisztított, deduplikált, szabályokkal kategorizált |
-| Gold | havi cash-flow (közös és személyes), kategória-hónap, közös kassza (befizetés, kiadás, javasolt utalás), célok állása, hitelek állása, tételár-történet, modellpontosság | Kész mutatók a BI-nak |
+| Bronz | nyers dokumentum (fájl, hash, feltöltő, vásárló, időpontok, forrástípus), modellkimenet (JSON + modellverzió), kézi bejegyzés, bérpapír, kivonatsor, hitel- és tartozásbejegyzés, betétdíj-korrekció | Csak hozzáfűz, változatlan |
+| Silver | blokk, blokktétel, egységes tranzakció (kiadás, bevétel, átvezetés), betétdíj-mozgás, bolt, kategória, fizető fél, korrekció, hitel, tartozás | Tisztított, deduplikált, szabályokkal kategorizált |
+| Gold | havi cash-flow (közös és személyes), kategória-hónap, közös kassza (befizetés, kiadás, javasolt utalás), célok állása, hitelek állása, várható betétdíj, tételár-történet, modellpontosság | Kész mutatók a BI-nak |
 
 ## Transzformáció és ütemezés
 

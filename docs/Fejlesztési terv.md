@@ -8,7 +8,7 @@ tags: [penzugy, projekt]
 
 # Fejlesztési terv
 
-8 epic, 10 kéthetes sprint, kb. 163 story pont. Minden story egy feladat: a 📅 dátum a sprint vége, a címkék az epicet és a sprintet jelölik. A [Tasks](https://publish.obsidian.md/tasks/) bővítménnyel szűrhető, pl. `tags include #sprint/S1`.
+8 epic, 10 kéthetes sprint, kb. 166 story pont. Minden story egy feladat: a 📅 dátum a sprint vége, a címkék az epicet és a sprintet jelölik. A [Tasks](https://publish.obsidian.md/tasks/) bővítménnyel szűrhető, pl. `tags include #sprint/S1`.
 
 Részletes sprintterv: [[Sprint 1]] · [[Sprint 2]] · [[Sprint 3]] · Kapcsolódó: [[Üzleti koncepció]] · [[Technikai terv]] · [[Release folyamat]] · [[Változásnapló]]
 
@@ -105,7 +105,7 @@ Kész, ha: telefonról feltöltött vagy e-mailben továbbított számla eljut a
 - [ ] FIN-309 A `finance` adatbázis üres újraépítése az első éles használat előtt · 1 SP #E3 #sprint/S6 📅 2027-01-24
     - Elfogadás: a bronz és a Garage `raw` bucket üres, a mock adat és a próbablokkok eltűntek a restic-pillanatképekből is, a Metabase dashboardjai megmaradnak
 
-## FIN-E4 Blokkbeolvasás (S3–S5, 25 SP)
+## FIN-E4 Blokkbeolvasás (S3–S5, 28 SP)
 
 Kész, ha: a blokkból tétel szintű silver lesz, kivételnél ellenőrzéssel.
 
@@ -125,6 +125,8 @@ Kész, ha: a blokkból tétel szintű silver lesz, kivételnél ellenőrzéssel.
     - Elfogadás: a mezőnkénti pontosság le van írva
 - [ ] FIN-408 Kiolvasás a workerben: GLM-OCR hívás, nyers eredmény és modellverzió a bronzba · 3 SP #E4 #sprint/S3 📅 2026-12-13
     - Elfogadás: egy feltöltött blokk kiolvasása a `bronze.extraction` táblába kerül, modellverzióval
+- [ ] FIN-409 DRS-betétdíj külön vezetése: várható összeg, kézi állítás és nullázás · 3 SP #E4 #sprint/S5 📅 2027-01-10
+    - Elfogadás: a betétdíj nincs a kiadások között, a várható összeg látszik, nullázás után 0, a bronz változatlan
 
 ## FIN-E5 Címkézés és tanulás (S5, S7, 21 SP)
 
