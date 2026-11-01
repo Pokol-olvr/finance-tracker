@@ -6,40 +6,10 @@
   <title>Blokk feltöltése</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/base.css">
   <style>
-    :root {
-      color-scheme: light dark;
-      --bg: #f6f5f1;
-      --panel: #ffffff;
-      --text: #1f2421;
-      --muted: #5d6660;
-      --line: #d6d6cf;
-      --accent: #1f6f54;
-      --on-accent: #ffffff;
-      --error: #a32a22;
-    }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #161a18;
-        --panel: #1f2522;
-        --text: #e9ece9;
-        --muted: #a4ada7;
-        --line: #38403b;
-        --accent: #63c29f;
-        --on-accent: #10231c;
-        --error: #f19a92;
-      }
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      padding: 24px 16px;
-      background: var(--bg);
-      color: var(--text);
-      font: 16px/1.5 system-ui, sans-serif;
-    }
     main { max-width: 440px; margin: 0 auto; }
-    h1 { margin: 0 0 16px; font-size: 24px; line-height: 1.25; }
+    h1 { margin-bottom: 16px; }
     form {
       display: grid;
       gap: 16px;
@@ -81,6 +51,7 @@
 </head>
 <body>
   <main>
+    <p class="top-link"><a href="/status">Stack állapota</a></p>
     <h1>Blokk feltöltése</h1>
     <form id="upload">
       <label>Fotó

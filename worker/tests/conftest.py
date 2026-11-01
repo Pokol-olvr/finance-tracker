@@ -34,16 +34,22 @@ def make_item(content: bytes) -> dict:
     }
 
 
+def no_report(_step: str) -> None:
+    pass
+
+
 class FakeInbox:
     def __init__(self, files: dict[str, bytes]):
         self.files = files
         self.closed: list[str] = []
+        self.outcomes: list[dict] = []
 
     def download(self, item_id: str) -> bytes:
         return self.files[item_id]
 
-    def close(self, item_id: str) -> None:
+    def close(self, item_id: str, outcome: dict) -> None:
         self.closed.append(item_id)
+        self.outcomes.append(outcome)
 
 
 class FakeReader:
@@ -57,8 +63,9 @@ class FakeReader:
     def version(self) -> str:
         return "teszt-valtozat"
 
-    def read(self, content: bytes) -> dict:
+    def read(self, content: bytes, report) -> dict:
         self.calls += 1
+        report("read_json")
         if self.error:
             raise self.error
         return self.payload

@@ -20,11 +20,13 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 - FIN-305 Helyi postaláda SQLite-tal és a tokennel védett `/inbox` API a workernek.
 - FIN-306 Worker: a feltöltés a Garage-ba és a bronzba kerül, hash alapú duplikációszűréssel.
 - FIN-408 Kiolvasás a workerben: JSON és szöveges olvasat a `bronze.extraction` táblába, modellazonosítóval; a `scripts/last-extraction.sh` megmutatja a legutóbbit.
+- FIN-106 Állapot képernyő a `/status` címen: a stack részei, a feldolgozás lépései, a dbt és a mentés eredménye; a worker healthchecket kapott, a `scripts/status-report.sh`-t a `finance-status.timer` futtatja.
 
 ### Frissítési teendők
 
 - A meglévő `home/.env`-be kell egy `WORKER_API_TOKEN`: `echo "WORKER_API_TOKEN=$(openssl rand -hex 24)" >> home/.env`.
 - `scripts/ollama-pull.sh`, majd `podman compose -f home/docker-compose.yml up -d --build`.
+- `scripts/install-timers.sh`, ez kapcsolja be az állapotjelentést.
 
 ## v0.2.0 · 2026-10-31
 

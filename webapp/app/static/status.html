@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stack állapota</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/base.css">
+  <style>
+    main { max-width: 960px; margin: 0 auto; }
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px 16px;
+      margin-bottom: 16px;
+    }
+    .verdict { margin: 0; font-weight: 600; }
+    .age { margin: 0; color: var(--muted); font-size: 14px; }
+    .verdict-box { text-align: right; }
+    #processing {
+      margin: 0 0 16px;
+      padding: 12px 16px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .card {
+      padding: 12px 16px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-top: 4px solid var(--state);
+      border-radius: 8px;
+    }
+    .card h2 { margin: 0; font-size: 16px; }
+    .card-state { margin: 0 0 8px; color: var(--state); font-weight: 600; }
+    .card dl {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 2px 12px;
+      margin: 0;
+      font-size: 14px;
+    }
+    .card dt { color: var(--muted); }
+    .card dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+    .card a { display: inline-block; margin-top: 4px; font-size: 14px; }
+    .ok { --state: var(--accent); }
+    .busy { --state: var(--busy); }
+    .waiting { --state: var(--waiting); }
+    .error { --state: var(--error); }
+    .stale { --state: var(--stale); }
+    .verdict { color: var(--state); }
+    h2.section { margin: 0 0 8px; font-size: 18px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; }
+    th { color: var(--muted); font-weight: 600; }
+    .number { text-align: right; }
+    #no-recent { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="top-link"><a href="/">Blokk feltöltése</a></p>
+    <header>
+      <h1>Stack állapota</h1>
+      <div class="verdict-box">
+        <p id="verdict" class="verdict stale" role="status">Betöltés…</p>
+        <p id="age" class="age"></p>
+      </div>
+    </header>
+    <p id="processing"></p>
+    <section id="cards" class="cards" aria-label="A stack részei"></section>
+    <section>
+      <h2 class="section">Legutóbbi feldolgozások</h2>
+      <table id="recent" hidden>
+        <thead>
+          <tr>
+            <th>Mikor</th>
+            <th class="number">Idő</th>
+            <th>Eredmény</th>
+            <th class="number">Tételek</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <p id="no-recent">Még nem volt feldolgozás.</p>
+    </section>
+  </main>
+  <script>
+    const REFRESH_MILLISECONDS = 5000;
+    const verdict = document.getElementById("verdict");
+    const age = document.getElementById("age");
+    const processing = document.getElementById("processing");
+    const cards = document.getElementById("cards");
+    const recentTable = document.getElementById("recent");
+    const noRecent = document.getElementById("no-recent");
+
+    function formatDuration(seconds) {
+      if (seconds === null || seconds === undefined) return "–";
+      const rounded = Math.round(seconds);
+      if (rounded < 60) return `${rounded} mp`;
+      return `${Math.floor(rounded / 60)} p ${rounded % 60} mp`;
+    }
+
+    function formatTime(value) {
+      return new Date(value).toLocaleString("hu-HU", {
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+
+    function element(tag, className, text) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text !== undefined) node.textContent = text;
+      return node;
+    }
+
+    function renderCard(card) {
+      const box = element("article", `card ${card.state}`);
+      box.append(element("h2", "", card.title));
+      box.append(element("p", "card-state", card.summary));
+      if (card.facts.length) {
+        const list = element("dl");
+        for (const fact of card.facts) {
+          list.append(element("dt", "", fact.label));
+          list.append(element("dd", "", fact.time ? formatTime(fact.time) : fact.value));
+        }
+        box.append(list);
+      }
+      if (card.link) {
+        const link = element("a", "", card.link.label);
+        link.href = card.link.url;
+        box.append(link);
+      }
+      return box;
+    }
+
+    function renderProcessing(state) {
+      if (!state) {
+        processing.textContent = "A workerről nincs friss adat.";
+      } else if (state.step === "idle") {
+        processing.textContent = `${state.label} · várakozik: ${state.waiting} blokk`;
+      } else {
+        const elapsed = formatDuration(state.seconds);
+        processing.textContent = `${state.label} · ${elapsed} · várakozik: ${state.waiting} blokk`;
+      }
+    }
+
+    function renderRecent(rows) {
+      const body = recentTable.tBodies[0];
+      body.replaceChildren();
+      for (const row of rows) {
+        const line = element("tr");
+        line.append(element("td", "", formatTime(row.finished_at)));
+        line.append(element("td", "number", formatDuration(row.seconds)));
+        line.append(element("td", "", row.result));
+        line.append(element("td", "number", row.items === null ? "–" : String(row.items)));
+        body.append(line);
+      }
+      recentTable.hidden = rows.length === 0;
+      noRecent.hidden = rows.length > 0;
+    }
+
+    function render(status) {
+      verdict.className = `verdict ${status.overall.state}`;
+      verdict.textContent = status.overall.label;
+      age.textContent = status.report_age_seconds === null
+        ? "Még nem érkezett jelentés"
+        : `Frissült ${formatDuration(status.report_age_seconds)}-e`;
+      renderProcessing(status.processing);
+      cards.replaceChildren(...status.cards.map(renderCard));
+      renderRecent(status.recent);
+    }
+
+    // A nyitva hagyott oldal se mutasson zöldet, ha a webapp közben leállt.
+    function showUnreachable() {
+      verdict.className = "verdict stale";
+      verdict.textContent = "A webapp nem válaszol";
+      age.textContent = "";
+      processing.textContent = "Az alábbi adatok elavultak.";
+      for (const box of cards.children) {
+        box.className = "card stale";
+      }
+    }
+
+    async function refresh() {
+      try {
+        const response = await fetch("/status.json", { cache: "no-store" });
+        if (!response.ok) throw new Error(String(response.status));
+        render(await response.json());
+      } catch {
+        showUnreachable();
+      }
+      setTimeout(refresh, REFRESH_MILLISECONDS);
+    }
+
+    refresh();
+  </script>
+</body>
+</html>

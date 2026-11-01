@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Literal, Self
 from uuid import UUID
@@ -83,3 +83,51 @@ class UploadForm(BaseModel):
         if not CATEGORIES.intersection(self.tags):
             raise ValueError("legalább egy alap kategória kell")
         return self
+
+
+class ServiceReport(BaseModel):
+    name: str
+    state: str
+    health: str = ""
+
+
+class JobReport(BaseModel):
+    name: Literal["dbt", "backup"]
+    active: str
+    result: str
+    last_run: datetime | None = None
+    next_run: datetime | None = None
+
+
+class HostReport(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    services: list[ServiceReport]
+    jobs: list[JobReport]
+    row_counts: dict[str, int]
+    garage_objects: int | None = None
+    garage_size: str | None = None
+    disk_free_bytes: int
+    disk_total_bytes: int
+    memory_available_bytes: int
+    memory_total_bytes: int
+    load: float
+
+
+class WorkerReport(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    step: Literal["idle", "download", "storage", "read_json", "read_text", "close"]
+    step_started_at: datetime
+    ollama_reachable: bool
+    model_name: str
+    model_version: str | None = None
+    model_downloaded: bool
+    model_loaded: bool
+    model_memory_bytes: int
+
+
+class CloseResult(BaseModel):
+    result: Literal["ok", "unparsed", "unreadable", "duplicate"]
+    seconds: float | None = None
+    items: int | None = None

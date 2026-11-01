@@ -10,6 +10,7 @@ class Settings:
     members: frozenset[str]
     inbox_dir: Path
     worker_token: str
+    metabase_url: str
 
 
 @lru_cache
@@ -20,4 +21,5 @@ def get_settings() -> Settings:
         members=members,
         inbox_dir=Path(os.environ["INBOX_DIR"]),
         worker_token=os.environ["WORKER_API_TOKEN"],
+        metabase_url=os.environ["METABASE_URL"],
     )

@@ -13,6 +13,7 @@ from app.extract import (
     prepare_image,
 )
 from app.inbox import Inbox
+from conftest import no_report
 from PIL import Image
 
 
@@ -96,8 +97,10 @@ def test_read_sends_settings_and_keeps_both_readings():
             },
         )
 
-    result = reader_with(handler).read(image_bytes(Image.new("RGB", (32, 32))))
+    steps = []
+    result = reader_with(handler).read(image_bytes(Image.new("RGB", (32, 32))), steps.append)
 
+    assert steps == ["read_json", "read_text"]
     assert [request["messages"][0]["content"] for request in sent] == [PROMPT, TEXT_PROMPT]
     assert sent[0]["options"] == {"temperature": 0, "num_thread": 10, "num_predict": 2000}
     assert sent[0]["format"]["required"] == ["store", "date", "items", "total", "payment_method"]
@@ -117,7 +120,7 @@ def test_broken_output_is_kept_without_parsed_value():
     def handler(_request):
         return httpx.Response(200, json={"message": {"content": "nem json"}})
 
-    result = reader_with(handler).read(image_bytes(Image.new("RGB", (32, 32))))
+    result = reader_with(handler).read(image_bytes(Image.new("RGB", (32, 32))), no_report)
 
     assert result["raw_text"] == "nem json"
     assert result["parsed"] is None
@@ -127,7 +130,7 @@ def test_unreadable_image_does_not_reach_the_model():
     def handler(_request):
         raise AssertionError("a modell nem kaphatja meg")
 
-    result = reader_with(handler).read(b"\xff\xd8\xff nem igazi kep")
+    result = reader_with(handler).read(b"\xff\xd8\xff nem igazi kep", no_report)
 
     assert "error" in result
 
@@ -137,7 +140,7 @@ def test_model_error_is_raised_so_item_stays_open():
         return httpx.Response(500, json={"error": "hiba"})
 
     with pytest.raises(httpx.HTTPStatusError):
-        reader_with(handler).read(image_bytes(Image.new("RGB", (32, 32))))
+        reader_with(handler).read(image_bytes(Image.new("RGB", (32, 32))), no_report)
 
 
 def test_version_returns_digest():
