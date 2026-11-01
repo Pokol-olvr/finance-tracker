@@ -1,7 +1,7 @@
 ---
 projekt: Pénzügyi nyomkövető
 tipus: üzleti koncepció
-datum: 2026-10-31
+datum: 2026-11-01
 tags: [penzugy, projekt]
 ---
 
@@ -41,6 +41,7 @@ A silverbe töltéskor történik a tényleges feldolgozás: a blokkból kiadás
 - **Duplikációszűrés:** ugyanazt a blokkot kétszer töltik fel, vagy a blokk és a banki tétel ugyanaz a vásárlás.
 - **Fizetési mód és fizető fél:** készpénz, kártya, SZÉP-kártya, és ki fizetett: a közös kártya vagy valamelyikünk saját pénze. A SZÉP-kártya külön zseb, nem keveredhet a szabad pénzzel.
 - **Belső átvezetések:** a közös kártyára és a célok Revolut-zsebébe utalt összeg nem kiadás, csak pénzmozgás köztünk és a közös kassza között. Ha kiadásként számolnánk, a közös vásárlások kétszer szerepelnének.
+- **DRS-betétdíj:** a blokkon fizetett betétdíj nem kiadás, hanem várható pénz, amely visszaváltáskor jön vissza. Külön egyenlegen vezetjük, a kiadásokba nem kerül. Az egyenleg kézzel állítható, és visszaváltáskor nullázható. Ha kiadásként számolnánk, a visszajáró pénz is a havi költést növelné.
 - **Bevételek a bérpapírból:** az elektronikus bérpapír alapján személyenként a nettó bevétel, igény szerint a bruttó és a levonások is.
 - **Ismétlődő tételek jelölése:** lakbér, előfizetések, hiteltörlesztők. Ezek a tervezés alapjai.
 
@@ -113,7 +114,8 @@ A legnagyobb kockázat nem technikai, hanem a fegyelem: ha a blokk feltöltése 
 - Alap kategóriák: élelmiszer, háztartás, lakbér, közlekedés, szórakozás, egészség.
 - Források: blokkfotó, PDF, e-mailben továbbított számla, kézi bejegyzés, elektronikus bérpapír, kézzel felvitt banki kivonat.
 - Hitelek kézzel, mellettük egyéb tartozások is könyvelhetők.
+- A DRS-betétdíj nem kiadás: külön, várható összegként vezetjük, kézzel állítható, és visszaváltáskor nullázható.
 
 ### Még eldöntendő
 
-Jelenleg nincs nyitott üzleti kérdés; a következő lépés a technikai tervezés.
+- Ha a visszaváltási utalványt egy következő vásárlásnál váltjuk be, a blokk negatív sora magától csökkentse-e a várható betétdíjat? Javaslat: igen, kézzel felülírhatóan.

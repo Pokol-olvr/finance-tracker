@@ -138,6 +138,7 @@ Egy fogalomra mindig ugyanazt a szót használd.
 | fizető fél | A közös kártya vagy valamelyikünk (`payer`) |
 | vásárló | Aki vásárolt, mindig személy (`purchased_by`); a fizető féllel ne cseréld fel |
 | átvezetés | Saját zsebek közötti pénzmozgás; soha nem kiadás |
+| betétdíj | A blokkon fizetett DRS-összeg, amely visszaváltáskor visszajár; soha nem kiadás |
 | közös kártya | A mindennapi közös kiadások kártyája, 50/50 befizetéssel |
 | Revolut-zseb | A közös célok pénze, külön a közös kártyától |
 | szabad keret | Ami a fix és szokásos kiadások után átlagosan megmarad havonta |
