@@ -7,6 +7,7 @@ os.environ.setdefault("HOUSEHOLD_MEMBERS", "person_a,person_b")
 os.environ.setdefault("DATABASE_URL", "postgresql://unused")
 os.environ.setdefault("INBOX_DIR", "/nonexistent")
 os.environ.setdefault("WORKER_API_TOKEN", "teszt-token")
+os.environ.setdefault("METABASE_URL", "http://127.0.0.1:3000")
 
 
 @pytest.fixture

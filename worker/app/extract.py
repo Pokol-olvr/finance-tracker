@@ -2,6 +2,7 @@
 
 import base64
 import json
+from collections.abc import Callable
 from io import BytesIO
 
 import httpx
@@ -48,6 +49,10 @@ class ModelMissing(Exception):
     pass
 
 
+def full_model_name(model: str) -> str:
+    return model if ":" in model else f"{model}:latest"
+
+
 def prepare_image(content: bytes) -> bytes:
     """A modell bemenete: álló, kicsinyített JPEG. Az eredeti a Garage-ban változatlan marad."""
     with Image.open(BytesIO(content)) as image:
@@ -78,7 +83,7 @@ class ReceiptReader:
         """A modell azonosítója, így minden kiolvasásról tudni, melyik modellváltozat adta."""
         response = self.client.get("/api/tags")
         response.raise_for_status()
-        wanted = self.name if ":" in self.name else f"{self.name}:latest"
+        wanted = full_model_name(self.name)
         for model in response.json()["models"]:
             if model["name"] == wanted:
                 return model["digest"]
@@ -104,13 +109,15 @@ class ReceiptReader:
         response.raise_for_status()
         return response.json()
 
-    def read(self, content: bytes) -> dict:
+    def read(self, content: bytes, report: Callable[[str], None]) -> dict:
         """A bronzba kerülő eredmény. A kapcsolati hiba kivétel, így a tétel nyitva marad."""
         try:
             image = prepare_image(content)
         except (OSError, ValueError, Image.DecompressionBombError) as error:
             return {"error": f"A kép nem olvasható: {error}"}
+        report("read_json")
         structured = self.chat(PROMPT, image, OUTPUT_SCHEMA)
+        report("read_text")
         text = self.chat(TEXT_PROMPT, image)
         nanoseconds = structured.get("total_duration", 0) + text.get("total_duration", 0)
         return {

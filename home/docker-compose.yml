@@ -111,6 +111,7 @@ services:
       HOUSEHOLD_MEMBERS: ${HOUSEHOLD_MEMBERS:-person_a,person_b}
       INBOX_DIR: /inbox
       WORKER_API_TOKEN: ${WORKER_API_TOKEN:?}
+      METABASE_URL: http://${BIND_ADDRESS:-127.0.0.1}:${METABASE_PORT:-3000}
     volumes:
       - ${DATA_DIR:-./data}/inbox:/inbox:z
     ports:
@@ -160,6 +161,13 @@ services:
       OLLAMA_URL: http://ollama:11434
       OLLAMA_MODEL: ${OLLAMA_MODEL:-glm-ocr}
       OLLAMA_NUM_THREAD: ${OLLAMA_NUM_THREAD:-10}
+    healthcheck:
+      # A jelentő szál frissíti a fájlt; a főszál a modellnél percekig is állhat.
+      test: [CMD, python, -c, "import os, sys, time; sys.exit(time.time() - os.path.getmtime('/tmp/worker-heartbeat') > 60)"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
   webapp-test:
     image: docker.io/library/python:3.13.18-slim

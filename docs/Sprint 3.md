@@ -255,29 +255,29 @@ A lezárás a 3. sprintben a kiolvasás után történik. A FIN-405-tel a jóvá
 
 **Részfeladatok**
 
-- [ ] `GET /status`: egy képernyős oldal a lenti kártyákkal, 5 másodpercenként frissül az oldal újratöltése nélkül 📅 2026-12-13
-- [ ] `GET /status.json`: az összesített állapot; a feltöltő oldalról link vezet a `/status`-ra 📅 2026-12-13
-- [ ] `POST /inbox/status/{source}`: `host` és `worker` jelentés a `WORKER_API_TOKEN` tokennel 📅 2026-12-13
-- [ ] `status_report` SQLite-tábla: forrásonként csak a legutóbbi jelentés, előzmény nélkül 📅 2026-12-13
-- [ ] `POST /inbox/items/{id}/close` opcionális eredménnyel: `result`, `seconds`, `items`, az `inbox_result` táblába 📅 2026-12-13
-- [ ] Worker: jelentés minden lépésváltáskor és külön szálon 15 másodpercenként, az Ollama `/api/ps` és `/api/tags` adataival 📅 2026-12-13
-- [ ] Worker healthcheck: a jelentő szál által frissített fájl nem lehet 60 másodpercnél régebbi 📅 2026-12-13
-- [ ] `scripts/status-report.sh`: szolgáltatások, Garage-méret, sorszámok, timerek, lemez, memória, terhelés 📅 2026-12-13
-- [ ] `finance-status.timer` 15 másodpercenként, az `install-timers.sh` telepíti 📅 2026-12-13
-- [ ] pytest-tesztek a végpontokra, a jogosultságra, az elavulásra és az összképre 📅 2026-12-13
-- [ ] README: az oldal címe és a kártyák jelentése 📅 2026-12-13
+- [x] `GET /status`: egy képernyős oldal a lenti kártyákkal, 5 másodpercenként frissül az oldal újratöltése nélkül 📅 2026-12-13
+- [x] `GET /status.json`: az összesített állapot; a feltöltő oldalról link vezet a `/status`-ra 📅 2026-12-13
+- [x] `POST /inbox/status/{source}`: `host` és `worker` jelentés a `WORKER_API_TOKEN` tokennel 📅 2026-12-13
+- [x] `status_report` SQLite-tábla: forrásonként csak a legutóbbi jelentés, előzmény nélkül 📅 2026-12-13
+- [x] `POST /inbox/items/{id}/close` opcionális eredménnyel: `result`, `seconds`, `items`, az `inbox_result` táblába 📅 2026-12-13
+- [x] Worker: jelentés minden lépésváltáskor és külön szálon 15 másodpercenként, az Ollama `/api/ps` és `/api/tags` adataival 📅 2026-12-13
+- [x] Worker healthcheck: a jelentő szál által frissített fájl nem lehet 60 másodpercnél régebbi 📅 2026-12-13
+- [x] `scripts/status-report.sh`: szolgáltatások, Garage-méret, sorszámok, timerek, lemez, memória, terhelés 📅 2026-12-13
+- [x] `finance-status.timer` 15 másodpercenként, az `install-timers.sh` telepíti 📅 2026-12-13
+- [x] pytest-tesztek a végpontokra, a jogosultságra, az elavulásra és az összképre 📅 2026-12-13
+- [x] README: az oldal címe és a kártyák jelentése 📅 2026-12-13
 
 **Elfogadási feltételek**
 
-- [ ] A `/status` a lenti kilenc kártyát mutatja, mindegyik saját állapottal
-- [ ] Feldolgozás alatt látszik a lépés neve és az eltelt idő, a modell pedig betöltve látszik
-- [ ] Egy leállított `ollama` vagy `worker` 30 másodpercen belül hibaként látszik
-- [ ] Hibás dbt-futás vagy mentés a kártyáján hibaként látszik, a következő futás idejével
-- [ ] 60 másodpercnél régebbi jelentésnél a kártya szürke, „nincs friss adat” felirattal, és soha nem zöld
-- [ ] Az oldalon és a `/status.json`-ban nincs fájlnév, blokktartalom vagy titok
-- [ ] Ha az állapotjelentés nem megy át, a feltöltés és a feldolgozás zavartalanul fut tovább
-- [ ] A `status-report.sh` tokenje nem látszik a folyamatlistában
-- [ ] A webapp portja továbbra is csak a `127.0.0.1` címen figyel
+- [x] A `/status` a lenti kilenc kártyát mutatja, mindegyik saját állapottal
+- [x] Feldolgozás alatt látszik a lépés neve és az eltelt idő, a modell pedig betöltve látszik
+- [x] Egy leállított `ollama` vagy `worker` 30 másodpercen belül hibaként látszik
+- [x] Hibás dbt-futás vagy mentés a kártyáján hibaként látszik, a következő futás idejével
+- [x] 60 másodpercnél régebbi jelentésnél a kártya szürke, „nincs friss adat” felirattal, és soha nem zöld
+- [x] Az oldalon és a `/status.json`-ban nincs fájlnév, blokktartalom vagy titok
+- [x] Ha az állapotjelentés nem megy át, a feltöltés és a feldolgozás zavartalanul fut tovább
+- [x] A `status-report.sh` tokenje nem látszik a folyamatlistában
+- [x] A webapp portja továbbra is csak a `127.0.0.1` címen figyel
 
 **Az oldal vázlata**
 

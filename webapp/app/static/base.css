@@ -1,0 +1,40 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f6f5f1;
+  --panel: #ffffff;
+  --text: #1f2421;
+  --muted: #5d6660;
+  --line: #d6d6cf;
+  --accent: #1f6f54;
+  --on-accent: #ffffff;
+  --error: #a32a22;
+  --busy: #1d5fa8;
+  --waiting: #8a6100;
+  --stale: #737b76;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161a18;
+    --panel: #1f2522;
+    --text: #e9ece9;
+    --muted: #a4ada7;
+    --line: #38403b;
+    --accent: #63c29f;
+    --on-accent: #10231c;
+    --error: #f19a92;
+    --busy: #8fbdf2;
+    --waiting: #e2bb5c;
+    --stale: #8b948e;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 24px 16px;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.5 system-ui, sans-serif;
+}
+a { color: var(--accent); }
+h1 { margin: 0; font-size: 24px; line-height: 1.25; }
+.top-link { margin: 0 0 8px; font-size: 14px; }

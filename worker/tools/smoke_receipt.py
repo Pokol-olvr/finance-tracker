@@ -47,7 +47,7 @@ def main() -> int:
     print(f"Modell: {reader.name} ({reader.version()})")
 
     started = time.monotonic()
-    result = reader.read(draw_receipt())
+    result = reader.read(draw_receipt(), lambda step: None)
     elapsed = time.monotonic() - started
 
     print(json.dumps(result, ensure_ascii=False, indent=2))

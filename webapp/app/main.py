@@ -20,8 +20,16 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app import inbox, store
+from app import status as stack_status
 from app.config import get_settings
-from app.schemas import CATEGORIES, ManualEntry, UploadForm
+from app.schemas import (
+    CATEGORIES,
+    CloseResult,
+    HostReport,
+    ManualEntry,
+    UploadForm,
+    WorkerReport,
+)
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 STATIC_DIR = Path(__file__).parent / "static"
@@ -88,6 +96,26 @@ def icon() -> FileResponse:
     return FileResponse(STATIC_DIR / "icon.svg", media_type="image/svg+xml")
 
 
+@app.get("/base.css")
+def base_css() -> FileResponse:
+    return FileResponse(STATIC_DIR / "base.css", media_type="text/css")
+
+
+@app.get("/status", response_class=HTMLResponse)
+def status_page() -> str:
+    return (STATIC_DIR / "status.html").read_text(encoding="utf-8")
+
+
+@app.get("/status.json")
+def status_data() -> dict:
+    return stack_status.build(
+        inbox.reports(),
+        inbox.queue_counts(),
+        inbox.recent_results(stack_status.RECENT_LIMIT),
+        get_settings().metabase_url,
+    )
+
+
 @app.post("/uploads", status_code=status.HTTP_201_CREATED)
 def create_upload(file: UploadFile, form: Annotated[UploadForm, Form()]) -> dict[str, str]:
     content = file.file.read(MAX_UPLOAD_BYTES + 1)
@@ -117,10 +145,20 @@ def download_inbox_file(item_id: UUID) -> FileResponse:
 
 
 @worker_api.post("/items/{item_id}/close")
-def close_inbox_item(item_id: UUID) -> dict[str, str]:
-    if not inbox.close_item(item_id):
+def close_inbox_item(item_id: UUID, outcome: CloseResult | None = None) -> dict[str, str]:
+    if not inbox.close_item(item_id, outcome):
         raise HTTPException(status.HTTP_404_NOT_FOUND)
     return {"id": str(item_id), "status": "closed"}
+
+
+@worker_api.post("/status/host", status_code=status.HTTP_204_NO_CONTENT)
+def report_host(report: HostReport) -> None:
+    inbox.save_report("host", report.model_dump_json())
+
+
+@worker_api.post("/status/worker", status_code=status.HTTP_204_NO_CONTENT)
+def report_worker(report: WorkerReport) -> None:
+    inbox.save_report("worker", report.model_dump_json())
 
 
 app.include_router(worker_api)

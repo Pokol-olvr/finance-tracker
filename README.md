@@ -2,7 +2,7 @@
 
 Kétszemélyes háztartási pénzügyi nyomkövető medallion adatrétegekkel és helyi blokkbeolvasással. A tervek a `docs/` mappában vannak: [Üzleti koncepció](docs/Üzleti%20koncepció.md), [Technikai terv](docs/Technikai%20terv.md), [Fejlesztési terv](docs/Fejlesztési%20terv.md).
 
-A jelenlegi állapot az otthoni stack: Postgres a bronz, silver és gold sémákkal, Garage object store, kézi bejegyzés API és blokkfeltöltés, a GLM-OCR kiolvasásával, dbt és Metabase Áttekintés dashboard, napi mentéssel. Egyelőre minden helyben fut, mock adattal és néhány saját próbablokkal.
+A jelenlegi állapot az otthoni stack: Postgres a bronz, silver és gold sémákkal, Garage object store, kézi bejegyzés API és blokkfeltöltés, a GLM-OCR kiolvasásával, dbt és Metabase Áttekintés dashboard, napi mentéssel, és egy állapot képernyő a stack minden részéről. Egyelőre minden helyben fut, mock adattal és néhány saját próbablokkal.
 
 ## Előfeltételek
 
@@ -44,7 +44,7 @@ docs/adr/    döntési jegyzetek
 | `migrate` | nincs | Induláskor lefuttatja a `migrations/` mappát, majd kilép |
 | `garage` | `127.0.0.1:3900` | S3 API, `raw` bucket |
 | `inbox-init` | nincs | Induláskor beállítja a postaláda mappájának tulajdonosát, majd kilép |
-| `webapp` | `127.0.0.1:8000` | Feltöltő képernyő, kézi bejegyzés API és postaláda; belépés nélkül, ezért csak helyben látszik |
+| `webapp` | `127.0.0.1:8000` | Feltöltő és állapot képernyő, kézi bejegyzés API és postaláda; belépés nélkül, ezért csak helyben látszik |
 | `ollama` | nincs | A GLM-OCR modell futtatója, csak a Compose-hálózaton |
 | `worker` | nincs | A postaládából a Garage-ba és a bronzba viszi a feltöltéseket, és kiolvastatja őket |
 | `metabase` | `127.0.0.1:3000` | Dashboardok |
@@ -112,6 +112,22 @@ podman compose -f home/docker-compose.yml run --rm --no-deps worker python -m to
 
 A worker tesztjei a `scripts/test-worker.sh` paranccsal futnak, valódi Garage-dzsal és Postgresszel, a modellt egy csonk helyettesíti.
 
+## Állapot képernyő
+
+A `http://127.0.0.1:8000/status` oldal kilenc kártyán mutatja a stack részeit: Feltöltés, Worker, Ollama, Garage, Postgres, Metabase, dbt, Mentés és Gép. Fölöttük látszik az összkép és az aktuális feldolgozási lépés az eltelt idővel, alattuk a legutóbbi feldolgozások. Az oldal 5 másodpercenként frissül, az adatai a `/status.json` címen is elérhetők.
+
+| Felirat | Jelentés |
+| --- | --- |
+| Hiba | Egy szolgáltatás nem fut vagy nem egészséges, a modell nincs letöltve, vagy az utolsó dbt-futás vagy mentés hibás |
+| Nincs friss adat | Egy jelentés 60 másodpercnél régebbi, ezért a kártya szürke, nem zöld |
+| Feldolgozás fut | A worker tételen dolgozik |
+| Várakozik | Van nyitott tétel, a worker a következő körre vár |
+| Minden rendben | Egyik sem igaz |
+
+Az adatot két forrás küldi a webappnak, a `WORKER_API_TOKEN` tokennel. A `scripts/status-report.sh`-t a `finance-status.timer` 15 másodpercenként futtatja, ez jelenti a szolgáltatásokat, a timereket, a Garage és a Postgres adatait, a lemezt és a memóriát. A worker a lépéseit és az Ollama állapotát jelenti, külön szálon, mert a modell hívása percekig tart. A modell a betöltése alatt még `Betöltve: nem` állapotot mutat.
+
+Az oldalon nincs fájlnév és blokktartalom, előzményt és riasztást nem tárol. Ha a webapp nem fut, az oldal sem nyílik meg, ekkor a `podman compose -f home/docker-compose.yml ps` marad. Az indoklás: [ADR 0008](docs/adr/0008-allapot-kepernyo-a-webappban.md).
+
 ## Migrációk
 
 A migrációk sima SQL-fájlok a `migrations/` mappában, a [dbmate](https://github.com/amacneil/dbmate) futtatja őket. Az új fájl nevének eleje időbélyeg, és az alkalmazásukhoz elég újra lefuttatni a `migrate` szolgáltatást:
@@ -135,7 +151,7 @@ A `RESTIC_REPO_DIR` éles használatra külső meghajtóra mutasson; alapból ug
 
 ### Ütemezés
 
-A systemd timerek naponta 03:00-kor a `dbt build`-et, 03:30-kor a mentést futtatják, és ha a gép ki volt kapcsolva, induláskor pótolják. A telepítés:
+A systemd timerek naponta 03:00-kor a `dbt build`-et, 03:30-kor a mentést futtatják, és ha a gép ki volt kapcsolva, induláskor pótolják. A harmadik timer 15 másodpercenként az állapotjelentést küldi. A telepítés:
 
 ```sh
 scripts/install-timers.sh

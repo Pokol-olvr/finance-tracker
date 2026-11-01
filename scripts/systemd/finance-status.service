@@ -1,0 +1,10 @@
+[Unit]
+Description=Pénzügyi nyomkövető állapotjelentés
+After=podman.socket podman-restart.service
+
+[Service]
+Type=oneshot
+# 15 másodpercenként fut, ezért a sikeres futások ne töltsék a naplót.
+LogLevelMax=warning
+# Az útvonalat a scripts/install-timers.sh írja a repó tényleges helyére.
+ExecStart=%h/finance-tracker/scripts/status-report.sh
