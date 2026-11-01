@@ -8,7 +8,7 @@ tags: [penzugy, projekt]
 
 # Fejlesztési terv
 
-8 epic, 10 kéthetes sprint, kb. 176 story pont. Minden story egy feladat: a 📅 dátum a sprint vége, a címkék az epicet és a sprintet jelölik. A [Tasks](https://publish.obsidian.md/tasks/) bővítménnyel szűrhető, pl. `tags include #sprint/S1`.
+8 epic, 10 kéthetes sprint, kb. 183 story pont. Minden story egy feladat: a 📅 dátum a sprint vége, a címkék az epicet és a sprintet jelölik. A [Tasks](https://publish.obsidian.md/tasks/) bővítménnyel szűrhető, pl. `tags include #sprint/S1`.
 
 Részletes sprintterv: [[Sprint 1]] · [[Sprint 2]] · [[Sprint 3]] · [[Sprint 4]] · Kapcsolódó: [[Üzleti koncepció]] · [[Technikai terv]] · [[Release folyamat]] · [[Változásnapló]]
 
@@ -38,7 +38,7 @@ gantt
   E1 Alapinfrastruktúra        :e1, 2026-11-02, 2026-11-15
   E2 Adatmodell, medallion     :e2, 2026-11-02, 2026-11-29
   E1 Állapot képernyő          :e1b, 2026-11-30, 2026-12-13
-  E3 Postaláda helyben          :e3a, 2026-11-30, 2026-12-13
+  E3 Postaláda helyben          :e3a, 2026-11-30, 2026-12-27
   E4 Blokkbeolvasás            :e4, 2026-11-30, 2027-01-10
   E5 Szabályok                 :e5a, 2026-12-28, 2027-01-10
   E3 Pi és e-mail              :e3b, 2027-01-11, 2027-01-24
@@ -82,7 +82,7 @@ Kész, ha: kézi bejegyzésből gold mutató és Áttekintés dashboard lesz.
 - [ ] FIN-205 Metabase Áttekintés dashboard · 2 SP #E2 #sprint/S2 📅 2026-11-29
     - Elfogadás: ez a hónap, az előző és az átlag egy képernyőn látszik
 
-## FIN-E3 Postaláda, Pi és e-mail (S3, S6, 29 SP)
+## FIN-E3 Postaláda, Pi és e-mail (S3–S4, S6, 36 SP)
 
 Kész, ha: telefonról feltöltött vagy e-mailben továbbított számla eljut az otthoni object store-ba.
 
@@ -104,6 +104,10 @@ Kész, ha: telefonról feltöltött vagy e-mailben továbbított számla eljut a
     - Elfogadás: telefonról feltölthető, a worker a Pi postaládájából húz
 - [ ] FIN-309 A `finance` adatbázis üres újraépítése az első éles használat előtt · 1 SP #E3 #sprint/S6 📅 2027-01-24
     - Elfogadás: a bronz és a Garage `raw` bucket üres, a mock adat és a próbablokkok eltűntek a restic-pillanatképekből is, a Metabase dashboardjai megmaradnak
+- [ ] FIN-310 Tömeges feltöltés: több blokk egyszerre, közös adatokkal · 2 SP #E3 #sprint/S4 📅 2026-12-27
+    - Elfogadás: 12 kép egy mozdulattal feltölthető, egy rossz fájl a többit nem állítja meg
+- [ ] FIN-311 Több képből álló hosszú blokk feltöltése és összefűzése · 5 SP #E3 #sprint/S4 📅 2026-12-27
+    - Elfogadás: egy kétképes blokkból egy blokk lesz egy végösszeggel, a közös sorok egyszer számítanak
 
 ## FIN-E4 Blokkbeolvasás (S3–S5, 38 SP)
 
