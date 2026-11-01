@@ -50,7 +50,7 @@ from (values
   ('finance_owner', 'P0001'), ('postgres', 'P0001'),
   ('app_writer', '42501'), ('dbt_runner', '42501'), ('mb_reader', '42501')
 ) as roles (who, state)
-cross join (values ('raw_document'), ('extraction'), ('manual_entry'), ('receipt_parse')) as tables (name)
+cross join (values ('raw_document'), ('extraction'), ('manual_entry'), ('receipt_parse'), ('review_decision')) as tables (name)
 cross join lateral (values
   (format('update bronze.%I set id = id', name)),
   (format('delete from bronze.%I', name)),

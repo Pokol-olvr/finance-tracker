@@ -7,7 +7,7 @@ from difflib import get_close_matches
 from itertools import product
 
 # Ha a szabály változik, a worker a meglévő szövegeket is újra feldolgozza, modellfutás nélkül.
-PARSER_VERSION = "3"
+PARSER_VERSION = "6"
 
 MAX_AMBIGUOUS_LINES = 12
 MAX_OVERLAP_LINES = 15
@@ -23,9 +23,8 @@ QUANTITY_LINE = re.compile(
     re.IGNORECASE,
 )
 # Egyes boltoknál a mennyiség a név fölött áll, és a sor végén az áfakód van, pl. `ALMA 299 C27`.
-VALUE_WITH_CODE = re.compile(
-    rf"^(?P<name>.*?\S)\s+(?P<value>{AMOUNT})\s+(?P<code>[A-E]\d{{2}})$", re.IGNORECASE
-)
+# A kisbetűs előtag itt is az akciós sorokat jelöli.
+VALUE_WITH_CODE = re.compile(rf"^(?P<name>.*?\S)\s+(?P<value>{AMOUNT})\s+(?P<code>[a-z]?[A-E]\d{{2}})$")
 TARE_LINE = re.compile(r"^\d+[,.]\d+\s*KG\s*-\s*\d+[,.]\d+\s*KG\b", re.IGNORECASE)
 BARE_AMOUNT = re.compile(rf"^(?P<value>{AMOUNT})(?:\s*FT)?$", re.IGNORECASE)
 TRAILING_AMOUNT = re.compile(rf"^(?P<name>.*?\S)\s+(?P<value>{AMOUNT})$")
@@ -36,12 +35,15 @@ TIME_TEXT = re.compile(r"\b(?:[01]\d|2[0-3]):[0-5]\d\b")
 TAX_NUMBER = re.compile(r"\b\d{8}-\d-\d{2}\b")
 RECEIPT_NUMBER = re.compile(r"\b\d{3,}/\d{3,}\b")
 
+# A beváltott visszaváltási utalvány a végösszeg alatt áll, és a kártyával fizetendőt csökkenti.
+DEPOSIT_VOUCHER = "deposit_voucher"
 PAYMENT_LABELS = {
     "KESZPENZ": "cash",
     "BANKKARTYA": "card",
     "KARTYA": "card",
     "SZEP KARTYA": "szep",
     "UTALVANY": "voucher",
+    "GONGYOLEG": DEPOSIT_VOUCHER,
 }
 CHANGE_LABEL = "VISSZAJARO"
 ROUNDING_LABEL = "KEREKITES"
@@ -202,7 +204,7 @@ def read_quantity_first(lines: list[str]) -> tuple[list[dict], int]:
                 {
                     "name": name,
                     "match_name": match_key(name),
-                    "vat_code": row["code"].upper(),
+                    "vat_code": row["code"],
                     "kind": classify(name, value),
                     "quantity": to_number(quantity_match["quantity"]) if quantity_match else None,
                     "unit": quantity_match["unit"].upper() if quantity_match else None,
@@ -253,6 +255,8 @@ def known_label(label: str, known: list[str]) -> str | None:
 def parse_footer(lines: list[str]) -> dict:
     """A végösszeg utáni rész: fizetés, visszajáró, kerekítés, dátum és nyugtaszám."""
     payments: dict[str, int] = {}
+    # Több utalvány is beváltható, és külön maradnak, mert a FIN-411 összeg szerint párosítja őket.
+    vouchers: list[int] = []
     change = rounding = None
     for index, line in enumerate(lines):
         match = LABELLED_LINE.match(line)
@@ -266,6 +270,8 @@ def parse_footer(lines: list[str]) -> dict:
             change = change if change is not None else amount
         elif label == ROUNDING_LABEL:
             rounding = rounding if rounding is not None else amount
+        elif PAYMENT_LABELS[label] == DEPOSIT_VOUCHER:
+            vouchers.append(amount)
         else:
             payments.setdefault(PAYMENT_LABELS[label], amount)
 
@@ -283,7 +289,10 @@ def parse_footer(lines: list[str]) -> dict:
         if receipt_number is None and (found := RECEIPT_NUMBER.search(without_times)):
             receipt_number = found.group(0)
     return {
-        "payments": [{"method": key, "amount": value} for key, value in payments.items()],
+        "payments": [
+            *({"method": key, "amount": value} for key, value in payments.items()),
+            *({"method": DEPOSIT_VOUCHER, "amount": amount} for amount in vouchers),
+        ],
         "change": change,
         "rounding": rounding,
         "purchased_on": purchased_on,

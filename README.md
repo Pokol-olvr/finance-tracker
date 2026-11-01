@@ -87,7 +87,7 @@ A `purchased_by` és a `payer` a `HOUSEHOLD_MEMBERS` kódjait használja, a `pay
 A `http://127.0.0.1:8000` oldalon kell megadni a fájlokat, a feltöltőt, a vásárlót, a fizető felet és legalább egy címkét. Az oldal JPEG, PNG, HEIC, WebP vagy PDF fájlt fogad, fájlonként legfeljebb 20 MB-ig. A telefon a FIN-308-ig nem éri el az oldalt, ezért a fotót előbb a laptopra kell áttenni.
 
 - **Több blokk egyszerre:** legfeljebb 20 fájl tölthető fel körönként, behúzással is. A megadott adatok mindegyikre érvényesek, és egy rossz fájl nem állítja meg a többit. Több fájlnál a dátum üres marad, és a dokumentumról olvassuk ki.
-- **Hosszú blokk több képből:** az „Egy hosszú blokk több képből” kapcsolóval 2–5 kép tartozik egy blokkhoz, a nyilakkal rendezhető sorrendben. A két képen is látszó sorok egyszer számítanak. Ha bármelyik fájl hibás, egyik sem kerül be. PDF ebben a módban nem választható, mert önmagában egy dokumentum.
+- **Egy dokumentum több fájlból:** az „Egy dokumentum több fájlból” kapcsolóval 2–5 kép vagy PDF tartozik egy dokumentumhoz, a nyilakkal rendezhető sorrendben. Így tölthető fel a hosszú blokk és az oldalanként külön fájlba szkennelt számla is. A két képen is látszó sorok egyszer számítanak. Ha bármelyik fájl hibás, egyik sem kerül be.
 - **PDF:** a szöveges PDF modell nélkül, a szövegrétegéből olvasódik ki. A szkennelt PDF első 5 lapja képként a modellhez megy, lapjaként kb. másfél perc alatt. A jelszavas vagy sérült PDF „olvashatatlan” eredménnyel zár.
 
 A worker percenként megnézi a postaládát, és tételenként végigviszi a folyamatot:
@@ -97,6 +97,7 @@ A worker percenként megnézi a postaládát, és tételenként végigviszi a fo
 3. Szöveggé olvastatja, és az eredményt a `bronze.extraction` táblába teszi. A szöveges PDF-hez itt nem kell modell, ilyenkor a `model_name` értéke `pdfium`.
 4. A szöveg dönti el, hogy blokkról vagy számláról van szó. A saját feldolgozó ebből tételeket, végösszeget és fizetési adatokat készít, ellenőrzi őket, és az eredményt a `bronze.receipt_parse` táblába teszi.
 5. Lezárja a tételt, a fájl ekkor törlődik a postaládából.
+6. Az Ellenőrzés képernyőnek csomagot tölt vissza a webappba: a fájlt, a feldolgozott adatokat, az ellenőrzéseket és a szöveges olvasatot.
 
 Ha az Ollama vagy a Garage nem érhető el, a tétel nyitva marad, és a worker a következő körben folytatja. A rossz kimenet is a bronzba kerül, és lezárja a tételt. A tételek sorban futnak. Az indoklás: [ADR 0009](docs/adr/0009-szabalyalapu-blokkfeldolgozo.md) és [ADR 0010](docs/adr/0010-pdf-olvasas-es-szamlafeldolgozo.md).
 
@@ -104,7 +105,7 @@ Ha az Ollama vagy a Garage nem érhető el, a tétel nyitva marad, és a worker 
 | --- | --- |
 | `sum` | A tételek, a betétdíj, a kedvezmény és az utalvány összege a végösszeg |
 | `line_total` | Mennyiség × egységár = érték, 1 Ft tűréssel; számlánál soronként nettó + áfa = bruttó is |
-| `payment` | Fizetett − visszajáró = végösszeg, készpénznél 2 Ft tűréssel |
+| `payment` | Fizetett − visszajáró = végösszeg, készpénznél 2 Ft tűréssel; a végösszeg alatti `GÖNGYÖLEG` sor DRS-utalvány, ezért fizetésnek számít |
 | `date` | A beírt és a beolvasott dátum egyezik; a feltöltés napja nem számít beírt dátumnak, mert az űrlap azt kínálja fel |
 | `duplicate` | Az adószám és a nyugta- vagy számlaszám máshol nem szerepel |
 | `vat_summary` | Csak számlánál: az áfaösszesítő bruttója a végösszeg, 2 Ft tűréssel |
@@ -113,6 +114,22 @@ Ha az Ollama vagy a Garage nem érhető el, a tétel nyitva marad, és a worker 
 A dokumentum állapota `ok`, ha egyik ellenőrzés sem bukott el, `review`, ha valamelyik igen, és `unparsed`, ha nincs tétel vagy végösszeg. Egy ellenőrzés kimarad, ha hiányzik hozzá az adat. Az ismeretlen táblázatú számla `review` lesz a végösszeggel, és nem kap kitalált tételt. A szállítólevél, a díjbekérő és a proforma nem kiadás, ezért `unparsed` marad, és a `payload` `document_type` mezője `non_expense`. A számla kiadásának dátuma a teljesítés dátuma, a vevő neve és címe pedig csak a nyers szövegben marad.
 
 A `worker/app/receipt_parser.py` és a `worker/app/invoice_parser.py` szabályai magyar formátumokra készültek. Új formátumhoz szabályt és kitalált tesztfájlt kell felvenni a `worker/tests/receipts/` vagy a `worker/tests/invoices/` mappába, majd növelni a `PARSER_VERSION` értékét. A worker induláskor a tárolt szövegeket modell nélkül újra feldolgozza.
+
+### Ellenőrzés
+
+A `http://127.0.0.1:8000/review` oldal listázza a dokumentumokat: elöl a döntésre várókat, utána az elmúlt 30 nap többi dokumentumát. Egy dokumentumot megnyitva balra az eredeti, jobbra a feldolgozott adatok látszanak, kiemelve az elbukott ellenőrzéseket. Keskeny képernyőn a kettő egymás alá kerül.
+
+- **Jóváhagyom:** a feldolgozott adat így helyes.
+- **Javítom:** a bolt, a dátum, a végösszeg és a tételek szerkeszthetők. A tételek összege legfeljebb 2 Ft-tal térhet el a végösszegtől.
+- **Elvetem:** a dokumentum nem számít kiadásnak.
+
+Döntést a `review`, az `unparsed` és az olvashatatlan dokumentum kér. Az `ok` és a nem kiadás dokumentum nem kér döntést, de megnyitható, és ha hibás, javítható vagy elvethető. Minden döntés visszavonható az Újranyitás gombbal, a korábbi döntés a bronzban megmarad.
+
+Ami nem kiadás, például a szállítólevél, annál a képernyő ezt kiírja, és a szöveges olvasat nyitva látszik. Ilyenkor és ismeretlen táblázatú számlánál a szövegből kinyert sorok javaslatként jelennek meg. Ezek nem számítanak adatnak, amíg a javítást el nem mented.
+
+A modell ugyanarra a fájlra ugyanazt adja, ezért nincs újraolvasó gomb: rossz fotónál új fotó kell, annak más a hash-e. Ha egy elvetett dokumentum fájlját töltöd fel újra, a dokumentum modellfutás nélkül újranyílik, minden más esetben az eredmény „már megvolt”.
+
+A döntés előbb a webappba kerül, innen a worker a következő körben a `bronze.review_decision` táblába írja, a `bronze.receipt_parse` nem változik. A javított érték a FIN-406 után látszik a silverben és a Metabase-ben. A csomag a döntésig marad, a lezárt dokumentumé 30 nap után törlődik a webappból, a fájl a Garage-ban megmarad. A 30 napnál régebbi `ok` dokumentumot a worker nem tölti vissza. A HEIC fájlt a böngésző nem jeleníti meg, ezért ott a worker JPEG-előnézetet küld. Az indoklás: [ADR 0011](docs/adr/0011-ellenorzes-kepernyo-csomagokkal.md) és [ADR 0012](docs/adr/0012-ujranyitas-az-ujraolvasas-helyett.md).
 
 A legutóbbi kiolvasás, illetve az utolsó három:
 
@@ -155,7 +172,7 @@ A `http://127.0.0.1:8000/status` oldal kilenc kártyán mutatja a stack részeit
 
 Az adatot két forrás küldi a webappnak, a `WORKER_API_TOKEN` tokennel. A `scripts/status-report.sh`-t a `finance-status.timer` 15 másodpercenként futtatja, ez jelenti a szolgáltatásokat, a timereket, a Garage és a Postgres adatait, a lemezt és a memóriát. A worker a lépéseit és az Ollama állapotát jelenti, külön szálon, mert a modell hívása percekig tart. A modell a betöltése alatt még `Betöltve: nem` állapotot mutat.
 
-A „rendben” csak olyan blokkra jelenik meg, amelynek az ellenőrzései nem buktak el, az „Ellenőrzésre vár” szám a többit mutatja. Az oldalon nincs fájlnév és blokktartalom, előzményt és riasztást nem tárol. Ha a webapp nem fut, az oldal sem nyílik meg, ekkor a `podman compose -f home/docker-compose.yml ps` marad. Az indoklás: [ADR 0008](docs/adr/0008-allapot-kepernyo-a-webappban.md).
+A „rendben” csak olyan blokkra jelenik meg, amelynek az ellenőrzései nem buktak el, az „Ellenőrzésre vár” szám a döntésre váró dokumentumokat mutatja, és a döntés után csökken. Az oldalon nincs fájlnév és blokktartalom, előzményt és riasztást nem tárol. Ha a webapp nem fut, az oldal sem nyílik meg, ekkor a `podman compose -f home/docker-compose.yml ps` marad. Az indoklás: [ADR 0008](docs/adr/0008-allapot-kepernyo-a-webappban.md).
 
 ## Migrációk
 

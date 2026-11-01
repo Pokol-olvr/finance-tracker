@@ -69,6 +69,57 @@ limit 1
 """
 
 
+# A legfrissebb feldolgozás; a csomag a döntésig marad, a rendben lévő régi dokumentum nem kell.
+REVIEW_CANDIDATES = """
+with latest as (
+  select distinct on (group_id)
+    id, group_id, status, payload ->> 'document_type' as document_type
+  from bronze.receipt_parse
+  order by group_id, created_at desc
+)
+select l.id as parse_id, l.group_id, min(d.uploaded_at) as uploaded_at
+from latest as l
+join bronze.raw_document as d on coalesce(d.group_id, d.id) = l.group_id
+where coalesce(
+  (
+    select r.decision from bronze.review_decision as r
+    where r.group_id = l.group_id
+    order by r.decided_at desc
+    limit 1
+  ),
+  'reopened'
+) = 'reopened'
+group by l.id, l.group_id, l.status, l.document_type
+having min(d.uploaded_at) > now() - make_interval(days => %s)
+  or (l.status <> 'ok' and l.document_type is distinct from 'non_expense')
+order by uploaded_at
+"""
+
+REVIEW_PAGES = """
+select d.object_key, d.sha256, d.page_no, e.payload ->> 'ocr_text' as ocr_text
+from bronze.raw_document as d
+left join lateral (
+  select payload from bronze.extraction
+  where document_id = d.id
+  order by created_at desc
+  limit 1
+) as e on true
+where coalesce(d.group_id, d.id) = %s
+order by d.page_no
+"""
+
+INSERT_DECISION = """
+insert into bronze.review_decision
+  (id, group_id, parse_id, decision, corrected, decided_by, decided_at)
+values
+  (%(id)s, %(group_id)s, %(parse_id)s, %(action)s, %(corrected)s, %(decided_by)s, %(decided_at)s)
+on conflict (id) do nothing
+"""
+
+# A webapp 30 napig tartja a lezárt csomagot, ezért ennél régebbit nem érdemes visszatölteni.
+REVIEW_KEEP_DAYS = 30
+
+
 def find_document(conn: psycopg.Connection, sha256: str) -> UUID | None:
     row = conn.execute(
         "select id from bronze.raw_document where sha256 = %s", (sha256,)
@@ -138,6 +189,54 @@ def seen_elsewhere(
         return False
     row = conn.execute(SEEN_ELSEWHERE, (group_id, tax_number, receipt_number)).fetchone()
     return row is not None
+
+
+def review_candidates(conn: psycopg.Connection) -> list[dict]:
+    with conn.cursor(row_factory=dict_row) as cursor:
+        cursor.execute(REVIEW_CANDIDATES, (REVIEW_KEEP_DAYS,))
+        return cursor.fetchall()
+
+
+def review_parse(conn: psycopg.Connection, parse_id: UUID) -> dict:
+    with conn.cursor(row_factory=dict_row) as cursor:
+        cursor.execute(
+            "select id, parser_version, status, payload, checks "
+            "from bronze.receipt_parse where id = %s",
+            (parse_id,),
+        )
+        return cursor.fetchone()
+
+
+def review_pages(conn: psycopg.Connection, group_id: UUID) -> list[dict]:
+    with conn.cursor(row_factory=dict_row) as cursor:
+        cursor.execute(REVIEW_PAGES, (group_id,))
+        return cursor.fetchall()
+
+
+def latest_decision(conn: psycopg.Connection, group_id: UUID) -> dict | None:
+    with conn.cursor(row_factory=dict_row) as cursor:
+        cursor.execute(
+            "select id, decision from bronze.review_decision where group_id = %s "
+            "order by decided_at desc limit 1",
+            (group_id,),
+        )
+        return cursor.fetchone()
+
+
+def latest_parse_id(conn: psycopg.Connection, group_id: UUID) -> UUID:
+    row = conn.execute(
+        "select id from bronze.receipt_parse where group_id = %s order by created_at desc limit 1",
+        (group_id,),
+    ).fetchone()
+    return row[0]
+
+
+def insert_decision(conn: psycopg.Connection, decision: dict) -> None:
+    corrected = decision["corrected"]
+    conn.execute(
+        INSERT_DECISION,
+        decision | {"corrected": Jsonb(corrected) if corrected is not None else None},
+    )
 
 
 def insert_parse(

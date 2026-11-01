@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import pytest
+from app.receipt_checks import run_checks, status_of
 from app.receipt_parser import match_key, parse
 
 RECEIPTS = Path(__file__).parent / "receipts"
@@ -55,20 +56,47 @@ def test_header_and_footer_fields():
 def test_quantity_above_name_with_vat_code_at_line_end():
     result = parsed("quantity_first")
 
-    assert values(result) == [299, 399, 1290, 350]
-    assert result["total"] == 2338
+    assert values(result) == [299, 399, 1290, 350, -88]
+    assert result["total"] == 2250
     apple = result["items"][0]
     assert (apple["name"], apple["vat_code"]) == ("ALMALÉ 1L", "C27")
     assert (apple["quantity"], apple["unit"], apple["unit_price"]) == (2, "DB", 149.5)
     assert result["items"][2]["name"] == "FŰMAG 1,5 KG"
-    assert result["payments"] == [{"method": "card", "amount": 2338}]
+    assert result["payments"] == [{"method": "card", "amount": 2250}]
     assert result["receipt_number"] == "0042/00017"
+
+
+def test_discount_line_with_a_prefixed_vat_code_is_counted():
+    item = parsed("quantity_first")["items"][4]
+
+    assert (item["vat_code"], item["kind"], item["value"]) == ("eC27", "discount", -88)
 
 
 def test_quantity_decides_when_a_name_ends_in_a_number():
     item = parsed("quantity_first")["items"][3]
 
     assert (item["name"], item["value"]) == ("TÁPOLDAT 5", 350)
+
+
+def test_deposit_vouchers_below_the_total_count_as_payment():
+    result = parsed("deposit_voucher")
+
+    assert result["total"] == 2347
+    assert values(result) == [599, 449, 1299]
+    assert result["payments"] == [
+        {"method": "card", "amount": 547},
+        {"method": "deposit_voucher", "amount": 300},
+        {"method": "deposit_voucher", "amount": 1500},
+    ]
+
+
+def test_deposit_vouchers_settle_the_payment_check():
+    result = parsed("deposit_voucher")
+
+    checks = run_checks(result, None, False)
+
+    assert checks["payment"] == {"ok": True, "paid": 2347}
+    assert status_of(result, checks) == "ok"
 
 
 def test_value_can_stand_on_its_own_line():

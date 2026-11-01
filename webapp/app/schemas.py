@@ -12,6 +12,8 @@ CATEGORIES = frozenset({"élelmiszer", "háztartás", "lakbér", "közlekedés",
 
 SHARED_PAYER = "shared"
 MOCK_AUTHOR = "mock"
+# A worker készpénznél és számlánál is ennyit enged a kerekítés miatt.
+CORRECTION_SUM_LIMIT = 2
 
 
 class ManualEntry(BaseModel):
@@ -133,6 +135,74 @@ class WorkerReport(BaseModel):
 
 
 class CloseResult(BaseModel):
-    result: Literal["ok", "review", "unparsed", "unreadable", "duplicate"]
+    result: Literal["ok", "review", "unparsed", "unreadable", "duplicate", "reopened"]
     seconds: float | None = None
     items: int | None = None
+
+
+class ReviewPackage(BaseModel):
+    """Amit a worker visszatölt: a webapp a bronzot és a Garage-ot nem éri el."""
+
+    parse_id: UUID
+    parser_version: str
+    result: Literal["ok", "review", "unparsed", "unreadable"]
+    document_type: str | None = None
+    parsed: dict
+    checks: dict
+    ocr_text: str
+    uploaded_at: datetime
+    content_types: list[str] = Field(min_length=1, max_length=20)
+    sha256s: list[str] = Field(min_length=1, max_length=20)
+
+
+class CorrectedItem(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    value: float
+    kind: Literal["item", "deposit", "discount", "voucher"] = "item"
+    quantity: float | None = None
+    unit: str | None = Field(default=None, max_length=20)
+    unit_price: float | None = None
+
+
+class Correction(BaseModel):
+    store_name: str | None = Field(default=None, max_length=200)
+    purchased_on: date
+    total: float = Field(gt=0)
+    items: list[CorrectedItem] = Field(min_length=1, max_length=500)
+
+    @model_validator(mode="after")
+    def check_sum(self) -> Self:
+        if abs(sum(item.value for item in self.items) - self.total) > CORRECTION_SUM_LIMIT:
+            raise ValueError("a tételek összege nem egyezik a végösszeggel")
+        return self
+
+
+class ReviewReopen(BaseModel):
+    decided_by: str
+
+    @model_validator(mode="after")
+    def check_person(self) -> Self:
+        if self.decided_by not in get_settings().members:
+            raise ValueError("ismeretlen decided_by")
+        return self
+
+
+class WorkerReopen(ReviewReopen):
+    """A workernél a döntés már a bronzban van, ezért a saját azonosítójával érkezik."""
+
+    id: UUID
+
+
+class ReviewDecision(BaseModel):
+    parse_id: UUID
+    action: Literal["approved", "corrected", "rejected"]
+    decided_by: str
+    corrected: Correction | None = None
+
+    @model_validator(mode="after")
+    def check_decision(self) -> Self:
+        if self.decided_by not in get_settings().members:
+            raise ValueError("ismeretlen decided_by")
+        if (self.action == "corrected") != (self.corrected is not None):
+            raise ValueError("javított adat csak javításnál van, és ott kötelező")
+        return self

@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ellenőrzés</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/base.css">
+  <style>
+    main { max-width: 1400px; margin: 0 auto; }
+    h1 { margin-bottom: 4px; overflow-wrap: anywhere; }
+    h2 { margin: 16px 0 8px; font-size: 16px; }
+    .subtitle { margin: 0 0 16px; color: var(--muted); }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+    .panel { padding: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+    .original { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; }
+    .original img { display: block; width: 100%; height: auto; margin-bottom: 8px; }
+    .original iframe { display: block; width: 100%; height: calc(100vh - 96px); border: 0; }
+    .original a { display: inline-block; margin-bottom: 8px; font-size: 14px; }
+    .failed { margin: 0 0 12px; padding: 8px 12px; border-left: 4px solid var(--error); }
+    .note { margin: 0 0 12px; padding: 8px 12px; border-left: 4px solid var(--busy); }
+    .failed p { margin: 0; color: var(--error); }
+    dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 0; }
+    dt { color: var(--muted); }
+    dd { margin: 0; overflow-wrap: anywhere; }
+    .scroll { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 4px 6px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { color: var(--muted); font-weight: 600; }
+    .number { text-align: right; white-space: nowrap; }
+    .kind { display: block; color: var(--muted); font-size: 12px; }
+    input, select {
+      width: 100%;
+      min-height: 36px;
+      padding: 4px 6px;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      font: inherit;
+    }
+    td input.value { min-width: 96px; text-align: right; }
+    #sum-line { margin: 8px 0 0; }
+    #sum-line.error { color: var(--error); font-weight: 600; }
+    details { margin-top: 12px; }
+    pre { margin: 8px 0 0; font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .actions { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; margin-top: 16px; }
+    .decider { flex: 1 1 160px; font-size: 14px; color: var(--muted); }
+    button {
+      min-height: 40px;
+      padding: 0 14px;
+      background: var(--accent);
+      color: var(--on-accent);
+      border: 0;
+      border-radius: 6px;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button.quiet { background: var(--bg); color: var(--text); border: 1px solid var(--line); font-weight: 400; }
+    button.danger { background: var(--bg); color: var(--error); border: 1px solid var(--error); }
+    button:disabled { opacity: 0.6; cursor: default; }
+    #message { margin: 8px 0 0; color: var(--error); }
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: minmax(0, 1fr); }
+      .original { position: static; max-height: 70vh; }
+      .original iframe { height: 65vh; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <nav class="menu" aria-label="Oldalak">
+      <a href="/">Feltöltés</a>
+      <a href="/review" aria-current="page">Ellenőrzés</a>
+      <a href="/status">Állapot</a>
+    </nav>
+    <h1 id="title">Betöltés…</h1>
+    <p id="subtitle" class="subtitle"></p>
+    <div class="layout">
+      <section id="original" class="panel original" aria-label="Eredeti dokumentum"></section>
+      <section class="panel" aria-label="Feldolgozott adatok">
+        <div id="failed" class="failed" hidden></div>
+        <p id="note" class="note" hidden></p>
+        <dl id="fields"></dl>
+        <h2 id="items-title">Tételek</h2>
+        <div class="scroll"><table id="items"><thead></thead><tbody></tbody></table></div>
+        <p id="sum-line" hidden></p>
+        <div id="actions" class="actions"></div>
+        <p id="message" role="alert"></p>
+        <details id="text-panel">
+          <summary>A modell szöveges olvasata</summary>
+          <pre id="ocr-text"></pre>
+        </details>
+      </section>
+    </div>
+  </main>
+  <template id="members">{{members}}</template>
+  <script>
+    // A javított tételek és a végösszeg közti eltérés határa, a szerverrel egyezik.
+    const SUM_LIMIT = 2;
+    const KINDS = { item: "tétel", deposit: "betétdíj", discount: "kedvezmény", voucher: "utalvány" };
+    const METHODS = {
+      cash: "készpénz", card: "bankkártya", szep: "SZÉP-kártya", voucher: "utalvány",
+      transfer: "átutalás", cash_on_delivery: "utánvét", deposit_voucher: "DRS-utalvány",
+    };
+    const groupId = location.pathname.split("/").pop();
+    const message = document.getElementById("message");
+    let review = null;
+    let draft = null;
+    let decider = rememberedDecider();
+
+    function rememberedDecider() {
+      try {
+        return localStorage.getItem("uploaded_by");
+      } catch {
+        return null;
+      }
+    }
+
+    function rememberDecider(value) {
+      try {
+        localStorage.setItem("uploaded_by", value);
+      } catch {
+        // Tiltott tároló mellett a következő döntésnél újra választani kell.
+      }
+    }
+
+    function element(tag, className, text) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text !== undefined && text !== null) node.textContent = text;
+      return node;
+    }
+
+    function money(value) {
+      if (value === null || value === undefined) return "–";
+      const [whole, fraction] = String(value).split(".");
+      const grouped = whole.replace(/\B(?=(\d{3})+$)/g, " ");
+      return `${grouped}${fraction ? `,${fraction}` : ""} Ft`;
+    }
+
+    function input(type, value, onInput, className) {
+      const field = element("input", className);
+      field.type = type;
+      field.value = value ?? "";
+      if (type === "number") field.step = "any";
+      field.addEventListener("input", () => onInput(field.value));
+      return field;
+    }
+
+    function isSuggestion() {
+      return Boolean(review.parsed.draft) && !(review.parsed.items || []).length;
+    }
+
+    // A javaslat látszik és szerkeszthető, de mentés nélkül nem lesz belőle adat.
+    function viewData() {
+      return isSuggestion() ? { ...review.parsed, ...review.parsed.draft } : review.parsed;
+    }
+
+    function renderOriginal() {
+      const box = document.getElementById("original");
+      box.replaceChildren();
+      for (const page of review.pages) {
+        const link = element("a", "", "Megnyitás új lapon");
+        link.href = page.url;
+        link.target = "_blank";
+        link.rel = "noopener";
+        if (page.is_pdf) {
+          const frame = element("iframe");
+          frame.src = page.url;
+          frame.title = "Eredeti PDF";
+          box.append(link, frame);
+        } else {
+          const image = element("img");
+          image.src = page.url;
+          image.alt = "Eredeti dokumentum";
+          box.append(link, image);
+        }
+      }
+    }
+
+    function renderFailed() {
+      const box = document.getElementById("failed");
+      box.replaceChildren(...review.failed.map((text) => element("p", "", text)));
+      box.hidden = review.failed.length === 0;
+    }
+
+    function renderNote() {
+      const box = document.getElementById("note");
+      box.textContent = review.note || "";
+      box.hidden = !review.note;
+      document.getElementById("text-panel").open = review.show_text;
+    }
+
+    function addField(list, label, content) {
+      const value = element("dd");
+      value.append(content ?? "–");
+      list.append(element("dt", "", label), value);
+    }
+
+    function renderFields() {
+      const data = viewData();
+      const list = document.getElementById("fields");
+      list.replaceChildren();
+      if (draft) {
+        addField(list, "Bolt, kiállító", input("text", draft.store_name, (v) => { draft.store_name = v; }));
+        addField(list, "Dátum", input("date", draft.purchased_on, (v) => { draft.purchased_on = v; }));
+        addField(list, "Végösszeg", input("number", draft.total, (v) => { draft.total = v; renderSum(); }));
+        return;
+      }
+      addField(list, "Bolt, kiállító", data.store_name);
+      addField(list, "Adószám", data.tax_number);
+      addField(list, "Sorszám", data.receipt_number);
+      addField(list, "Dátum", data.purchased_on);
+      if (data.due_on) addField(list, "Fizetési határidő", data.due_on);
+      const payments = (data.payments || []).map(
+        (row) => `${METHODS[row.method] || row.method}: ${money(row.amount)}`,
+      );
+      addField(list, "Fizetés", payments.join(", ") || null);
+      addField(list, "Végösszeg", money(data.total));
+    }
+
+    function viewRow(item) {
+      const row = element("tr");
+      const name = element("td", "", item.name);
+      if (item.kind && item.kind !== "item") name.append(element("span", "kind", KINDS[item.kind]));
+      const quantity = item.quantity === null || item.quantity === undefined
+        ? "–" : `${item.quantity} ${item.unit || ""}`;
+      row.append(
+        name,
+        element("td", "number", quantity),
+        element("td", "number", item.unit_price === null || item.unit_price === undefined
+          ? "–" : money(item.unit_price)),
+        element("td", "number", money(item.value)),
+      );
+      return row;
+    }
+
+    function kindSelect(item) {
+      const select = element("select");
+      for (const [value, label] of Object.entries(KINDS)) {
+        const option = element("option", "", label);
+        option.value = value;
+        select.append(option);
+      }
+      select.value = item.kind || "item";
+      select.addEventListener("change", () => { item.kind = select.value; });
+      return select;
+    }
+
+    function editRow(item, index) {
+      const row = element("tr");
+      const cells = [
+        input("text", item.name, (v) => { item.name = v; }),
+        input("number", item.value, (v) => { item.value = v; renderSum(); }, "value"),
+        kindSelect(item),
+      ];
+      for (const content of cells) {
+        const cell = element("td");
+        cell.append(content);
+        row.append(cell);
+      }
+      const remove = button("×", "quiet", () => {
+        draft.items.splice(index, 1);
+        renderItems();
+      });
+      remove.title = "Tétel törlése";
+      const cell = element("td");
+      cell.append(remove);
+      row.append(cell);
+      return row;
+    }
+
+    function renderItems() {
+      const table = document.getElementById("items");
+      const titles = draft ? ["Név", "Érték", "Típus", ""] : ["Név", "Mennyiség", "Egységár", "Érték"];
+      const head = element("tr");
+      titles.forEach((title, index) => {
+        head.append(element("th", !draft && index > 0 ? "number" : "", title));
+      });
+      table.tHead.replaceChildren(head);
+      const rows = draft ? draft.items.map(editRow) : (viewData().items || []).map(viewRow);
+      table.tBodies[0].replaceChildren(...rows);
+      document.getElementById("items-title").textContent = isSuggestion() && !draft
+        ? "Javasolt tételek, még nem számítanak" : "Tételek";
+      renderSum();
+    }
+
+    function difference() {
+      const sum = draft.items.reduce((total, item) => total + Number(item.value || 0), 0);
+      return { sum, gap: sum - Number(draft.total || 0) };
+    }
+
+    function renderSum() {
+      const line = document.getElementById("sum-line");
+      line.hidden = !draft;
+      if (!draft) return;
+      const { sum, gap } = difference();
+      line.textContent = `Tételek összege: ${money(sum)} · eltérés a végösszegtől: ${money(gap)}`;
+      line.classList.toggle("error", Math.abs(gap) > SUM_LIMIT);
+    }
+
+    function button(label, className, action) {
+      const node = element("button", className, label);
+      node.type = "button";
+      node.addEventListener("click", action);
+      return node;
+    }
+
+    function deciderField() {
+      const label = element("label", "decider", "Ki dönt?");
+      const select = element("select");
+      select.id = "decider";
+      select.innerHTML = document.getElementById("members").innerHTML;
+      if ([...select.options].some((option) => option.value === decider)) select.value = decider;
+      decider = select.value;
+      select.addEventListener("change", () => { decider = select.value; });
+      label.append(select);
+      return label;
+    }
+
+    function startEditing() {
+      const data = viewData();
+      draft = {
+        store_name: data.store_name || "",
+        purchased_on: data.purchased_on || "",
+        total: data.total ?? "",
+        items: (data.items || []).map((item) => ({ ...item })),
+      };
+      if (!draft.items.length) draft.items.push({ name: "", value: "", kind: "item" });
+      message.textContent = "";
+      render();
+    }
+
+    function correctedData() {
+      return {
+        store_name: draft.store_name || null,
+        purchased_on: draft.purchased_on,
+        total: Number(draft.total),
+        items: draft.items.map((item) => ({
+          name: item.name,
+          value: Number(item.value),
+          kind: item.kind || "item",
+          quantity: item.quantity ?? null,
+          unit: item.unit ?? null,
+          unit_price: item.unit_price ?? null,
+        })),
+      };
+    }
+
+    function correctionProblem() {
+      if (!draft.purchased_on) return "Add meg a dátumot.";
+      if (!(Number(draft.total) > 0)) return "Add meg a végösszeget.";
+      if (draft.items.some((item) => !item.name.trim())) return "Minden tételnek legyen neve.";
+      if (!draft.items.length) return "Legalább egy tétel kell.";
+      if (Math.abs(difference().gap) > SUM_LIMIT) {
+        return "A tételek összege nem egyezik a végösszeggel.";
+      }
+      return null;
+    }
+
+    function saveCorrection() {
+      const problem = correctionProblem();
+      if (problem) {
+        message.textContent = problem;
+        return;
+      }
+      decide("corrected", correctedData());
+    }
+
+    async function decide(action, corrected) {
+      for (const node of document.querySelectorAll("#actions button")) node.disabled = true;
+      message.textContent = "";
+      rememberDecider(decider);
+      try {
+        const response = await fetch(`/reviews/${groupId}/decision`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            parse_id: review.parse_id, action, decided_by: decider, corrected: corrected ?? null,
+          }),
+        });
+        if (response.status === 409) {
+          const conflict = await response.json();
+          draft = null;
+          await load();
+          message.textContent = conflict.detail;
+          return;
+        }
+        if (!response.ok) {
+          message.textContent = "A döntés nem menthető, ellenőrizd a mezőket.";
+          renderActions();
+          return;
+        }
+        const { next } = await response.json();
+        location.href = next ? `/review/${next}` : "/review";
+      } catch {
+        message.textContent = "A szerver nem érhető el, a döntés nem mentődött.";
+        renderActions();
+      }
+    }
+
+    async function reopen() {
+      for (const node of document.querySelectorAll("#actions button")) node.disabled = true;
+      message.textContent = "";
+      rememberDecider(decider);
+      try {
+        const response = await fetch(`/reviews/${groupId}/reopen`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ decided_by: decider }),
+        });
+        if (!response.ok && response.status !== 409) {
+          message.textContent = "Az újranyitás nem sikerült.";
+          renderActions();
+          return;
+        }
+        await load();
+      } catch {
+        message.textContent = "A szerver nem érhető el, a dokumentum nem nyílt újra.";
+        renderActions();
+      }
+    }
+
+    function renderActions() {
+      const box = document.getElementById("actions");
+      box.replaceChildren();
+      if (review.decision) {
+        const when = new Date(review.decision.decided_at).toLocaleString("hu-HU");
+        box.append(
+          element("p", "", `Döntés: ${review.decision.label} · ${review.decision.decided_by} · ${when}`),
+          deciderField(),
+          button("Újranyitás", "quiet", reopen),
+        );
+        return;
+      }
+      if (draft) {
+        box.append(
+          deciderField(),
+          button("Új tétel", "quiet", () => {
+            draft.items.push({ name: "", value: "", kind: "item" });
+            renderItems();
+          }),
+          button("Mégse", "quiet", () => { draft = null; message.textContent = ""; render(); }),
+          button("Javítás mentése", "", saveCorrection),
+        );
+        return;
+      }
+      box.append(deciderField());
+      const hasData = review.parsed.total !== null && review.parsed.total !== undefined
+        && (review.parsed.items || []).length > 0;
+      if (review.state === "open" && hasData) {
+        box.append(button("Jóváhagyom", "", () => decide("approved")));
+      }
+      box.append(
+        button("Javítom", "quiet", startEditing),
+        button("Elvetem", "danger", () => decide("rejected")),
+      );
+    }
+
+    function render() {
+      document.getElementById("title").textContent = review.store_name || "Névtelen dokumentum";
+      document.title = "Ellenőrzés";
+      document.getElementById("subtitle").textContent = review.document_type === review.label
+        ? review.label : `${review.document_type} · ${review.label}`;
+      renderFailed();
+      renderNote();
+      renderFields();
+      renderItems();
+      renderActions();
+      document.getElementById("ocr-text").textContent = review.ocr_text;
+    }
+
+    async function load() {
+      try {
+        const response = await fetch(`/reviews/${groupId}.json`, { cache: "no-store" });
+        if (!response.ok) throw new Error(String(response.status));
+        review = await response.json();
+        renderOriginal();
+        render();
+      } catch {
+        document.getElementById("title").textContent = "A dokumentum nem tölthető be";
+      }
+    }
+
+    load();
+  </script>
+</body>
+</html>

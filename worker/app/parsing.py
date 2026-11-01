@@ -32,7 +32,7 @@ def parse_group(conn: psycopg.Connection, group_id: UUID, pages: list[dict]) -> 
     extraction_ids = [page["extraction_id"] for page in pages]
     texts = [page["payload"].get("ocr_text") for page in pages]
     if not all(texts):
-        return store(conn, group_id, extraction_ids, "unparsed", {"error": "A kép nem olvasható"}, {})
+        return store(conn, group_id, extraction_ids, "unparsed", {"error": "A fájl nem olvasható"}, {})
     try:
         parsed = parse_document(texts)
     except (ValueError, IndexError, KeyError, TypeError) as error:

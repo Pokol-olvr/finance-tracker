@@ -229,6 +229,52 @@ def test_delivery_note_never_gets_items():
     assert status(result) == "unparsed"
 
 
+def test_delivery_note_suggests_rows_for_the_correction():
+    draft = parse_document([text_of("delivery_note")])["draft"]
+
+    assert draft["store_name"] == "Minta Webshop Kft."
+    assert draft["purchased_on"] == "2026-10-18"
+    assert draft["total"] == 2540
+    assert [(row["name"], row["quantity"], row["value"]) for row in draft["items"]] == [
+        ("Példa tok", 1, 2540)
+    ]
+
+
+def test_suggestion_never_counts_as_an_item():
+    result = parse_document([text_of("delivery_note")])
+
+    assert result["items"] == []
+    assert result["total"] is None
+    assert status(result) == "unparsed"
+
+
+def test_suggestion_keeps_the_buyer_out():
+    stored = json.dumps(parse_document([text_of("delivery_note")]), ensure_ascii=False)
+
+    assert "Teszt Elek" not in stored
+
+
+def test_net_rows_stay_net_when_the_rate_is_not_clear():
+    text = text_of("delivery_note").replace("ÁFA (27%): 540 Ft\n", "ÁFA (27%): 300 Ft\nÁFA (5%): 240 Ft\n")
+
+    draft = parse_document([text])["draft"]
+
+    assert draft["items"][0]["value"] == 2000
+
+
+def test_unknown_table_gets_a_suggestion_too():
+    result = parsed("unknown_table")
+
+    assert result["items"] == []
+    assert result["draft"]["total"] == 1270
+    assert result["draft"]["store_name"] == "Ismeretlen Táblázat Kft."
+    assert result["draft"]["purchased_on"] == "2026-08-15"
+
+
+def test_recognised_invoice_needs_no_suggestion():
+    assert "draft" not in parsed("one_line_row")
+
+
 def test_invoice_mentioning_a_delivery_note_stays_an_invoice():
     text = text_of("one_line_row").replace("Oldal 1/1", "Szállítólevél száma: 123")
 

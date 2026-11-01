@@ -1,6 +1,6 @@
 import secrets
 from html import escape
-from pathlib import Path
+from pathlib import Path as FilePath
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -11,7 +11,9 @@ from fastapi import (
     FastAPI,
     Form,
     HTTPException,
+    Path,
     Query,
+    Request,
     Response,
     UploadFile,
     status,
@@ -19,7 +21,7 @@ from fastapi import (
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app import inbox, store
+from app import inbox, reviews, store
 from app import status as stack_status
 from app.config import get_settings
 from app.schemas import (
@@ -27,14 +29,18 @@ from app.schemas import (
     CloseResult,
     HostReport,
     ManualEntry,
+    ReviewDecision,
+    ReviewPackage,
+    ReviewReopen,
     UploadForm,
+    WorkerReopen,
     WorkerReport,
 )
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 MIN_GROUP_PAGES = 2
 MAX_GROUP_PAGES = 5
-STATIC_DIR = Path(__file__).parent / "static"
+STATIC_DIR = FilePath(__file__).parent / "static"
 
 app = FastAPI(title="Pénzügyi nyomkövető")
 bearer = HTTPBearer(auto_error=False)
@@ -71,19 +77,22 @@ def create_entry(entry: ManualEntry, response: Response) -> dict[str, str]:
     return {"id": str(entry.id), "status": "created" if created else "already_exists"}
 
 
-@app.get("/", response_class=HTMLResponse)
-def upload_page() -> str:
-    members = "".join(
+def member_options() -> str:
+    return "".join(
         f'<option value="{escape(member)}">{escape(member)}</option>'
         for member in sorted(get_settings().members)
     )
+
+
+@app.get("/", response_class=HTMLResponse)
+def upload_page() -> str:
     tags = "".join(
         f'<label class="tag"><input type="checkbox" name="tags" value="{escape(category)}">'
         f"{escape(category)}</label>"
         for category in sorted(CATEGORIES)
     )
     page = (STATIC_DIR / "upload.html").read_text(encoding="utf-8")
-    return page.replace("{{members}}", members).replace("{{tags}}", tags)
+    return page.replace("{{members}}", member_options()).replace("{{tags}}", tags)
 
 
 @app.get("/manifest.webmanifest")
@@ -118,6 +127,67 @@ def status_data() -> dict:
     )
 
 
+@app.get("/review", response_class=HTMLResponse)
+def review_list_page() -> str:
+    return (STATIC_DIR / "review.html").read_text(encoding="utf-8")
+
+
+@app.get("/review/{group_id}", response_class=HTMLResponse)
+def review_page(group_id: UUID) -> str:
+    page = (STATIC_DIR / "review_detail.html").read_text(encoding="utf-8")
+    return page.replace("{{members}}", member_options())
+
+
+@app.get("/reviews.json")
+def review_list() -> dict:
+    return reviews.build_list(inbox.list_reviews())
+
+
+@app.get("/reviews/{group_id}.json")
+def review_data(group_id: UUID) -> dict:
+    review = inbox.get_review(group_id)
+    if review is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    return reviews.build_detail(review)
+
+
+@app.get("/reviews/{group_id}/pages/{page_no}")
+def review_file(group_id: UUID, page_no: int) -> FileResponse:
+    review = inbox.get_review(group_id)
+    path = inbox.review_page_path(group_id, page_no)
+    if review is None or not path.exists() or not 1 <= page_no <= len(review["content_types"]):
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    return FileResponse(
+        path,
+        media_type=review["content_types"][page_no - 1],
+        content_disposition_type="inline",
+        filename=f"{page_no}",
+        headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
+    )
+
+
+@app.post("/reviews/{group_id}/decision", status_code=status.HTTP_201_CREATED)
+def create_review_decision(group_id: UUID, decision: ReviewDecision) -> dict[str, str | None]:
+    try:
+        saved = inbox.decide(group_id, decision)
+    except inbox.ReviewConflict as conflict:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(conflict)) from conflict
+    if saved is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    return {"id": saved, "next": inbox.next_open_review()}
+
+
+@app.post("/reviews/{group_id}/reopen", status_code=status.HTTP_201_CREATED)
+def reopen_review(group_id: UUID, request: ReviewReopen) -> dict[str, str]:
+    try:
+        reopened = inbox.reopen(group_id, request.decided_by)
+    except inbox.ReviewConflict as conflict:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(conflict)) from conflict
+    if not reopened:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    return {"status": "reopened"}
+
+
 def read_upload(file: UploadFile) -> tuple[bytes, str, str]:
     content = file.file.read(MAX_UPLOAD_BYTES + 1)
     if len(content) > MAX_UPLOAD_BYTES:
@@ -141,14 +211,9 @@ def create_group_upload(
     if not MIN_GROUP_PAGES <= len(files) <= MAX_GROUP_PAGES:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
-            f"Egy blokkhoz {MIN_GROUP_PAGES}–{MAX_GROUP_PAGES} kép tartozhat.",
+            f"Egy dokumentumhoz {MIN_GROUP_PAGES}–{MAX_GROUP_PAGES} fájl tartozhat.",
         )
-    pages = [read_upload(file) for file in files]
-    if any(content_type == inbox.PDF_TYPE for *_, content_type in pages):
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT, "A PDF önmagában egy dokumentum, csak képek fűzhetők össze."
-        )
-    return {"group_id": inbox.add_group(form, pages)}
+    return {"group_id": inbox.add_group(form, [read_upload(file) for file in files])}
 
 
 @worker_api.get("/items")
@@ -172,6 +237,48 @@ def close_inbox_item(item_id: UUID, outcome: CloseResult | None = None) -> dict[
     if not inbox.close_item(item_id, outcome):
         raise HTTPException(status.HTTP_404_NOT_FOUND)
     return {"id": str(item_id), "status": "closed"}
+
+
+@worker_api.get("/reviews")
+def list_known_reviews() -> dict[str, list[dict]]:
+    """A worker körönként hívja, ezért itt fut a régi csomagok takarítása is."""
+    inbox.purge_reviews()
+    return {"reviews": inbox.known_reviews()}
+
+
+@worker_api.put("/reviews/{group_id}/pages/{page_no}", status_code=status.HTTP_204_NO_CONTENT)
+async def put_review_page(
+    group_id: UUID,
+    page_no: Annotated[int, Path(ge=1, le=inbox.MAX_REVIEW_PAGES)],
+    request: Request,
+) -> None:
+    content = await request.body()
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, "A fájl nagyobb 20 MB-nál.")
+    if inbox.detect_file_type(content) is None:
+        raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "Nem támogatott fájltípus.")
+    inbox.save_review_page(group_id, page_no, content)
+
+
+@worker_api.put("/reviews/{group_id}", status_code=status.HTTP_204_NO_CONTENT)
+def put_review(group_id: UUID, package: ReviewPackage) -> None:
+    inbox.save_review(group_id, package)
+
+
+@worker_api.post("/reviews/{group_id}/reopen", status_code=status.HTTP_204_NO_CONTENT)
+def reopen_review_from_worker(group_id: UUID, request: WorkerReopen) -> None:
+    inbox.reopen_from_worker(group_id, request)
+
+
+@worker_api.get("/decisions")
+def list_open_decisions() -> dict[str, list[dict]]:
+    return {"decisions": inbox.open_decisions()}
+
+
+@worker_api.post("/decisions/{decision_id}/close", status_code=status.HTTP_204_NO_CONTENT)
+def close_review_decision(decision_id: UUID) -> None:
+    if not inbox.close_decision(decision_id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
 
 
 @worker_api.post("/status/host", status_code=status.HTTP_204_NO_CONTENT)

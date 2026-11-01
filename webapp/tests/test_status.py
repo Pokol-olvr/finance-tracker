@@ -321,6 +321,18 @@ def test_receipts_needing_review_are_counted(client):
     item_id = upload_item(client)
 
     client.post(f"/inbox/items/{item_id}/close", json={"result": "review"}, headers=HEADERS)
+    package = {
+        "parse_id": str(uuid4()),
+        "parser_version": "1",
+        "result": "review",
+        "parsed": {},
+        "checks": {},
+        "ocr_text": "",
+        "uploaded_at": "2026-12-14T10:00:00+00:00",
+        "content_types": ["image/jpeg"],
+        "sha256s": ["a" * 64],
+    }
+    client.put(f"/inbox/reviews/{uuid4()}", json=package, headers=HEADERS)
     data = client.get("/status.json").json()
 
     assert {"label": "Ellenőrzésre vár", "value": "1"} in card(data, "upload")["facts"]

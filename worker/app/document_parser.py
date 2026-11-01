@@ -2,7 +2,7 @@
 
 import re
 
-from app.invoice_parser import parse_invoice
+from app.invoice_parser import clean_lines, draft_of, parse_invoice
 from app.receipt_parser import match_key, parse_pages
 
 BUYER_WORDS = {"VEVO", "VASARLO", "MEGRENDELO"}
@@ -35,5 +35,6 @@ def parse_document(texts: list[str]) -> dict:
             "payments": [],
             "purchased_on": None,
             "receipt_number": None,
+            "draft": draft_of(clean_lines(joined)),
         }
     return {"document_type": kind, **parse_pages(texts)}

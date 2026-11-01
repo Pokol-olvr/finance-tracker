@@ -211,15 +211,22 @@ def test_bad_file_stops_the_whole_group(client, valid_form, worker_headers, inbo
     assert [path.name for path in inbox_dir.iterdir() if path.name != "inbox.sqlite3"] == []
 
 
-def test_pdf_cannot_join_a_group(client, valid_form, worker_headers, inbox_dir):
-    response = group_upload(client, valid_form, [image_bytes("JPEG"), b"%PDF-1.7 kitalalt"])
+@pytest.mark.parametrize(
+    "contents",
+    [
+        [b"%PDF-1.7 elso oldal", b"%PDF-1.7 masodik oldal"],
+        [image_bytes("JPEG"), b"%PDF-1.7 masodik oldal"],
+    ],
+    ids=["csak-pdf", "kep-es-pdf"],
+)
+def test_pdfs_can_form_one_document(client, valid_form, worker_headers, contents):
+    response = group_upload(client, valid_form, contents)
 
-    assert response.status_code == 422
-    assert "PDF" in response.json()["detail"]
-    assert client.get("/inbox/items", params={"status": "new"}, headers=worker_headers).json() == {
-        "items": []
-    }
-    assert [path.name for path in inbox_dir.iterdir() if path.name != "inbox.sqlite3"] == []
+    assert response.status_code == 201
+    params = {"status": "new"}
+    items = client.get("/inbox/items", params=params, headers=worker_headers).json()["items"]
+    assert {item["group_id"] for item in items} == {response.json()["group_id"]}
+    assert sorted(item["page_no"] for item in items) == [1, 2]
 
 
 @pytest.mark.parametrize("pages", [1, 6])
@@ -243,7 +250,7 @@ def test_old_inbox_is_migrated_keeping_items(inbox_dir):
 
     assert [(item["id"], item["page_no"], item["group_id"]) for item in items] == [("a", 1, None)]
     with closing(inbox.connect()) as conn:
-        assert conn.execute("pragma user_version").fetchone()[0] == 1
+        assert conn.execute("pragma user_version").fetchone()[0] == inbox.LATEST_VERSION
 
 
 def test_missing_tags_are_rejected(client, valid_form):

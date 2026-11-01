@@ -16,12 +16,14 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 ### Hozzáadva
 
 - FIN-310 Tömeges feltöltés: egyszerre legfeljebb 20 fájl, közös adatokkal; a dátum opcionális, üresen a blokkról jön.
-- FIN-311 Hosszú blokk több képből: 2–5 kép egy blokként, a közös sorok egyszer számítanak.
+- FIN-311 Egy dokumentum több fájlból: 2–5 kép vagy PDF egy dokumentumként, a közös sorok egyszer számítanak.
 - FIN-402 Saját feldolgozó a szöveges olvasatra: tételek, végösszeg, fizetés, dátum és nyugtaszám a `bronze.receipt_parse` táblában; a tárolt szövegek modell nélkül újra feldolgozhatók.
 - FIN-402 `worker/tools/read_folder.py`: repón kívüli mappa kiolvasása a bronz érintése nélkül.
 - FIN-404 Automatikus ellenőrzés: összeg, tételszorzat, fizetés, dátum és ismételt blokk; az állapotoldalon az „Ellenőrzésre vár” szám is látszik.
 - FIN-412 Számlafeldolgozó: az A4-es számlából szállító, adószám, sorszám, dátumok, tételek, áfaösszesítő és végösszeg lesz; az ismeretlen táblázatú számla `review`, a szállítólevél, a díjbekérő és a proforma nem kiadás.
 - FIN-312 PDF-feltöltés: a szöveges PDF modell nélkül, a szkennelt PDF a modellen át dolgozódik fel, a `read_folder` is kezeli; új függőség a `pypdfium2`.
+- FIN-413 Újranyitás és előtöltött javítás: minden döntés visszavonható, az elvetett fájl újrafeltöltése újranyitja a dokumentumot, a nem kiadásnál magyarázat látszik, és a szövegből kinyert sorok javaslatként töltik ki a javítást.
+- FIN-405 Ellenőrzés képernyő a `/review` címen: az eredeti és a feldolgozott adatok egymás mellett, jóváhagyás, javítás és elvetés; a döntés a `bronze.review_decision` táblába kerül, a dokumentum 30 napig visszanézhető.
 
 ### Módosítva
 
@@ -29,10 +31,13 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 - Az állapotoldal „rendben” felirata az ellenőrzések sikerét jelenti, nem az érvényes JSON-t.
 - A blokkfeldolgozó felismeri azt a formátumot is, ahol a mennyiség a név fölött áll, és a sor végén áfakód van.
 - A feltöltés napja nem számít beírt dátumnak, így a régi dokumentum nem kerül emiatt ellenőrzésre.
+- A végösszeg alatti `GÖNGYÖLEG` sorok DRS-utalványként fizetésnek számítanak, több is lehet belőlük, és az Ellenőrzés képernyő módonként mutatja a fizetett összeget.
+- A lapok között közös menüsorral lehet váltani.
+- Az állapotoldal „Ellenőrzésre vár” száma a nyitott dokumentumokat mutatja, a „Legutóbbi feldolgozások” pedig az újrafeldolgozott eredményt.
 
 ### Frissítési teendők
 
-- `podman compose -f home/docker-compose.yml up -d --build`: lefut a migráció, a worker pedig feldolgozza a tárolt szövegeket.
+- `podman compose -f home/docker-compose.yml up -d --build`: lefut a migráció, a worker feldolgozza a tárolt szövegeket, és magától visszatölti az elmúlt 30 nap dokumentumait az Ellenőrzés képernyőre.
 
 ## v0.3.0 · 2026-11-01
 
