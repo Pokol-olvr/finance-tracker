@@ -1,3 +1,4 @@
+import re
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Literal, Self
@@ -12,6 +13,7 @@ CATEGORIES = frozenset({"élelmiszer", "háztartás", "lakbér", "közlekedés",
 
 SHARED_PAYER = "shared"
 MOCK_AUTHOR = "mock"
+TAX_NUMBER = re.compile(r"\d{8}-\d-\d{2}")
 # A worker készpénznél és számlánál is ennyit enged a kerekítés miatt.
 CORRECTION_SUM_LIMIT = 2
 
@@ -175,6 +177,73 @@ class Correction(BaseModel):
         if abs(sum(item.value for item in self.items) - self.total) > CORRECTION_SUM_LIMIT:
             raise ValueError("a tételek összege nem egyezik a végösszeggel")
         return self
+
+
+class NewRule(BaseModel):
+    """Tételszabály: a név részlete és a kategória. Boltszabály: az adószám és az egységes név."""
+
+    rule_type: Literal["category", "store"]
+    pattern: str = Field(min_length=2, max_length=100)
+    target: str = Field(min_length=1, max_length=100)
+    created_by: str
+
+    @field_validator("pattern", "target", mode="before")
+    @classmethod
+    def strip_spaces(cls, value: object) -> object:
+        return value.strip() if isinstance(value, str) else value
+
+    @model_validator(mode="after")
+    def check_rule(self) -> Self:
+        if self.created_by not in get_settings().members:
+            raise ValueError("ismeretlen created_by")
+        if self.rule_type == "category" and self.target not in CATEGORIES:
+            raise ValueError("ismeretlen kategória")
+        if self.rule_type == "store" and not TAX_NUMBER.fullmatch(self.pattern):
+            raise ValueError("a boltszabály adószámra illeszkedik")
+        return self
+
+
+class RuleChange(BaseModel):
+    active: bool
+    created_by: str
+
+    @model_validator(mode="after")
+    def check_person(self) -> Self:
+        if self.created_by not in get_settings().members:
+            raise ValueError("ismeretlen created_by")
+        return self
+
+
+class DepositChange(BaseModel):
+    """Az `adjust` előjeles összeggel módosít, a `reset` az akkori egyenleget törli."""
+
+    kind: Literal["adjust", "reset"]
+    amount: int | None = Field(default=None, ge=-1000000, le=1000000)
+    created_by: str
+
+    @model_validator(mode="after")
+    def check_change(self) -> Self:
+        if self.created_by not in get_settings().members:
+            raise ValueError("ismeretlen created_by")
+        if self.kind == "adjust" and not self.amount:
+            raise ValueError("az állításhoz összeg kell")
+        if self.kind == "reset" and self.amount is not None:
+            raise ValueError("a nullázáshoz nem tartozik összeg")
+        return self
+
+
+class DepositMovement(BaseModel):
+    movement: Literal["deposit", "voucher", "adjust", "reset"]
+    moved_at: datetime
+    amount: float
+    balance: float
+
+
+class DepositReport(BaseModel):
+    """Amit a worker a goldból visszatölt, mert a webapp azt nem éri el."""
+
+    balance: float
+    movements: list[DepositMovement] = Field(max_length=20)
 
 
 class ReviewReopen(BaseModel):

@@ -12,6 +12,8 @@ from uuid import UUID, uuid4
 from app.config import get_settings
 from app.schemas import (
     CloseResult,
+    DepositChange,
+    NewRule,
     ReviewDecision,
     ReviewPackage,
     UploadForm,
@@ -68,6 +70,27 @@ create table if not exists review (
   content_types  text not null,
   uploaded_at    text not null,
   closed_at      text
+)
+""",
+    # Ami a bronzba megy: a worker lehúzza, a webapp a bronzot nem éri el.
+    """
+create table if not exists outbox (
+  id         text primary key,
+  kind       text not null,
+  payload    text not null,
+  created_at text not null,
+  synced_at  text
+)
+""",
+    """
+create table if not exists rule (
+  rule_id    text primary key,
+  rule_type  text not null,
+  pattern    text not null,
+  target     text not null,
+  active     integer not null,
+  created_by text not null,
+  created_at text not null
 )
 """,
     """
@@ -587,6 +610,100 @@ def purge_reviews(now: datetime | None = None) -> None:
         conn.executemany("delete from review where group_id = ?", groups)
     for (group_id,) in groups:
         shutil.rmtree(review_folder(UUID(group_id)), ignore_errors=True)
+
+
+def add_event(conn: sqlite3.Connection, kind: str, fields: dict) -> str:
+    """A sor a sajátváltozással egy tranzakcióban készül, így a kettő nem válhat el."""
+    event_id = str(uuid4())
+    now = datetime.now(UTC).isoformat()
+    payload = {"id": event_id, "created_at": now, **fields}
+    conn.execute(
+        "insert into outbox (id, kind, payload, created_at) values (?, ?, ?, ?)",
+        (event_id, kind, json.dumps(payload, ensure_ascii=False), now),
+    )
+    return event_id
+
+
+def rule_event(row: sqlite3.Row | dict, active: bool, created_by: str) -> dict:
+    return {
+        "rule_id": row["rule_id"],
+        "rule_type": row["rule_type"],
+        "pattern": row["pattern"],
+        "target_value": row["target"],
+        "active": active,
+        "created_by": created_by,
+    }
+
+
+def add_rule(rule: NewRule) -> dict:
+    row = rule.model_dump() | {
+        "rule_id": str(uuid4()),
+        "active": 1,
+        "created_at": datetime.now(UTC).isoformat(),
+    }
+    with closing(connect()) as conn, conn:
+        conn.execute(
+            "insert into rule (rule_id, rule_type, pattern, target, active, created_by, created_at) "
+            "values (:rule_id, :rule_type, :pattern, :target, :active, :created_by, :created_at)",
+            row,
+        )
+        add_event(conn, "rule_event", rule_event(row, True, rule.created_by))
+    return row
+
+
+def set_rule_active(rule_id: UUID, active: bool, created_by: str) -> bool:
+    with closing(connect()) as conn, conn:
+        row = conn.execute("select * from rule where rule_id = ?", (str(rule_id),)).fetchone()
+        if row is None:
+            return False
+        if bool(row["active"]) != active:
+            conn.execute(
+                "update rule set active = ? where rule_id = ?", (int(active), str(rule_id))
+            )
+            add_event(conn, "rule_event", rule_event(row, active, created_by))
+    return True
+
+
+def list_rules() -> list[dict]:
+    with closing(connect()) as conn:
+        rows = conn.execute(
+            "select * from rule order by active desc, rule_type, pattern"
+        ).fetchall()
+    return [dict(row) | {"active": bool(row["active"])} for row in rows]
+
+
+def add_deposit_change(change: DepositChange) -> str:
+    with closing(connect()) as conn, conn:
+        return add_event(conn, "deposit_correction", change.model_dump())
+
+
+def waiting_deposit_changes() -> int:
+    """A még nem érvényesült kézi műveletek: az egyenleg csak a dbt után követi őket."""
+    with closing(connect()) as conn:
+        return conn.execute(
+            "select count(*) from outbox where kind = 'deposit_correction' and synced_at is null"
+        ).fetchone()[0]
+
+
+def open_events() -> list[dict]:
+    with closing(connect()) as conn:
+        rows = conn.execute(
+            "select id, kind, payload from outbox where synced_at is null order by created_at"
+        ).fetchall()
+    return [
+        {"id": row["id"], "event_type": row["kind"], "data": json.loads(row["payload"])}
+        for row in rows
+    ]
+
+
+def close_event(event_id: UUID) -> bool:
+    now = datetime.now(UTC).isoformat()
+    with closing(connect()) as conn, conn:
+        found = conn.execute(
+            "update outbox set synced_at = coalesce(synced_at, ?) where id = ?",
+            (now, str(event_id)),
+        ).rowcount
+    return bool(found)
 
 
 def save_report(source: str, payload: str) -> None:

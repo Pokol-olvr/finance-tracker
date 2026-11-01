@@ -48,7 +48,7 @@ $q$, '23505');
 select pg_temp.expect_error(who, stmt, state)
 from (values
   ('finance_owner', 'P0001'), ('postgres', 'P0001'),
-  ('app_writer', '42501'), ('dbt_runner', '42501'), ('mb_reader', '42501')
+  ('app_writer', '42501'), ('dbt_runner', '42501'), ('report_reader', '42501')
 ) as roles (who, state)
 cross join (values ('raw_document'), ('extraction'), ('manual_entry'), ('receipt_parse'), ('review_decision')) as tables (name)
 cross join lateral (values
@@ -65,12 +65,12 @@ create table gold.jog_teszt (n int);
 reset role;
 
 -- A Metabase csak a goldot látja.
-set local role mb_reader;
+set local role report_reader;
 select count(*) from gold.jog_teszt;
 reset role;
-select pg_temp.expect_error('mb_reader', 'select 1 from silver.jog_teszt', '42501');
-select pg_temp.expect_error('mb_reader', 'select 1 from bronze.raw_document', '42501');
-select pg_temp.expect_error('mb_reader', 'select 1 from public.schema_migrations', '42501');
+select pg_temp.expect_error('report_reader', 'select 1 from silver.jog_teszt', '42501');
+select pg_temp.expect_error('report_reader', 'select 1 from bronze.raw_document', '42501');
+select pg_temp.expect_error('report_reader', 'select 1 from public.schema_migrations', '42501');
 
 rollback;
 SQL

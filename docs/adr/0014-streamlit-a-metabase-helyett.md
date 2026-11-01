@@ -1,6 +1,6 @@
 # 0014 Streamlit riportfelület a Metabase helyett
 
-**Állapot:** javasolt
+**Állapot:** elfogadva
 
 **Dátum:** 2026-11-01
 

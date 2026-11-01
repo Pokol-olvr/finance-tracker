@@ -18,3 +18,265 @@ models:
         data_tests: [not_null]
       - name: payer
         data_tests: [not_null]
+      - name: currency
+        data_tests: [not_null]
+  - name: documents
+    description: Dokumentumonként egy sor; a `counted` mondja meg, számít-e a kiadásba.
+    columns:
+      - name: group_id
+        data_tests: [unique, not_null]
+      - name: state
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [counted, pending, rejected, non_expense, foreign_currency, duplicate]
+      - name: counted
+        data_tests: [not_null]
+      - name: occurred_on
+        data_tests: [not_null]
+      - name: payer
+        data_tests: [not_null]
+  - name: receipt_items
+    description: A beszámítható dokumentumok tételei, kiszereléssel és kategóriával.
+    columns:
+      - name: group_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('documents')
+                field: group_id
+      - name: line_no
+        data_tests: [not_null]
+      - name: kind
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [item, deposit, discount, voucher]
+      - name: value
+        data_tests: [not_null]
+  - name: document_payments
+    description: Fizetési sorok; a `deposit_voucher` a beváltott DRS-utalvány.
+    columns:
+      - name: method
+        data_tests: [not_null]
+      - name: amount
+        data_tests: [not_null]
+  - name: stores
+    description: Adószámonként egy bolt.
+    columns:
+      - name: tax_number
+        data_tests: [unique, not_null]
+
+  - name: rules
+    description: A bekapcsolt kategória- és boltszabályok.
+    columns:
+      - name: rule_id
+        data_tests: [unique, not_null]
+      - name: pattern
+        data_tests: [not_null]
+      - name: target
+        data_tests: [not_null]
+  - name: deposit_movements
+    description: A várható betétdíj mozgásai; a betétdíj nem kiadás.
+    columns:
+      - name: movement
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [deposit, voucher, adjust, reset]
+      - name: amount
+        data_tests: [not_null]
+
+unit_tests:
+  # A számok és a nevek kitaláltak. A tömb típusú oszlopok miatt a bemenet SQL.
+  - name: documents_beszamitas
+    model: documents
+    given:
+      - input: source('bronze', 'receipt_parse')
+        format: sql
+        rows: |
+          select '00000000-0000-0000-0000-000000000001'::uuid as group_id, '10000000-0000-0000-0000-000000000001'::uuid as id, 'ok'::text as status, '{"document_type": "receipt", "total": 100, "items": [], "payments": []}'::jsonb as payload, '2026-10-01 10:00:00+00'::timestamptz as created_at
+          union all
+          select '00000000-0000-0000-0000-000000000002'::uuid as group_id, '10000000-0000-0000-0000-000000000002'::uuid as id, 'review'::text as status, '{"document_type": "receipt", "total": 200, "items": [], "payments": []}'::jsonb as payload, '2026-10-01 10:00:00+00'::timestamptz as created_at
+          union all
+          select '00000000-0000-0000-0000-000000000003'::uuid as group_id, '10000000-0000-0000-0000-000000000003'::uuid as id, 'review'::text as status, '{"document_type": "receipt", "total": 300, "items": [], "payments": []}'::jsonb as payload, '2026-10-01 10:00:00+00'::timestamptz as created_at
+          union all
+          select '00000000-0000-0000-0000-000000000004'::uuid as group_id, '10000000-0000-0000-0000-000000000004'::uuid as id, 'review'::text as status, '{"document_type": "receipt", "total": 400, "items": [], "payments": []}'::jsonb as payload, '2026-10-01 10:00:00+00'::timestamptz as created_at
+          union all
+          select '00000000-0000-0000-0000-000000000005'::uuid as group_id, '10000000-0000-0000-0000-000000000005'::uuid as id, 'unparsed'::text as status, '{"document_type": "non_expense", "items": [], "payments": []}'::jsonb as payload, '2026-10-01 10:00:00+00'::timestamptz as created_at
+          union all
+          select '00000000-0000-0000-0000-000000000006'::uuid as group_id, '10000000-0000-0000-0000-000000000006'::uuid as id, 'ok'::text as status, '{"document_type": "receipt", "total": 600, "items": [], "payments": []}'::jsonb as payload, '2026-10-01 10:00:00+00'::timestamptz as created_at
+          union all
+          select '00000000-0000-0000-0000-000000000007'::uuid as group_id, '10000000-0000-0000-0000-000000000007'::uuid as id, 'review'::text as status, '{"document_type": "invoice", "currency": "EUR", "total": 70, "items": [], "payments": []}'::jsonb as payload, '2026-10-01 10:00:00+00'::timestamptz as created_at
+          union all
+          select '00000000-0000-0000-0000-000000000008'::uuid as group_id, '10000000-0000-0000-0000-000000000008'::uuid as id, 'review'::text as status, '{"document_type": "receipt", "total": 800, "items": [], "payments": []}'::jsonb as payload, '2026-10-01 10:00:00+00'::timestamptz as created_at
+      - input: source('bronze', 'review_decision')
+        rows:
+          - {group_id: 00000000-0000-0000-0000-000000000003, decision: approved, corrected: null, decided_at: 2026-10-02 10:00:00+00}
+          - {group_id: 00000000-0000-0000-0000-000000000004, decision: corrected, corrected: '{"total": 444, "items": [], "store_name": "Javított Kft."}', decided_at: 2026-10-02 10:00:00+00}
+          - {group_id: 00000000-0000-0000-0000-000000000006, decision: rejected, corrected: null, decided_at: 2026-10-02 10:00:00+00}
+          - {group_id: 00000000-0000-0000-0000-000000000007, decision: approved, corrected: null, decided_at: 2026-10-02 10:00:00+00}
+          - {group_id: 00000000-0000-0000-0000-000000000008, decision: rejected, corrected: null, decided_at: 2026-10-02 10:00:00+00}
+          - {group_id: 00000000-0000-0000-0000-000000000008, decision: reopened, corrected: null, decided_at: 2026-10-03 10:00:00+00}
+      - input: source('bronze', 'raw_document')
+        format: sql
+        rows: |
+          select '00000000-0000-0000-0000-000000000001'::uuid as id, null::uuid as group_id, 1::smallint as page_no, 'person_a'::text as uploaded_by, '2026-10-01 09:00:00+00'::timestamptz as uploaded_at, 'person_a'::text as purchased_by, null::date as purchase_date, 'shared'::text as payer, array['élelmiszer']::text[] as tags
+          union all
+          select '00000000-0000-0000-0000-000000000002'::uuid as id, null::uuid as group_id, 1::smallint as page_no, 'person_a'::text as uploaded_by, '2026-10-01 09:00:00+00'::timestamptz as uploaded_at, 'person_a'::text as purchased_by, null::date as purchase_date, 'shared'::text as payer, array['élelmiszer']::text[] as tags
+          union all
+          select '00000000-0000-0000-0000-000000000003'::uuid as id, null::uuid as group_id, 1::smallint as page_no, 'person_a'::text as uploaded_by, '2026-10-01 09:00:00+00'::timestamptz as uploaded_at, 'person_a'::text as purchased_by, null::date as purchase_date, 'shared'::text as payer, array['élelmiszer']::text[] as tags
+          union all
+          select '00000000-0000-0000-0000-000000000004'::uuid as id, null::uuid as group_id, 1::smallint as page_no, 'person_a'::text as uploaded_by, '2026-10-01 09:00:00+00'::timestamptz as uploaded_at, 'person_a'::text as purchased_by, null::date as purchase_date, 'shared'::text as payer, array['élelmiszer']::text[] as tags
+          union all
+          select '00000000-0000-0000-0000-000000000005'::uuid as id, null::uuid as group_id, 1::smallint as page_no, 'person_a'::text as uploaded_by, '2026-10-01 09:00:00+00'::timestamptz as uploaded_at, 'person_a'::text as purchased_by, null::date as purchase_date, 'shared'::text as payer, array['élelmiszer']::text[] as tags
+          union all
+          select '00000000-0000-0000-0000-000000000006'::uuid as id, null::uuid as group_id, 1::smallint as page_no, 'person_a'::text as uploaded_by, '2026-10-01 09:00:00+00'::timestamptz as uploaded_at, 'person_a'::text as purchased_by, null::date as purchase_date, 'shared'::text as payer, array['élelmiszer']::text[] as tags
+          union all
+          select '00000000-0000-0000-0000-000000000007'::uuid as id, null::uuid as group_id, 1::smallint as page_no, 'person_a'::text as uploaded_by, '2026-10-01 09:00:00+00'::timestamptz as uploaded_at, 'person_a'::text as purchased_by, null::date as purchase_date, 'shared'::text as payer, array['élelmiszer']::text[] as tags
+          union all
+          select '00000000-0000-0000-0000-000000000008'::uuid as id, null::uuid as group_id, 1::smallint as page_no, 'person_a'::text as uploaded_by, '2026-10-01 09:00:00+00'::timestamptz as uploaded_at, 'person_a'::text as purchased_by, null::date as purchase_date, 'shared'::text as payer, array['élelmiszer']::text[] as tags
+    expect:
+      rows:
+        - {group_id: 00000000-0000-0000-0000-000000000001, state: counted, counted: true, total: 100, store_name: null}
+        - {group_id: 00000000-0000-0000-0000-000000000002, state: pending, counted: false, total: 200, store_name: null}
+        - {group_id: 00000000-0000-0000-0000-000000000003, state: counted, counted: true, total: 300, store_name: null}
+        - {group_id: 00000000-0000-0000-0000-000000000004, state: counted, counted: true, total: 444, store_name: Javított Kft.}
+        - {group_id: 00000000-0000-0000-0000-000000000005, state: non_expense, counted: false, total: null, store_name: null}
+        - {group_id: 00000000-0000-0000-0000-000000000006, state: rejected, counted: false, total: 600, store_name: null}
+        - {group_id: 00000000-0000-0000-0000-000000000007, state: foreign_currency, counted: false, total: 70, store_name: null}
+        - {group_id: 00000000-0000-0000-0000-000000000008, state: pending, counted: false, total: 800, store_name: null}
+
+  - name: documents_masolat_es_datum
+    model: documents
+    given:
+      - input: source('bronze', 'receipt_parse')
+        format: sql
+        rows: |
+          select '00000000-0000-0000-0000-000000000001'::uuid as group_id, '10000000-0000-0000-0000-000000000001'::uuid as id, 'ok'::text as status, '{"tax_number": "12345678-2-41", "receipt_number": "0042/00017", "purchased_on": "2026-09-20", "total": 100}'::jsonb as payload, '2026-10-01 10:00:00+00'::timestamptz as created_at
+          union all
+          select '00000000-0000-0000-0000-000000000002'::uuid as group_id, '10000000-0000-0000-0000-000000000002'::uuid as id, 'ok'::text as status, '{"tax_number": "12345678-2-41", "receipt_number": "0042/00017", "total": 100}'::jsonb as payload, '2026-10-02 10:00:00+00'::timestamptz as created_at
+          union all
+          select '00000000-0000-0000-0000-000000000003'::uuid as group_id, '10000000-0000-0000-0000-000000000003'::uuid as id, 'ok'::text as status, '{"total": 300}'::jsonb as payload, '2026-10-03 10:00:00+00'::timestamptz as created_at
+      - input: source('bronze', 'review_decision')
+        format: sql
+        rows: |
+          select null::uuid as group_id, null::text as decision, null::jsonb as corrected, null::timestamptz as decided_at
+          where false
+      - input: source('bronze', 'raw_document')
+        format: sql
+        rows: |
+          select '00000000-0000-0000-0000-000000000001'::uuid as id, null::uuid as group_id, 1::smallint as page_no, 'person_a'::text as uploaded_by, '2026-10-01 09:00:00+00'::timestamptz as uploaded_at, 'person_a'::text as purchased_by, null::date as purchase_date, 'shared'::text as payer, array['élelmiszer']::text[] as tags
+          union all
+          select '00000000-0000-0000-0000-000000000002'::uuid as id, null::uuid as group_id, 1::smallint as page_no, 'person_a'::text as uploaded_by, '2026-10-02 09:00:00+00'::timestamptz as uploaded_at, 'person_a'::text as purchased_by, '2026-09-28'::date as purchase_date, 'shared'::text as payer, array['élelmiszer']::text[] as tags
+          union all
+          select '00000000-0000-0000-0000-000000000003'::uuid as id, null::uuid as group_id, 1::smallint as page_no, 'person_a'::text as uploaded_by, '2026-10-03 09:00:00+00'::timestamptz as uploaded_at, 'person_a'::text as purchased_by, null::date as purchase_date, 'shared'::text as payer, array['élelmiszer']::text[] as tags
+    expect:
+      rows:
+        - {group_id: 00000000-0000-0000-0000-000000000001, state: counted, occurred_on: 2026-09-20}
+        - {group_id: 00000000-0000-0000-0000-000000000002, state: duplicate, occurred_on: 2026-09-28}
+        - {group_id: 00000000-0000-0000-0000-000000000003, state: counted, occurred_on: 2026-10-03}
+
+  - name: receipt_items_kategoria_es_kiszereles
+    model: receipt_items
+    given:
+      - input: ref('rules')
+        format: sql
+        rows: |
+          select null::uuid as rule_id, null::text as rule_type, null::text as pattern, null::text as target, null::timestamptz as created_at
+          where false
+      - input: ref('documents')
+        format: sql
+        rows: |
+          select '00000000-0000-0000-0000-000000000001'::uuid as group_id, true::boolean as counted, array['élelmiszer']::text[] as tags, '[{"name": "LILAHAGYMA 3DB", "value": 599, "kind": "item"}, {"name": "TEJFÖL 20% 175G", "value": 358, "kind": "item", "quantity": 2, "unit": "DB", "unit_price": 179}, {"name": "KEDVEZMÉNY", "value": -58, "kind": "discount"}, {"name": "DRS GÖNGYÖLEG", "value": 50, "kind": "deposit"}]'::jsonb as items
+          union all
+          select '00000000-0000-0000-0000-000000000002'::uuid as group_id, true::boolean as counted, array['élelmiszer', 'háztartás']::text[] as tags, '[{"name": "FŰMAG 1,5 KG", "value": 1290, "kind": "item"}, {"name": "ALMA KG", "value": 737}]'::jsonb as items
+          union all
+          select '00000000-0000-0000-0000-000000000003'::uuid as group_id, false::boolean as counted, array['élelmiszer']::text[] as tags, '[{"name": "NEM SZÁMÍT", "value": 1, "kind": "item"}]'::jsonb as items
+    expect:
+      rows:
+        - {group_id: 00000000-0000-0000-0000-000000000001, line_no: 1, kind: item, value: 599, pack_quantity: 3, pack_unit: DB, category: élelmiszer}
+        - {group_id: 00000000-0000-0000-0000-000000000001, line_no: 2, kind: item, value: 358, pack_quantity: 175, pack_unit: G, category: élelmiszer}
+        - {group_id: 00000000-0000-0000-0000-000000000001, line_no: 3, kind: discount, value: -58, pack_quantity: null, pack_unit: null, category: élelmiszer}
+        - {group_id: 00000000-0000-0000-0000-000000000001, line_no: 4, kind: deposit, value: 50, pack_quantity: null, pack_unit: null, category: null}
+        - {group_id: 00000000-0000-0000-0000-000000000002, line_no: 1, kind: item, value: 1290, pack_quantity: 1.5, pack_unit: KG, category: besorolatlan}
+        - {group_id: 00000000-0000-0000-0000-000000000002, line_no: 2, kind: item, value: 737, pack_quantity: null, pack_unit: null, category: besorolatlan}
+
+  - name: transactions_kiadas_betetdij_nelkul
+    model: transactions
+    given:
+      - input: source('bronze', 'manual_entry')
+        format: sql
+        rows: |
+          select '20000000-0000-0000-0000-000000000001'::uuid as id, 'expense'::text as kind, 1000::numeric as amount, 'HUF'::text as currency, '2026-10-01'::date as occurred_on, null::text as purchased_by, 'shared'::text as payer, array['lakbér']::text[] as tags, 'person_a'::text as entered_by, null::text as note
+      - input: ref('documents')
+        format: sql
+        rows: |
+          select '00000000-0000-0000-0000-000000000001'::uuid as group_id, '2026-10-14'::date as occurred_on, 'person_a'::text as purchased_by, 'shared'::text as payer, 'person_a'::text as uploaded_by, 'Kitalált Kft.'::text as store_name
+      - input: ref('receipt_items')
+        rows:
+          - {group_id: 00000000-0000-0000-0000-000000000001, kind: item, value: 599, category: élelmiszer}
+          - {group_id: 00000000-0000-0000-0000-000000000001, kind: discount, value: -99, category: élelmiszer}
+          - {group_id: 00000000-0000-0000-0000-000000000001, kind: item, value: 300, category: besorolatlan}
+          - {group_id: 00000000-0000-0000-0000-000000000001, kind: deposit, value: 50, category: null}
+          - {group_id: 00000000-0000-0000-0000-000000000001, kind: voucher, value: -300, category: null}
+    expect:
+      rows:
+        - {source: manual, amount: 1000, category: lakbér, kind: expense}
+        - {source: document, amount: "500.00", category: élelmiszer, kind: expense}
+        - {source: document, amount: "300.00", category: besorolatlan, kind: expense}
+
+  - name: receipt_items_szabalyok
+    model: receipt_items
+    given:
+      - input: ref('rules')
+        rows:
+          - {rule_id: 30000000-0000-0000-0000-000000000001, rule_type: category, pattern: GEL, target: egészség, created_at: 2026-10-01 10:00:00+00}
+          - {rule_id: 30000000-0000-0000-0000-000000000002, rule_type: category, pattern: MOSOGEL, target: háztartás, created_at: 2026-10-02 10:00:00+00}
+          - {rule_id: 30000000-0000-0000-0000-000000000003, rule_type: category, pattern: TEJ, target: élelmiszer, created_at: 2026-10-01 10:00:00+00}
+          - {rule_id: 30000000-0000-0000-0000-000000000004, rule_type: category, pattern: TEJ, target: szórakozás, created_at: 2026-10-02 10:00:00+00}
+          - {rule_id: 30000000-0000-0000-0000-000000000005, rule_type: store, pattern: KENYER, target: Nem kategória, created_at: 2026-10-01 10:00:00+00}
+      - input: ref('documents')
+        format: sql
+        rows: |
+          select '00000000-0000-0000-0000-000000000001'::uuid as group_id, true as counted, array['élelmiszer', 'háztartás']::text[] as tags, '[{"name": "MOSÓGÉL 1,1L", "value": 2961, "kind": "item"}, {"name": "TEJ 1L", "value": 449, "kind": "item"}, {"name": "KENYÉR", "value": 599, "kind": "item"}]'::jsonb as items
+    expect:
+      rows:
+        - {line_no: 1, category: háztartás}
+        - {line_no: 2, category: élelmiszer}
+        - {line_no: 3, category: besorolatlan}
+
+  - name: stores_boltszabaly
+    model: stores
+    given:
+      - input: ref('documents')
+        format: sql
+        rows: |
+          select true as counted, '12345678-2-41'::text as tax_number, 'LIDL MO. KFT'::text as store_name, '2026-10-01 10:00:00+00'::timestamptz as uploaded_at
+          union all
+          select true, '12345678-2-41', 'Lidl Magyarország', '2026-10-02 10:00:00+00'
+          union all
+          select true, '87654321-2-42', 'Példa Kft.', '2026-10-02 10:00:00+00'
+      - input: ref('rules')
+        rows:
+          - {rule_id: 30000000-0000-0000-0000-000000000001, rule_type: store, pattern: 12345678-2-41, target: Lidl, created_at: 2026-10-01 10:00:00+00}
+    expect:
+      rows:
+        - {tax_number: 12345678-2-41, store_name: Lidl}
+        - {tax_number: 87654321-2-42, store_name: Példa Kft.}
+
+  - name: rules_kikapcsolas
+    model: rules
+    given:
+      - input: source('bronze', 'rule_event')
+        rows:
+          - {id: 40000000-0000-0000-0000-000000000001, rule_id: 30000000-0000-0000-0000-000000000001, rule_type: category, pattern: mosógél, target_value: háztartás, active: true, created_at: 2026-10-01 10:00:00+00}
+          - {id: 40000000-0000-0000-0000-000000000002, rule_id: 30000000-0000-0000-0000-000000000001, rule_type: category, pattern: mosógél, target_value: háztartás, active: false, created_at: 2026-10-02 10:00:00+00}
+          - {id: 40000000-0000-0000-0000-000000000003, rule_id: 30000000-0000-0000-0000-000000000002, rule_type: category, pattern: sonka, target_value: élelmiszer, active: true, created_at: 2026-10-01 10:00:00+00}
+    expect:
+      rows:
+        - {rule_id: 30000000-0000-0000-0000-000000000002, pattern: SONKA, target: élelmiszer}

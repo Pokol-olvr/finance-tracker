@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Szabályok</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/base.css">
+  <style>
+    main { max-width: 960px; margin: 0 auto; }
+    h1 { margin-bottom: 16px; }
+    h2 { margin: 24px 0 8px; font-size: 18px; }
+    .panel { padding: 12px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+    .scroll { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+    th { color: var(--muted); font-weight: 600; }
+    .number { text-align: right; white-space: nowrap; }
+    .muted { color: var(--muted); font-size: 14px; }
+    form { display: grid; gap: 10px; }
+    .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+    label { display: grid; gap: 2px; font-size: 14px; color: var(--muted); }
+    input, select {
+      min-height: 36px;
+      padding: 4px 6px;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      font: inherit;
+    }
+    button {
+      min-height: 40px;
+      padding: 0 14px;
+      background: var(--accent);
+      color: var(--on-accent);
+      border: 0;
+      border-radius: 6px;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button.quiet { background: var(--bg); color: var(--text); border: 1px solid var(--line); font-weight: 400; }
+    button:disabled { opacity: 0.6; cursor: default; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    #message { margin: 8px 0 0; color: var(--error); }
+    .inactive { color: var(--muted); }
+    
+  </style>
+</head>
+<body>
+  <main>
+    <nav class="menu" aria-label="Oldalak">
+      <a href="/">Feltöltés</a>
+      <a href="/review">Ellenőrzés</a>
+      <a href="/rules" aria-current="page">Szabályok</a>
+      <a href="/deposit">Betétdíj</a>
+      <a href="/riportok">Riportok</a>
+      <a href="/status">Állapot</a>
+    </nav>
+    <h1>Szabályok</h1>
+    <p class="muted">A szabály a régi dokumentumokra is érvényes, és a következő óránkénti frissítés után látszik a riportokban.</p>
+    <form id="new-rule" class="panel">
+      <div class="fields">
+        <label>Mire vonatkozik?
+          <select id="rule-type">
+            <option value="category">Tétel kategóriája</option>
+            <option value="store">Bolt neve</option>
+          </select>
+        </label>
+        <label id="pattern-label"><span id="pattern-title">Ha a tétel neve ezt tartalmazza</span>
+          <input id="pattern" required maxlength="100" autocomplete="off">
+        </label>
+        <label id="target-label"><span id="target-title">Akkor ez a kategória</span>
+          <select id="category"></select>
+          <input id="store-name" maxlength="100" hidden autocomplete="off">
+        </label>
+        <label>Ki veszi fel?
+          <select id="person">{{members}}</select>
+        </label>
+      </div>
+      <div class="actions"><button type="submit">Szabály felvétele</button></div>
+      <p id="message" role="alert"></p>
+    </form>
+    <h2>Szabályok</h2>
+    <div class="scroll"><table id="rules" hidden>
+      <thead><tr><th>Típus</th><th>Minta</th><th>Eredmény</th><th>Állapot</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <p id="empty" class="muted">Még nincs szabály.</p>
+  </main>
+  <script>
+    function element(tag, className, text) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text !== undefined && text !== null) node.textContent = text;
+      return node;
+    }
+
+    function rememberedPerson() {
+      try {
+        return localStorage.getItem("uploaded_by");
+      } catch {
+        return null;
+      }
+    }
+
+    function rememberPerson(value) {
+      try {
+        localStorage.setItem("uploaded_by", value);
+      } catch {
+        // Tiltott tároló mellett a következő műveletnél újra választani kell.
+      }
+    }
+
+    const person = document.getElementById("person");
+    if ([...person.options].some((option) => option.value === rememberedPerson())) {
+      person.value = rememberedPerson();
+    }
+    person.addEventListener("change", () => rememberPerson(person.value));
+    const message = document.getElementById("message");
+
+    const TYPES = { category: "Tétel kategóriája", store: "Bolt neve" };
+    const type = document.getElementById("rule-type");
+    const pattern = document.getElementById("pattern");
+    const category = document.getElementById("category");
+    const storeName = document.getElementById("store-name");
+
+    function updateForm() {
+      const isStore = type.value === "store";
+      document.getElementById("pattern-title").textContent =
+        isStore ? "A bolt adószáma" : "Ha a tétel neve ezt tartalmazza";
+      pattern.placeholder = isStore ? "12345678-2-41" : "pl. mosógél";
+      document.getElementById("target-title").textContent =
+        isStore ? "Ez legyen a neve" : "Akkor ez a kategória";
+      category.hidden = isStore;
+      storeName.hidden = !isStore;
+    }
+
+    async function setActive(rule, active) {
+      const response = await fetch(`/rules/${rule.rule_id}/active`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active, created_by: person.value }),
+      });
+      message.textContent = response.ok ? "" : "A szabály nem módosítható.";
+      await load();
+    }
+
+    function ruleRow(rule) {
+      const row = element("tr", rule.active ? "" : "inactive");
+      row.append(
+        element("td", "", TYPES[rule.rule_type]),
+        element("td", "", rule.pattern),
+        element("td", "", rule.target),
+        element("td", "", rule.active ? "bekapcsolva" : "kikapcsolva"),
+      );
+      const cell = element("td");
+      const toggle = element("button", "quiet", rule.active ? "Kikapcsolás" : "Bekapcsolás");
+      toggle.type = "button";
+      toggle.addEventListener("click", () => setActive(rule, !rule.active));
+      cell.append(toggle);
+      row.append(cell);
+      return row;
+    }
+
+    async function load() {
+      try {
+        const response = await fetch("/rules.json", { cache: "no-store" });
+        const data = await response.json();
+        if (!category.options.length) {
+          category.replaceChildren(...data.categories.map((name) => {
+            const option = element("option", "", name);
+            option.value = name;
+            return option;
+          }));
+        }
+        const table = document.getElementById("rules");
+        table.tBodies[0].replaceChildren(...data.rules.map(ruleRow));
+        table.hidden = data.rules.length === 0;
+        document.getElementById("empty").hidden = data.rules.length > 0;
+      } catch {
+        message.textContent = "A szabályok nem tölthetők be.";
+      }
+    }
+
+    document.getElementById("new-rule").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const target = type.value === "store" ? storeName.value : category.value;
+      const response = await fetch("/rules", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rule_type: type.value, pattern: pattern.value, target, created_by: person.value,
+        }),
+      });
+      if (!response.ok) {
+        message.textContent = type.value === "store"
+          ? "Adj meg érvényes adószámot és nevet." : "Adj meg legalább 2 karakteres mintát.";
+        return;
+      }
+      message.textContent = "";
+      pattern.value = "";
+      storeName.value = "";
+      await load();
+    });
+
+    type.addEventListener("change", updateForm);
+    updateForm();
+    load();
+  </script>
+</body>
+</html>

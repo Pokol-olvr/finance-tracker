@@ -18,7 +18,7 @@ from fastapi import (
     UploadFile,
     status,
 )
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app import inbox, reviews, store
@@ -27,11 +27,15 @@ from app.config import get_settings
 from app.schemas import (
     CATEGORIES,
     CloseResult,
+    DepositChange,
+    DepositReport,
     HostReport,
     ManualEntry,
+    NewRule,
     ReviewDecision,
     ReviewPackage,
     ReviewReopen,
+    RuleChange,
     UploadForm,
     WorkerReopen,
     WorkerReport,
@@ -123,8 +127,58 @@ def status_data() -> dict:
         inbox.reports(),
         inbox.queue_counts(),
         inbox.recent_results(stack_status.RECENT_LIMIT),
-        get_settings().metabase_url,
+        get_settings().reports_url,
     )
+
+
+@app.get("/riportok")
+def reports_link() -> RedirectResponse:
+    """A menü a riportfelület címét így nem a statikus oldalakban tárolja."""
+    return RedirectResponse(get_settings().reports_url)
+
+
+@app.get("/rules", response_class=HTMLResponse)
+def rules_page() -> str:
+    page = (STATIC_DIR / "rules.html").read_text(encoding="utf-8")
+    return page.replace("{{members}}", member_options())
+
+
+@app.get("/rules.json")
+def rules_data() -> dict:
+    return {"rules": inbox.list_rules(), "categories": sorted(CATEGORIES)}
+
+
+@app.post("/rules", status_code=status.HTTP_201_CREATED)
+def create_rule(rule: NewRule) -> dict[str, str]:
+    return {"rule_id": inbox.add_rule(rule)["rule_id"]}
+
+
+@app.post("/rules/{rule_id}/active", status_code=status.HTTP_204_NO_CONTENT)
+def change_rule(rule_id: UUID, change: RuleChange) -> None:
+    if not inbox.set_rule_active(rule_id, change.active, change.created_by):
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+
+
+@app.get("/deposit", response_class=HTMLResponse)
+def deposit_page() -> str:
+    page = (STATIC_DIR / "deposit.html").read_text(encoding="utf-8")
+    return page.replace("{{members}}", member_options())
+
+
+@app.get("/deposit.json")
+def deposit_data() -> dict:
+    report = inbox.reports().get("deposit")
+    return {
+        "balance": report["payload"]["balance"] if report else None,
+        "movements": report["payload"]["movements"] if report else [],
+        "updated_at": report["received_at"] if report else None,
+        "waiting": inbox.waiting_deposit_changes(),
+    }
+
+
+@app.post("/deposit/changes", status_code=status.HTTP_201_CREATED)
+def create_deposit_change(change: DepositChange) -> dict[str, str]:
+    return {"id": inbox.add_deposit_change(change)}
 
 
 @app.get("/review", response_class=HTMLResponse)
@@ -268,6 +322,22 @@ def put_review(group_id: UUID, package: ReviewPackage) -> None:
 @worker_api.post("/reviews/{group_id}/reopen", status_code=status.HTTP_204_NO_CONTENT)
 def reopen_review_from_worker(group_id: UUID, request: WorkerReopen) -> None:
     inbox.reopen_from_worker(group_id, request)
+
+
+@worker_api.get("/events")
+def list_open_events() -> dict[str, list[dict]]:
+    return {"events": inbox.open_events()}
+
+
+@worker_api.post("/events/{event_id}/close", status_code=status.HTTP_204_NO_CONTENT)
+def close_outbox_event(event_id: UUID) -> None:
+    if not inbox.close_event(event_id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+
+
+@worker_api.post("/status/deposit", status_code=status.HTTP_204_NO_CONTENT)
+def report_deposit(report: DepositReport) -> None:
+    inbox.save_report("deposit", report.model_dump_json())
 
 
 @worker_api.get("/decisions")

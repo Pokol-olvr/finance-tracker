@@ -49,5 +49,7 @@ jobs:
         run: scripts/dbt.sh
       - name: Webapp tesztek
         run: scripts/test-webapp.sh
+      - name: Riport tesztek
+        run: scripts/test-reports.sh
       - name: Worker tesztek
         run: scripts/test-worker.sh

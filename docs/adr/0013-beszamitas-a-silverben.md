@@ -1,6 +1,6 @@
 # 0013 Beszámítás a silverben: döntés utáni dokumentumok és a javítás helye
 
-**Állapot:** javasolt
+**Állapot:** elfogadva
 
 **Dátum:** 2026-11-01
 

@@ -89,6 +89,17 @@ def pull_decisions(conn: psycopg.Connection, inbox: Inbox) -> None:
         inbox.close_decision(decision["id"])
 
 
+def pull_events(conn: psycopg.Connection, inbox: Inbox) -> None:
+    """A szabályok és a kézi betétdíj-műveletek ugyanúgy jutnak a bronzba, mint a döntések."""
+    writers = {
+        "rule_event": bronze.insert_rule_event,
+        "deposit_correction": bronze.insert_deposit_correction,
+    }
+    for event in inbox.open_events():
+        writers[event["event_type"]](conn, event["data"])
+        inbox.close_event(event["id"])
+
+
 def reopen_rejected(conn: psycopg.Connection, inbox: Inbox, group_id: UUID, decided_by: str) -> bool:
     """Az elvetett dokumentum újrafeltöltése újranyit: a modellt nem érdemes újra futtatni.
 
@@ -117,10 +128,20 @@ def reopen_rejected(conn: psycopg.Connection, inbox: Inbox, group_id: UUID, deci
     return True
 
 
+def report_deposit(conn: psycopg.Connection, inbox: Inbox) -> None:
+    """Az első dbt-futás előtt a gold még üres, ez a csomagokat nem akadályozhatja."""
+    try:
+        inbox.report_deposit(bronze.deposit_report(conn))
+    except TRANSIENT as error:
+        log.error("A várható betétdíj nem tölthető vissza: %s", error)
+
+
 def sync(conn: psycopg.Connection, inbox: Inbox, storage: Storage) -> None:
     """Soha nem állítja meg a feldolgozást: a hiba a következő körben pótlódik."""
+    report_deposit(conn, inbox)
     try:
         pull_decisions(conn, inbox)
+        pull_events(conn, inbox)
         known = inbox.known_reviews()
         candidates = bronze.review_candidates(conn)
     except TRANSIENT as error:

@@ -13,7 +13,7 @@ HEADERS = {"Authorization": "Bearer teszt-token"}
 HOST_REPORT = {
     "services": [
         {"name": name, "state": "running", "health": "healthy"}
-        for name in ("postgres", "garage", "metabase", "webapp", "ollama", "worker")
+        for name in ("postgres", "garage", "reports", "webapp", "ollama", "worker")
     ],
     "jobs": [
         {
@@ -56,7 +56,7 @@ def build(host=None, worker=None, queue=None, recent=None, host_age=5, worker_ag
         "host": report(HOST_REPORT if host is None else host, host_age),
         "worker": report(WORKER_REPORT if worker is None else worker, worker_age),
     }
-    return status.build(reports, queue or {}, recent or [], "http://127.0.0.1:3000", NOW)
+    return status.build(reports, queue or {}, recent or [], "http://127.0.0.1:8501", NOW)
 
 
 def card(result: dict, key: str) -> dict:
@@ -90,7 +90,7 @@ def test_all_nine_cards_are_present():
         "Ollama",
         "Garage",
         "Postgres",
-        "Metabase",
+        "Riportok",
         "dbt",
         "Mentés",
         "Gép",
@@ -102,7 +102,7 @@ def test_healthy_stack_is_all_right():
     assert build()["overall"] == {"state": "ok", "label": "Minden rendben"}
 
 
-@pytest.mark.parametrize("name", ["ollama", "worker", "garage", "postgres", "metabase", "webapp"])
+@pytest.mark.parametrize("name", ["ollama", "worker", "garage", "postgres", "reports", "webapp"])
 def test_stopped_service_is_an_error(name):
     result = build(host=without_service(name))
 
@@ -152,7 +152,7 @@ def test_old_worker_report_is_never_green():
 
 
 def test_missing_reports_are_stale():
-    result = status.build({}, {}, [], "http://127.0.0.1:3000", NOW)
+    result = status.build({}, {}, [], "http://127.0.0.1:8501", NOW)
 
     assert result["overall"]["state"] == "stale"
     assert result["report_age_seconds"] is None
@@ -230,8 +230,8 @@ def test_postgres_card_sums_layers():
     ]
 
 
-def test_metabase_card_links_to_dashboards():
-    assert card(build(), "metabase")["link"]["url"] == "http://127.0.0.1:3000"
+def test_reports_card_links_to_the_reports():
+    assert card(build(), "reports")["link"]["url"] == "http://127.0.0.1:8501"
 
 
 @pytest.fixture

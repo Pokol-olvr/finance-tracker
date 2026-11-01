@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Betétdíj</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/base.css">
+  <style>
+    main { max-width: 960px; margin: 0 auto; }
+    h1 { margin-bottom: 16px; }
+    h2 { margin: 24px 0 8px; font-size: 18px; }
+    .panel { padding: 12px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+    .scroll { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+    th { color: var(--muted); font-weight: 600; }
+    .number { text-align: right; white-space: nowrap; }
+    .muted { color: var(--muted); font-size: 14px; }
+    form { display: grid; gap: 10px; }
+    .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+    label { display: grid; gap: 2px; font-size: 14px; color: var(--muted); }
+    input, select {
+      min-height: 36px;
+      padding: 4px 6px;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      font: inherit;
+    }
+    button {
+      min-height: 40px;
+      padding: 0 14px;
+      background: var(--accent);
+      color: var(--on-accent);
+      border: 0;
+      border-radius: 6px;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button.quiet { background: var(--bg); color: var(--text); border: 1px solid var(--line); font-weight: 400; }
+    button:disabled { opacity: 0.6; cursor: default; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    #message { margin: 8px 0 0; color: var(--error); }
+    .inactive { color: var(--muted); }
+    .balance { font-size: 32px; font-weight: 600; margin: 0; }
+  </style>
+</head>
+<body>
+  <main>
+    <nav class="menu" aria-label="Oldalak">
+      <a href="/">Feltöltés</a>
+      <a href="/review">Ellenőrzés</a>
+      <a href="/rules">Szabályok</a>
+      <a href="/deposit" aria-current="page">Betétdíj</a>
+      <a href="/riportok">Riportok</a>
+      <a href="/status">Állapot</a>
+    </nav>
+    <h1>Betétdíj</h1>
+    <section class="panel">
+      <p class="muted">Várható betétdíj</p>
+      <p id="balance" class="balance">Betöltés…</p>
+      <p id="updated" class="muted"></p>
+      <p id="hint" class="muted" hidden></p>
+    </section>
+    <h2>Kézi művelet</h2>
+    <form id="change" class="panel">
+      <div class="fields">
+        <label>Módosítás forintban, csökkentésnél negatív
+          <input id="amount" type="number" step="1" autocomplete="off">
+        </label>
+        <label>Ki módosít?
+          <select id="person">{{members}}</select>
+        </label>
+      </div>
+      <div class="actions">
+        <button type="submit">Állítás</button>
+        <button id="reset" type="button" class="quiet">Nullázás</button>
+      </div>
+      <p id="message" role="alert"></p>
+    </form>
+    <h2>Legutóbbi mozgások</h2>
+    <div class="scroll"><table id="movements" hidden>
+      <thead><tr><th>Mikor</th><th>Mozgás</th><th class="number">Összeg</th><th class="number">Egyenleg</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <p id="empty" class="muted">Még nincs mozgás.</p>
+  </main>
+  <script>
+    function element(tag, className, text) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text !== undefined && text !== null) node.textContent = text;
+      return node;
+    }
+
+    function rememberedPerson() {
+      try {
+        return localStorage.getItem("uploaded_by");
+      } catch {
+        return null;
+      }
+    }
+
+    function rememberPerson(value) {
+      try {
+        localStorage.setItem("uploaded_by", value);
+      } catch {
+        // Tiltott tároló mellett a következő műveletnél újra választani kell.
+      }
+    }
+
+    const person = document.getElementById("person");
+    if ([...person.options].some((option) => option.value === rememberedPerson())) {
+      person.value = rememberedPerson();
+    }
+    person.addEventListener("change", () => rememberPerson(person.value));
+    const message = document.getElementById("message");
+
+    const NAMES = {
+      deposit: "fizetett betétdíj", voucher: "beváltott utalvány", adjust: "kézi állítás", reset: "nullázás",
+    };
+
+    function money(value) {
+      const [whole, fraction] = String(Math.abs(value)).split(".");
+      const grouped = whole.replace(/\B(?=(\d{3})+$)/g, " ");
+      return `${value < 0 ? "-" : ""}${grouped}${fraction ? `,${fraction}` : ""} Ft`;
+    }
+
+    function day(value) {
+      return new Date(value).toLocaleDateString("hu-HU");
+    }
+
+    function renderHint(data) {
+      const hint = document.getElementById("hint");
+      const parts = [];
+      if (data.waiting || data.balance === null) {
+        parts.push("A kézi művelet a következő frissítés után jelenik meg az egyenlegben.");
+      }
+      if (data.balance < 0) {
+        parts.push("A negatív összeg azt jelzi, hogy régebbi vásárlás betétdíja nincs a rendszerben: állítsd be a nyitó egyenleget.");
+      }
+      hint.textContent = parts.join(" ");
+      hint.hidden = parts.length === 0;
+    }
+
+    async function load() {
+      try {
+        const response = await fetch("/deposit.json", { cache: "no-store" });
+        const data = await response.json();
+        document.getElementById("balance").textContent =
+          data.balance === null ? "Még nincs adat" : money(data.balance);
+        document.getElementById("updated").textContent = data.updated_at
+          ? `Frissült: ${new Date(data.updated_at).toLocaleString("hu-HU")}` : "";
+        renderHint(data);
+        const table = document.getElementById("movements");
+        table.tBodies[0].replaceChildren(...data.movements.map((row) => {
+          const line = element("tr");
+          line.append(
+            element("td", "", day(row.moved_at)),
+            element("td", "", NAMES[row.movement]),
+            element("td", "number", row.movement === "reset" ? "–" : money(row.amount)),
+            element("td", "number", money(row.balance)),
+          );
+          return line;
+        }));
+        table.hidden = data.movements.length === 0;
+        document.getElementById("empty").hidden = data.movements.length > 0;
+      } catch {
+        message.textContent = "Az adatok nem tölthetők be.";
+      }
+    }
+
+    async function send(kind, amount) {
+      const response = await fetch("/deposit/changes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind, amount, created_by: person.value }),
+      });
+      message.textContent = response.ok ? "" : "A művelet nem menthető.";
+      if (response.ok) document.getElementById("amount").value = "";
+      await load();
+    }
+
+    document.getElementById("change").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const amount = Number(document.getElementById("amount").value);
+      if (!Number.isInteger(amount) || amount === 0) {
+        message.textContent = "Adj meg egy nullától különböző egész összeget.";
+        return;
+      }
+      send("adjust", amount);
+    });
+    document.getElementById("reset").addEventListener("click", () => send("reset", null));
+
+    load();
+  </script>
+</body>
+</html>

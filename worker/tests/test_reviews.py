@@ -4,6 +4,7 @@ from io import BytesIO
 from uuid import uuid4
 
 import httpx
+import psycopg
 import pytest
 from app import bronze, reviews
 from app.inbox import Inbox
@@ -294,8 +295,91 @@ def test_old_ok_document_is_not_sent_but_an_old_open_one_is(conn, storage):
     assert [package["result"] for package in inbox.reviews.values()] == ["review"]
 
 
+def rule_event() -> dict:
+    return {
+        "id": str(uuid4()),
+        "rule_id": str(uuid4()),
+        "rule_type": "category",
+        "pattern": "MOSÓGÉL",
+        "target_value": "háztartás",
+        "active": True,
+        "created_by": "person_a",
+        "created_at": "2026-10-01T10:00:00+00:00",
+    }
+
+
+def deposit_change(kind: str, amount: int | None) -> dict:
+    return {
+        "id": str(uuid4()),
+        "kind": kind,
+        "amount": amount,
+        "created_by": "person_a",
+        "created_at": "2026-10-01T10:00:00+00:00",
+    }
+
+
+def test_rules_and_deposit_changes_reach_bronze(conn, storage):
+    inbox = FakeInbox({})
+    rule, change = rule_event(), deposit_change("adjust", 300)
+    inbox.events = [
+        {"id": rule["id"], "event_type": "rule_event", "data": rule},
+        {"id": change["id"], "event_type": "deposit_correction", "data": change},
+    ]
+
+    reviews.sync(conn, inbox, storage)
+
+    assert inbox.closed_events == [rule["id"], change["id"]]
+    assert conn.execute(
+        "select target_value, active from bronze.rule_event where id = %s", (rule["id"],)
+    ).fetchall() == [("háztartás", True)]
+    assert conn.execute(
+        "select kind, amount from bronze.deposit_correction where id = %s", (change["id"],)
+    ).fetchall() == [("adjust", 300)]
+
+
+def test_repeated_events_are_stored_once(conn):
+    rule, change = rule_event(), deposit_change("reset", None)
+
+    for _ in range(2):
+        bronze.insert_rule_event(conn, rule)
+        bronze.insert_deposit_correction(conn, change)
+
+    assert conn.execute(
+        "select count(*) from bronze.rule_event where id = %s", (rule["id"],)
+    ).fetchone() == (1,)
+    assert conn.execute(
+        "select count(*) from bronze.deposit_correction where id = %s", (change["id"],)
+    ).fetchone() == (1,)
+
+
+def test_sync_reports_the_expected_deposit(conn, storage):
+    inbox = FakeInbox({})
+
+    reviews.sync(conn, inbox, storage)
+
+    report = inbox.deposit_reports[-1]
+    assert isinstance(report["balance"], float)
+    assert isinstance(report["movements"], list)
+
+
+def test_missing_deposit_report_does_not_stop_the_packages(conn, storage, monkeypatch):
+    def missing(_conn):
+        raise psycopg.OperationalError("még nincs gold")
+
+    monkeypatch.setattr(bronze, "deposit_report", missing)
+    inbox = FakeInbox({})
+    stored_review(conn, storage, inbox)
+
+    reviews.sync(conn, inbox, storage)
+
+    assert len(inbox.reviews) == 1
+
+
 def test_failure_does_not_stop_the_processing(conn):
     class BrokenInbox:
+        def report_deposit(self, _report):
+            raise httpx.ConnectError("hiba")
+
         def open_decisions(self):
             raise httpx.ConnectError("hiba")
 
@@ -338,6 +422,8 @@ def test_inbox_client_paths():
             return httpx.Response(200, json={"reviews": [{"group_id": "a", "decided": False}]})
         if request.url.path == "/inbox/decisions":
             return httpx.Response(200, json={"decisions": []})
+        if request.url.path == "/inbox/events":
+            return httpx.Response(200, json={"events": []})
         return httpx.Response(204)
 
     client = Inbox("http://webapp:8000", "titok", transport=httpx.MockTransport(handler))
@@ -347,6 +433,9 @@ def test_inbox_client_paths():
     client.put_review_page("a", 1, b"x")
     client.put_review("a", {})
     client.close_decision("b")
+    assert client.open_events() == []
+    client.close_event("e")
+    client.report_deposit({"balance": 0})
 
     assert seen == [
         ("GET", "/inbox/reviews"),
@@ -354,4 +443,7 @@ def test_inbox_client_paths():
         ("PUT", "/inbox/reviews/a/pages/1"),
         ("PUT", "/inbox/reviews/a"),
         ("POST", "/inbox/decisions/b/close"),
+        ("GET", "/inbox/events"),
+        ("POST", "/inbox/events/e/close"),
+        ("POST", "/inbox/status/deposit"),
     ]

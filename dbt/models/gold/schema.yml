@@ -8,6 +8,33 @@ models:
         data_tests: [not_null]
       - name: payer
         data_tests: [not_null]
+  - name: expense_documents
+    description: A kiadásba számított dokumentumok a Kiadások riporthoz.
+    columns:
+      - name: group_id
+        data_tests: [unique, not_null]
+  - name: expense_items
+    description: A beszámított dokumentumok tételei a Kiadások riporthoz.
+    columns:
+      - name: group_id
+        data_tests: [not_null]
+      - name: value
+        data_tests: [not_null]
+  - name: document_states
+    description: Dokumentumok száma állapotonként.
+    columns:
+      - name: state
+        data_tests: [unique, not_null]
+  - name: deposit_history
+    description: A betétdíj mozgásai és az egyenleg utánuk.
+    columns:
+      - name: balance
+        data_tests: [not_null]
+  - name: expected_deposit
+    description: A várható betétdíj jelenlegi összege, egy sor.
+    columns:
+      - name: balance
+        data_tests: [not_null]
   - name: category_month
     description: Havi kiadás kategóriánként és fizető felenként.
     columns:
@@ -71,3 +98,60 @@ unit_tests:
       rows:
         - {month: 2026-09-01, payer: shared, category: élelmiszer, expense: 500, entry_count: 2}
         - {month: 2026-09-01, payer: shared, category: lakbér, expense: 700, entry_count: 1}
+
+  - name: deposit_history_nullazas
+    model: deposit_history
+    given:
+      - input: ref('deposit_movements')
+        rows:
+          - {source_id: a, movement: deposit, moved_at: 2026-10-01 10:00:00+00, amount: 150}
+          - {source_id: b, movement: voucher, moved_at: 2026-10-02 10:00:00+00, amount: -50}
+          - {source_id: c, movement: adjust, moved_at: 2026-10-03 10:00:00+00, amount: 300}
+          - {source_id: d, movement: reset, moved_at: 2026-10-04 10:00:00+00, amount: 0}
+          - {source_id: e, movement: deposit, moved_at: 2026-10-05 10:00:00+00, amount: 50}
+    expect:
+      rows:
+        - {source_id: a, balance: 150}
+        - {source_id: b, balance: 100}
+        - {source_id: c, balance: 400}
+        - {source_id: d, balance: 0}
+        - {source_id: e, balance: 50}
+
+  - name: expected_deposit_mozgas_nelkul
+    model: expected_deposit
+    given:
+      - input: ref('deposit_history')
+        format: sql
+        rows: |
+          select null::bigint as period_no, null::numeric as amount
+          where false
+    expect:
+      rows:
+        - {balance: 0}
+
+  - name: expected_deposit_utolso_szakasz
+    model: expected_deposit
+    given:
+      - input: ref('deposit_history')
+        rows:
+          - {period_no: 0, amount: 500}
+          - {period_no: 1, amount: 0}
+          - {period_no: 1, amount: 50}
+          - {period_no: 1, amount: -300}
+    expect:
+      rows:
+        - {balance: -250}
+
+  - name: deposit_history_azonos_nap
+    model: deposit_history
+    given:
+      - input: ref('deposit_movements')
+        rows:
+          - {source_id: a, movement: voucher, moved_at: 2026-10-14 00:00:00+00, amount: -300}
+          - {source_id: a, movement: deposit, moved_at: 2026-10-14 00:00:00+00, amount: 50}
+          - {source_id: a, movement: voucher, moved_at: 2026-10-14 00:00:00+00, amount: -100}
+    expect:
+      rows:
+        - {position: 1, movement: deposit, balance: 50}
+        - {position: 2, movement: voucher, balance: -250}
+        - {position: 3, movement: voucher, balance: -350}

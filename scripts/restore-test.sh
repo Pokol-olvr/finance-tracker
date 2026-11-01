@@ -22,11 +22,9 @@ for _ in {1..60}; do
   sleep 1
 done
 
-for db in finance metabase; do
-  compose exec -T restore-db createdb -U postgres "$db"
-  compose exec -T restore-db pg_restore -U postgres -d "$db" \
-    --no-owner --no-privileges --exit-on-error "$dumps/$db.dump"
-done
+compose exec -T restore-db createdb -U postgres finance
+compose exec -T restore-db pg_restore -U postgres -d finance \
+  --no-owner --no-privileges --exit-on-error "$dumps/finance.dump"
 
 expected=$(compose exec -T restore-db cat "$dumps/finance.rowcounts")
 actual=$(row_counts restore-db)
@@ -41,8 +39,4 @@ if ! diff <(echo "$expected") <(echo "$actual"); then
   exit 1
 fi
 
-metabase_tables=$(compose exec -T restore-db psql -U postgres -d metabase -Atc \
-  "select count(*) from pg_tables where schemaname = 'public'")
-
-echo "A visszaállítási próba sikeres: $(wc -l <<<"$actual") finance tábla egyezik," \
-  "a metabase adatbázisban $metabase_tables tábla van."
+echo "A visszaállítási próba sikeres: $(wc -l <<<"$actual") finance tábla egyezik."

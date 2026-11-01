@@ -1,0 +1,24 @@
+# Minden helyben marad: se statisztika, se külső címlekérdezés (ADR 0014).
+[browser]
+gatherUsageStats = false
+# Ha ez nincs beállítva, a Streamlit induláskor külső szolgáltatástól kérdezi a nyilvános címét.
+serverAddress = "localhost"
+
+[server]
+headless = true
+address = "0.0.0.0"
+port = 8501
+fileWatcherType = "none"
+
+[client]
+toolbarMode = "minimal"
+# A hibaüzenet adatot is tartalmazhat, ezért a böngészőbe nem kerül részlet.
+showErrorDetails = "none"
+
+[theme]
+base = "light"
+primaryColor = "#1f6f54"
+backgroundColor = "#f6f5f1"
+secondaryBackgroundColor = "#ffffff"
+textColor = "#1f2421"
+baseRadius = "medium"

@@ -580,13 +580,21 @@ def test_decided_document_has_no_note(client, headers):
     assert client.get(f"/reviews/{group_id}.json").json()["note"] is None
 
 
-@pytest.mark.parametrize("path", ["/", "/review", "/status"])
+@pytest.mark.parametrize("path", ["/", "/review", "/rules", "/deposit", "/status"])
 def test_every_page_has_the_menu(client, path):
     page = client.get(path).text
 
     assert 'class="menu"' in page
-    assert all(f'href="{target}"' in page for target in ("/", "/review", "/status"))
+    targets = ("/", "/review", "/rules", "/deposit", "/riportok", "/status")
+    assert all(f'href="{target}"' in page for target in targets)
     assert 'aria-current="page"' in page
+
+
+def test_reports_link_leads_to_the_report_service(client):
+    response = client.get("/riportok", follow_redirects=False)
+
+    assert response.status_code == 307
+    assert response.headers["location"] == "http://127.0.0.1:8501"
 
 
 def test_status_card_links_to_the_review_page():
