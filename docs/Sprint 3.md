@@ -331,7 +331,7 @@ Nincs riasztás és nincs előzmény: az oldal a pillanatnyi állapotot mutatja,
 - [ ] Sprinttervezés, kb. 30 perc 📅 2026-11-30
 - [ ] Heti áttekintés, kb. 15 perc 📅 2026-12-07
 - [ ] Demó és retró, kb. 30 perc 📅 2026-12-13
-- [ ] Kiadás: `v0.3.0` a [[Release folyamat]] szerint 📅 2026-12-13
+- [x] Kiadás: `v0.3.0` a [[Release folyamat]] szerint 📅 2026-12-13
 
 **Eldöntve a tervezés előtt**
 

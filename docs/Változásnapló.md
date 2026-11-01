@@ -1,7 +1,7 @@
 ---
 projekt: Pénzügyi nyomkövető
 tipus: változásnapló
-datum: 2026-10-31
+datum: 2026-11-01
 tags: [penzugy, projekt, release]
 ---
 
@@ -12,6 +12,8 @@ Kapcsolódó: [[Release folyamat]] · [[Fejlesztési terv]]
 Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen készül a GitHub Release szövege. A vezetés szabályai: [[Release folyamat]].
 
 ## Kiadatlan
+
+## v0.3.0 · 2026-11-01
 
 ### Hozzáadva
 
