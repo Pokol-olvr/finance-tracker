@@ -8,7 +8,7 @@ tags: [penzugy, projekt]
 
 # Fejlesztési terv
 
-8 epic, 10 kéthetes sprint, kb. 214 story pont. Minden story egy feladat: a 📅 dátum a sprint vége, a címkék az epicet és a sprintet jelölik. A [Tasks](https://publish.obsidian.md/tasks/) bővítménnyel szűrhető, pl. `tags include #sprint/S1`.
+8 epic, 10 kéthetes sprint, kb. 221 story pont. Minden story egy feladat: a 📅 dátum a sprint vége, a címkék az epicet és a sprintet jelölik. A [Tasks](https://publish.obsidian.md/tasks/) bővítménnyel szűrhető, pl. `tags include #sprint/S1`.
 
 Részletes sprintterv: [[Sprint 1]] · [[Sprint 2]] · [[Sprint 3]] · [[Sprint 4]] · Kapcsolódó: [[Üzleti koncepció]] · [[Technikai terv]] · [[Release folyamat]] · [[Változásnapló]]
 
@@ -47,6 +47,7 @@ gantt
   E4 Visszaváltási bizonylat   :e4b, 2027-01-25, 2027-02-07
   E6 Teljes pénzügyi kép       :e6, 2027-02-08, 2027-02-21
   E7 Tervezés                  :e7, 2027-02-22, 2027-03-07
+  E2 Riportok dizájnja         :e2c, 2027-02-22, 2027-03-07
   E8 Tanítás, költözés         :e8, 2027-03-08, 2027-03-21
   section Mérföldkő
   Első éles használat          :milestone, m1, 2027-01-24, 0d
@@ -69,7 +70,7 @@ Kész, ha: az otthoni Compose fut, az adat megmarad és mentődik, az állapota 
 - [ ] FIN-106 Állapot képernyő: a stack részei, a feldolgozás és az ütemezett futások egy weboldalon · 5 SP #E1 #sprint/S3 📅 2026-12-13
     - Elfogadás: egy leállított szolgáltatás 30 másodpercen belül hibaként látszik, az elavult adat soha nem zöld
 
-## FIN-E2 Adatmodell és medallion alap (S1–S2, S5, 22 SP)
+## FIN-E2 Adatmodell és medallion alap (S1–S2, S5, S9, 27 SP)
 
 Kész, ha: kézi bejegyzésből gold mutató és Áttekintés riport lesz.
 
@@ -85,6 +86,8 @@ Kész, ha: kézi bejegyzésből gold mutató és Áttekintés riport lesz.
     - Elfogadás: ez a hónap, az előző és az átlag egy képernyőn látszik
 - [ ] FIN-206 Streamlit riportfelület, a Metabase kivezetése · 8 SP #E2 #sprint/S5 📅 2027-01-10
     - Elfogadás: az új Áttekintés ugyanazokat a számokat adja, a Kiadások lefúrható az Ellenőrzésig, és a Metabase kikerült a stackből
+- [ ] FIN-207 A riportoldalak dizájnja valódi adaton · 5 SP #E2 #sprint/S9 📅 2027-03-07
+    - Elfogadás: legalább egy teljes hónap valódi adatán mindketten végignézték az oldalakat, a kifogások javítva vannak, és telefonszélességen sincs vízszintes görgetés
 
 ## FIN-E3 Postaláda, Pi és e-mail (S3–S4, S6, 39 SP)
 
@@ -163,9 +166,9 @@ Kész, ha: a címkék előre kitöltve jönnek, a pontosság mérve van.
 - [ ] FIN-506 Tesztkészlet félrerakása a jóváhagyott blokkokból · 2 SP #E5 #sprint/S7 📅 2027-02-07
     - Elfogadás: a tesztkészlet blokkjai nem kerülnek tanításba
 
-## FIN-E6 Teljes pénzügyi kép (S8, 19 SP)
+## FIN-E6 Teljes pénzügyi kép (S8, 21 SP)
 
-Kész, ha: bérpapír, kivonat, hitelek, közös kártya és a személyes fülek működnek.
+Kész, ha: bérpapír, kézi bejegyzés, kivonat, hitelek, közös kártya és a személyes fülek működnek.
 
 - [ ] FIN-601 Bérpapír PDF feltöltése, a nettó összeg kinyerése és megerősítése · 5 SP #E6 #sprint/S8 📅 2027-02-21
     - Elfogadás: a bevétel személyenként megjelenik a silverben
@@ -177,6 +180,8 @@ Kész, ha: bérpapír, kivonat, hitelek, közös kártya és a személyes fülek
     - Elfogadás: az átvezetés nem jelenik meg kiadásként
 - [ ] FIN-605 Közös háztartás és két Személyes dashboard · 3 SP #E6 #sprint/S8 📅 2027-02-21
     - Elfogadás: mindketten látják mindhárom fület
+- [ ] FIN-606 Kézi bejegyzés űrlap a webappban: bevétel és blokk nélküli kiadás · 2 SP #E6 #sprint/S8 📅 2027-02-21
+    - Elfogadás: az űrlapon felvitt bevétel a következő dbt-futás után megjelenik a riportok Bevétel kártyáján, a menüből elérhető
 
 ## FIN-E7 Tervezés (S9, 17 SP)
 
