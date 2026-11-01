@@ -13,6 +13,8 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 
 ## Kiadatlan
 
+## v0.4.0 · 2026-11-01
+
 ### Hozzáadva
 
 - FIN-310 Tömeges feltöltés: egyszerre legfeljebb 20 fájl, közös adatokkal; a dátum opcionális, üresen a blokkról jön.
