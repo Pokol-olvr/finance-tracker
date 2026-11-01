@@ -101,7 +101,7 @@ A webshopok és szolgáltatók számláit egy külön postafiókba lehet tovább
 - **Csak ismert feladótól:** kizárólag a két saját címünkről továbbított levél kerül be, és a levél hitelesítési fejléce (SPF, DKIM) is ellenőrzött. Így egy idegen levél nem tud hamis kiadást becsempészni.
 - **Ugyanazok a mezők, mint feltöltéskor:** a vásárló alapból a továbbító; a címkék a tárgyból jönnek, pl. `#élelmiszer #háztartás`; a dátumot a modell olvassa ki a számláról.
 - **Bronz:** a teljes nyers levél (.eml) és a mellékletek a Garage-ba kerülnek, a bronzban `email` forrástípussal.
-- **PDF-számlák:** szöveges PDF-nél a szövegréteg közvetlenül kiolvasható, ez gyorsabb és pontosabb; a képfelismerő modell csak szkennelt PDF-nél és képnél kell.
+- **PDF-számlák:** szöveges PDF-nél a szövegréteg közvetlenül kiolvasható, ez gyorsabb és pontosabb; a képfelismerő modell csak szkennelt PDF-nél és képnél kell. Mindkettőt a `pypdfium2` adja, a számlát pedig külön feldolgozó bontja, amely a webes feltöltéshez és az e-mailhez is ugyanaz ([[0010-pdf-olvasas-es-szamlafeldolgozo|ADR 0010]]).
 - **Későbbre:** a csak letöltési linket tartalmazó számlaértesítők kezelése nem része az első változatnak.
 
 ## OCR, címkézés és tanítás
@@ -251,3 +251,4 @@ Hét fázisban érdemes haladni; mindegyik után már használható rendszer van
 - [cAdvisor és a Podman API hibajegy](https://github.com/google/cadvisor/issues/3781)
 - [Headscale és a Tailscale nyílt részei](https://github.com/trigram-dev/headscale)
 - [Qwen3-VL finomhangolás Unslothtal](https://unsloth.ai/docs/de/modelle/tutorials/qwen3-how-to-run-and-fine-tune/qwen3-vl-how-to-run-and-fine-tune)
+- [pypdfium2 – PyPI](https://pypi.org/project/pypdfium2/)
