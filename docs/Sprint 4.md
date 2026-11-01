@@ -3,7 +3,7 @@ projekt: Pénzügyi nyomkövető
 sprint: S4
 kezdes: 2026-12-14
 vege: 2026-12-27
-story_pont: 19
+story_pont: 27
 tags: [penzugy, sprint]
 ---
 
@@ -13,7 +13,7 @@ Vissza: [[Fejlesztési terv]]
 
 ## Sprint cél
 
-**Több blokk egyszerre és a több képből álló hosszú blokk is feltölthető, a szöveges olvasatból pontos tételek és összegek lesznek, a hibás blokk pedig ellenőrzésre jelölve látszik.** A sprint 2026-12-14 és 2026-12-27 között tart, 19 story ponttal.
+**Több blokk egyszerre és a több képből álló hosszú blokk is feltölthető, a szöveges olvasatból pontos tételek és összegek lesznek, a hibás blokk pedig ellenőrzésre jelölve látszik. Az A4-es számla fotóról és PDF-ből is feldolgozódik.** A sprint 2026-12-14 és 2026-12-27 között tart, 27 story ponttal.
 
 | Kulcs | Jegy | SP | Függ tőle |
 | --- | --- | --- | --- |
@@ -21,9 +21,13 @@ Vissza: [[Fejlesztési terv]]
 | FIN-402 | Blokkfeldolgozó a szöveges olvasatra | 5 | FIN-408 |
 | FIN-311 | Több képből álló blokk | 5 | FIN-310, FIN-402 |
 | FIN-404 | Automatikus ellenőrzés | 5 | FIN-402 |
+| FIN-412 | Számlafeldolgozó | 5 | FIN-402, FIN-404 |
+| FIN-312 | PDF-feltöltés és -olvasás | 3 | FIN-304, FIN-412 |
 | FIN-410 | Mérés 5–10 saját blokkon | 2 | FIN-402, FIN-404 |
 
-Javasolt sorrend: FIN-310, FIN-402, FIN-311, FIN-404, végül a FIN-410. A tömeges feltöltés kerül előre, mert a saját blokkokat érdemes a sprint elején feltölteni: a szabályok ezek szöveges olvasatából pontosíthatók.
+Javasolt sorrend: FIN-310, FIN-402, FIN-311, FIN-404, FIN-412, FIN-312, végül a FIN-410. A tömeges feltöltés kerül előre, mert a saját blokkokat érdemes a sprint elején feltölteni: a szabályok ezek szöveges olvasatából pontosíthatók. A FIN-412 megelőzi a PDF-et, mert a számlafotók már itt vannak, és a PDF ugyanazt a feldolgozót használja.
+
+**Bővítés 2026-11-01-én:** a tömeges feltöltés első körében két A4-es számla, egy szállítólevél és egy új formátumú blokk érkezett. Mind a négy `unparsed` lett, mert a feldolgozó csak az ismert blokksorokat kezeli. A számla és a PDF ezért nem vár a Sprint 6-ig ([[0010-pdf-olvasas-es-szamlafeldolgozo|ADR 0010]]). Az új blokkformátum a FIN-410 része.
 
 **Irányváltás:** a Sprint 3 után egy saját blokkon a JSON-olvasat összekeverte a neveket és az árakat, a szöveges olvasatban viszont minden szám helyes volt. Ezért a szerkezetet saját, szabályalapú feldolgozó adja, a JSON-olvasat kikerül ([[0009-szabalyalapu-blokkfeldolgozo|ADR 0009]]). A FIN-403 feltételes lett, és az 5. sprintbe került.
 
@@ -223,6 +227,75 @@ A készpénzes kerekítés a végösszeget 0-ra vagy 5-re végződőre viszi, ez
 
 Az ellenőrzési sor képernyője a FIN-405 feladata. Addig a `review` blokkok a `scripts/last-extraction.sh` paranccsal nézhetők meg.
 
+## FIN-412 Számlafeldolgozó · 5 SP
+
+**Story:** adatgazdaként az A4-es számlából is tételeket és végösszeget akarok kapni, hogy a webshopok és szolgáltatók kiadásai ne vesszenek el.
+
+**Részfeladatok**
+
+- [ ] Típusfelismerés a szövegből: számla, ha szerepel a `Számla` felirat, a `Vevő` és a `Nettó`, különben blokk; a szállítólevél soha nem számla 📅 2026-12-27
+- [ ] Fejléc: szállító neve és adószáma, sorszám, fizetési mód, teljesítés, kelte, határidő, címke mellett és oszlopba rendezve is 📅 2026-12-27
+- [ ] Végösszeg: `Fizetendő végösszeg`, `Összesen bruttó`, a címke után vagy a következő sorban 📅 2026-12-27
+- [ ] Áfaösszesítő: nettó, áfa és bruttó, kulcsonként 📅 2026-12-27
+- [ ] Tételek két elrendezésben: egy sorban és cellánként külön sorban; a név több sorra is törhet 📅 2026-12-27
+- [ ] Ellenőrzés: a tételek bruttója = végösszeg, nettó + áfa = bruttó, dátum a teljesítéshez, ismételt számla adószám és sorszám alapján 📅 2026-12-27
+- [ ] `PARSER_VERSION` 2, a tárolt szövegek újrafeldolgozása modell nélkül 📅 2026-12-27
+- [ ] Kitalált számlák a `worker/tests/invoices/` mappában, elrendezésenként egy 📅 2026-12-27
+- [ ] A hiányzó számlaminták pótlása legalább 3 saját számla szövegéből 📅 2026-12-27
+
+**Elfogadási feltételek**
+
+- [ ] Mindkét elrendezés kitalált számlájából a tételek kiadják a végösszeget
+- [ ] A két tárolt számla végösszege, teljesítési dátuma és szállítói adószáma egyezik a papírral
+- [ ] Ismeretlen táblázatú számla `review` lesz a végösszeggel, és nem kap kitalált tételt
+- [ ] A szállítólevél `unparsed` marad, és nem kap tételt
+- [ ] A vevő neve és címe nem szerepel a `receipt_parse.payload` mezőben, ezt teszt igazolja
+- [ ] Nem forintos számla `review` lesz
+- [ ] A meglévő kitalált blokkok eredménye nem változik, és a tárolt `ok` blokkok továbbra is `ok`
+- [ ] Saját számla szövege, kiállítója vagy összege nem került a repóba
+
+**A `payload` kulcsai:** a blokk kulcsai maradnak, így a FIN-406 mindkettőt ugyanúgy olvassa, a számla ezekkel bővül.
+
+```json
+{
+  "document_type": "invoice",
+  "store_name": "Példa Webshop Kft.",
+  "tax_number": "12345678-2-42",
+  "receipt_number": "PW-2026/1234",
+  "purchased_on": "2026-10-20",
+  "issued_on": "2026-10-20",
+  "due_on": "2026-10-28",
+  "total": 12700,
+  "payments": [{"method": "transfer", "amount": 12700}],
+  "items": [
+    {"name": "Példa termék", "quantity": 1, "unit": "db", "unit_price": 10000,
+     "net": 10000, "vat_rate": 27, "vat": 2700, "value": 12700}
+  ]
+}
+```
+
+## FIN-312 PDF-feltöltés és -olvasás · 3 SP
+
+**Story:** felhasználóként PDF-számlát is fel akarok tölteni, hogy ne kelljen képpé alakítanom, és a pontos számjegyek a fájlból jöjjenek.
+
+**Részfeladatok**
+
+- [ ] Webapp: PDF elfogadása a tartalma alapján (`%PDF-`), a tallózóban is, a 20 MB-os határral 📅 2026-12-27
+- [ ] A több képes blokk módban a PDF elutasítása, mert egy PDF önmagában egy dokumentum 📅 2026-12-27
+- [ ] Worker: `pypdfium2` függőség, szövegréteg kiolvasása lapokon át 📅 2026-12-27
+- [ ] Szövegréteg nélküli PDF: legfeljebb 5 lap képpé alakítása a blokkal azonos, 1400 pixeles határral, és olvasás a modellel 📅 2026-12-27
+- [ ] Bronz: `source_type` `pdf`, a `model_name` a szövegrétegnél a könyvtár neve és verziója 📅 2026-12-27
+- [ ] Jelszavas vagy sérült PDF `unreadable` eredménnyel zár, és nem állítja meg a workert 📅 2026-12-27
+- [ ] Teszt-PDF-ek a tesztben generálva, kitalált adattal 📅 2026-12-27
+
+**Elfogadási feltételek**
+
+- [ ] Kitalált szöveges PDF modellhívás nélkül lesz `ok`
+- [ ] Kitalált, képből álló PDF a modellen át dolgozódik fel
+- [ ] Jelszavas PDF után a következő dokumentum feldolgozódik
+- [ ] A több képes módban a PDF hibaüzenetet kap
+- [ ] Egy saját szöveges PDF-en a sorok sorrendje helyes, vagy a hiba le van írva
+
 ## FIN-410 Mérés 5–10 saját blokkon · 2 SP
 
 **Story:** adatgazdaként saját blokkokon akarom mérni a feldolgozót, hogy lássam, elég-e a szöveges olvasat, vagy kell a második olvasat.
@@ -269,3 +342,7 @@ Az ellenőrzési sor képernyője a FIN-405 feladata. Addig a `review` blokkok a
 - [x] A bolt azonosítója az adószám, nem a név. A boltok egységesítése a FIN-406 feladata.
 - [x] A DRS-betétdíj nem kiadás ([[Üzleti koncepció]]). A feldolgozó csak jelöli, a vezetését a FIN-409 végzi.
 - [x] A visszaváltás bizonylata feltölthető, a FIN-411-gyel, az 5. sprintben. Ebben a sprintben a feldolgozó csak az utalványsort ismeri fel, és nem csökkenti vele a kiadást.
+- [x] A számla kiadásának dátuma a teljesítés dátuma, a kelte és a határidő csak tárolt adat ([[Üzleti koncepció]]).
+- [x] A szállítólevél nem kiadás: a feldolgozó nem veszi számlának, ezért nem számolódik kétszer a hozzá tartozó számlával.
+- [x] A vevő neve és címe csak a nyers szövegben marad, a feldolgozott adatba nem kerül be.
+- [x] Az e-mailes lehúzás marad a FIN-307-ben, a Sprint 6-ban, mert a Pi-s költözéshez tartozik; a PDF olvasását viszont már a FIN-312 adja.

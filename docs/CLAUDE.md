@@ -130,7 +130,7 @@ Egy fogalomra mindig ugyanazt a szót használd.
 | Szó | Jelentés |
 | --- | --- |
 | bronz, silver, gold | A rétegek szövegben; kódban a sémanevek: `bronze`, `silver`, `gold` |
-| blokk | Bolti nyugta fotója vagy adata; a „számla” a PDF-es vagy e-mailes számla |
+| blokk | Bolti nyugta fotója vagy adata; a „számla” az A4-es, PDF-es vagy e-mailes számla |
 | tétel | A blokk egy sora |
 | címke | Feltöltéskor a blokkhoz adott jelölés; több is lehet, és a blokkra vonatkozik, nem a tételre |
 | kategória | A tételhez rendelt besorolás a silverben |

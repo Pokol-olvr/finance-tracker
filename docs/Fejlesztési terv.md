@@ -8,7 +8,7 @@ tags: [penzugy, projekt]
 
 # Fejlesztési terv
 
-8 epic, 10 kéthetes sprint, kb. 183 story pont. Minden story egy feladat: a 📅 dátum a sprint vége, a címkék az epicet és a sprintet jelölik. A [Tasks](https://publish.obsidian.md/tasks/) bővítménnyel szűrhető, pl. `tags include #sprint/S1`.
+8 epic, 10 kéthetes sprint, kb. 191 story pont. Minden story egy feladat: a 📅 dátum a sprint vége, a címkék az epicet és a sprintet jelölik. A [Tasks](https://publish.obsidian.md/tasks/) bővítménnyel szűrhető, pl. `tags include #sprint/S1`.
 
 Részletes sprintterv: [[Sprint 1]] · [[Sprint 2]] · [[Sprint 3]] · [[Sprint 4]] · Kapcsolódó: [[Üzleti koncepció]] · [[Technikai terv]] · [[Release folyamat]] · [[Változásnapló]]
 
@@ -82,7 +82,7 @@ Kész, ha: kézi bejegyzésből gold mutató és Áttekintés dashboard lesz.
 - [ ] FIN-205 Metabase Áttekintés dashboard · 2 SP #E2 #sprint/S2 📅 2026-11-29
     - Elfogadás: ez a hónap, az előző és az átlag egy képernyőn látszik
 
-## FIN-E3 Postaláda, Pi és e-mail (S3–S4, S6, 36 SP)
+## FIN-E3 Postaláda, Pi és e-mail (S3–S4, S6, 39 SP)
 
 Kész, ha: telefonról feltöltött vagy e-mailben továbbított számla eljut az otthoni object store-ba.
 
@@ -108,8 +108,10 @@ Kész, ha: telefonról feltöltött vagy e-mailben továbbított számla eljut a
     - Elfogadás: 12 kép egy mozdulattal feltölthető, egy rossz fájl a többit nem állítja meg
 - [ ] FIN-311 Több képből álló hosszú blokk feltöltése és összefűzése · 5 SP #E3 #sprint/S4 📅 2026-12-27
     - Elfogadás: egy kétképes blokkból egy blokk lesz egy végösszeggel, a közös sorok egyszer számítanak
+- [ ] FIN-312 PDF-feltöltés és -olvasás: szövegréteg, szkennelt PDF-nél a modell · 3 SP #E3 #sprint/S4 📅 2026-12-27
+    - Elfogadás: egy szöveges PDF modellhívás nélkül, egy szkennelt PDF a modellen át dolgozódik fel
 
-## FIN-E4 Blokkbeolvasás (S3–S5, 38 SP)
+## FIN-E4 Blokkbeolvasás (S3–S5, 43 SP)
 
 Kész, ha: a blokkból tétel szintű silver lesz, kivételnél ellenőrzéssel. A FIN-403 csak akkor kell, ha a FIN-410 mérése szerint a szöveges olvasat hibái miatt túl sok blokk kerül ellenőrzésre.
 
@@ -135,6 +137,8 @@ Kész, ha: a blokkból tétel szintű silver lesz, kivételnél ellenőrzéssel.
     - Elfogadás: a mezőnkénti pontosság le van írva, és a FIN-403-ról döntés született
 - [ ] FIN-411 Visszaváltási bizonylat feltöltése és az utalványsor párosítása · 3 SP #E4 #sprint/S5 📅 2027-01-10
     - Elfogadás: a feltöltött bizonylat csökkenti a várható betétdíjat, és a hozzá tartozó utalványsor nem csökkenti másodszor
+- [ ] FIN-412 Szabályalapú számlafeldolgozó a szöveges olvasatra, két táblázat-elrendezéssel · 5 SP #E4 #sprint/S4 📅 2026-12-27
+    - Elfogadás: a végösszeg, a teljesítés dátuma és a szállító adószáma egyezik a papírral, az ismeretlen táblázatú számla `review` lesz, és nem kap kitalált tételt, a szállítólevél pedig nem számít kiadásnak
 
 ## FIN-E5 Címkézés és tanulás (S5, S7, 21 SP)
 
