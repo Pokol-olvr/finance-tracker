@@ -3,7 +3,7 @@ projekt: Pénzügyi nyomkövető
 sprint: S3
 kezdes: 2026-11-30
 vege: 2026-12-13
-story_pont: 18
+story_pont: 23
 tags: [penzugy, sprint]
 ---
 
@@ -13,7 +13,7 @@ Vissza: [[Fejlesztési terv]]
 
 ## Sprint cél
 
-**Egy böngészőből feltöltött blokkfotó a helyi postaládán át a Garage-ba és a bronzba kerül, és a laptopon futó GLM-OCR kiolvasása is a bronzba kerül.** A sprint 2026-11-30 és 2026-12-13 között tart, 18 story ponttal.
+**Egy böngészőből feltöltött blokkfotó a helyi postaládán át a Garage-ba és a bronzba kerül, a laptopon futó GLM-OCR kiolvasása is a bronzba kerül, és a stack minden része egy weboldalon követhető.** A sprint 2026-11-30 és 2026-12-13 között tart, 23 story ponttal.
 
 | Kulcs | Jegy | SP | Függ tőle |
 | --- | --- | --- | --- |
@@ -22,8 +22,9 @@ Vissza: [[Fejlesztési terv]]
 | FIN-305 | Postaláda API a workernek | 3 | FIN-304 |
 | FIN-306 | Worker: Garage, duplikációszűrés, bronz rekord | 5 | FIN-102, FIN-201, FIN-305 |
 | FIN-408 | Kiolvasás a workerben | 3 | FIN-401, FIN-306 |
+| FIN-106 | Állapot képernyő | 5 | FIN-305, FIN-306, FIN-408 |
 
-Javasolt sorrend: először a FIN-401, utána a FIN-304, a FIN-305, a FIN-306 és a FIN-408. A modell már ebben a sprintben a workerbe kerül, mert a saját blokkokon ez ad először valódi eredményt. Az eredmény ellenőrzése és normalizálása a FIN-402-vel és a FIN-404-gyel, a 4. sprintben jön.
+Javasolt sorrend: először a FIN-401, utána a FIN-304, a FIN-305, a FIN-306 és a FIN-408, végül a FIN-106. A modell már ebben a sprintben a workerbe kerül, mert a saját blokkokon ez ad először valódi eredményt. Az eredmény ellenőrzése és normalizálása a FIN-402-vel és a FIN-404-gyel, a 4. sprintben jön.
 
 **Helyi postaláda:** a Pi a 6. sprintben jön, de a postaláda API már most elkészül, helyben futtatva. A worker így a költözéskor csak egy másik címre mutat ([[0006-blokkbeolvasas-a-pi-elott|ADR 0006]]). A telefon addig nem éri el a webappot, a feltöltés böngészőből történik.
 
@@ -112,7 +113,7 @@ Az alap 1400 px, mert 2000 px-nél 2,5-szer lassabb, és nem pontosabb. Az 1000 
 
 **Elfogadási feltételek**
 
-- [ ] Böngészőből egy képernyőn feltölthető; az oldal Firefoxban megjelenik, a küldést eddig `curl` próbálta
+- [x] Böngészőből egy képernyőn feltölthető
 - [x] A feltöltött fájl bájtra azonos az eredetivel
 - [x] Hibás típusra, túl nagy fájlra és érvénytelen mezőre 4xx válasz jön, és a postaláda nem változik
 - [x] A feltöltés ideje akkor is a szerveré, ha a kliens küld ilyen mezőt
@@ -247,6 +248,83 @@ A lezárás a 3. sprintben a kiolvasás után történik. A FIN-405-tel a jóvá
 | `done_reason` | A JSON mód leállási oka; a `length` csonka kimenetet jelez |
 | `seconds` | A két olvasat együttes ideje |
 | `error` | Csak akkor van, ha a kép nem olvasható |
+
+## FIN-106 Állapot képernyő · 5 SP
+
+**Story:** a rendszer gazdájaként egy weboldalon akarom látni a stack minden részét és a feldolgozást, hogy parancsok nélkül tudjam, mi fut, mi hibás, és épp mit csinál a modell.
+
+**Részfeladatok**
+
+- [ ] `GET /status`: egy képernyős oldal a lenti kártyákkal, 5 másodpercenként frissül az oldal újratöltése nélkül 📅 2026-12-13
+- [ ] `GET /status.json`: az összesített állapot; a feltöltő oldalról link vezet a `/status`-ra 📅 2026-12-13
+- [ ] `POST /inbox/status/{source}`: `host` és `worker` jelentés a `WORKER_API_TOKEN` tokennel 📅 2026-12-13
+- [ ] `status_report` SQLite-tábla: forrásonként csak a legutóbbi jelentés, előzmény nélkül 📅 2026-12-13
+- [ ] `POST /inbox/items/{id}/close` opcionális eredménnyel: `result`, `seconds`, `items`, az `inbox_result` táblába 📅 2026-12-13
+- [ ] Worker: jelentés minden lépésváltáskor és külön szálon 15 másodpercenként, az Ollama `/api/ps` és `/api/tags` adataival 📅 2026-12-13
+- [ ] Worker healthcheck: a jelentő szál által frissített fájl nem lehet 60 másodpercnél régebbi 📅 2026-12-13
+- [ ] `scripts/status-report.sh`: szolgáltatások, Garage-méret, sorszámok, timerek, lemez, memória, terhelés 📅 2026-12-13
+- [ ] `finance-status.timer` 15 másodpercenként, az `install-timers.sh` telepíti 📅 2026-12-13
+- [ ] pytest-tesztek a végpontokra, a jogosultságra, az elavulásra és az összképre 📅 2026-12-13
+- [ ] README: az oldal címe és a kártyák jelentése 📅 2026-12-13
+
+**Elfogadási feltételek**
+
+- [ ] A `/status` a lenti kilenc kártyát mutatja, mindegyik saját állapottal
+- [ ] Feldolgozás alatt látszik a lépés neve és az eltelt idő, a modell pedig betöltve látszik
+- [ ] Egy leállított `ollama` vagy `worker` 30 másodpercen belül hibaként látszik
+- [ ] Hibás dbt-futás vagy mentés a kártyáján hibaként látszik, a következő futás idejével
+- [ ] 60 másodpercnél régebbi jelentésnél a kártya szürke, „nincs friss adat” felirattal, és soha nem zöld
+- [ ] Az oldalon és a `/status.json`-ban nincs fájlnév, blokktartalom vagy titok
+- [ ] Ha az állapotjelentés nem megy át, a feltöltés és a feldolgozás zavartalanul fut tovább
+- [ ] A `status-report.sh` tokenje nem látszik a folyamatlistában
+- [ ] A webapp portja továbbra is csak a `127.0.0.1` címen figyel
+
+**Az oldal vázlata**
+
+```text
+Stack állapota                        Feldolgozás fut · frissült 3 mp-e
+
+Szöveges olvasat · 1 p 12 mp · várakozik: 1 blokk
+
+Feltöltés   ●  Worker     ●  Ollama    ●
+Garage      ●  Postgres   ●  Metabase  ●
+dbt         ●  Mentés     ●  Gép       ●
+
+Legutóbbi feldolgozások
+15:37   145 mp   rendben   4 tétel
+```
+
+**Kártyák**
+
+| Kártya | Mit mutat | Honnan jön |
+| --- | --- | --- |
+| Feltöltés | Egészség, várakozó és lezárt tételek | `compose ps`, postaláda |
+| Worker | Aktuális lépés, eltelt idő, utolsó jelentés | Worker-jelentés, `compose ps` |
+| Ollama | Modell neve, azonosítója, betöltve van-e, memóriája | `/api/ps`, `/api/tags`, `compose ps` |
+| Garage | Objektumok száma és mérete | `garage bucket info raw`, `compose ps` |
+| Postgres | Sorok száma bronzban, silverben, goldban | `row_counts`, `compose ps` |
+| Metabase | Egészség, link a dashboardokra | `compose ps` |
+| dbt | Utolsó futás, eredmény, következő futás | `systemctl --user` |
+| Mentés | Utolsó futás, eredmény, következő futás | `systemctl --user` |
+| Gép | Szabad lemez, szabad memória, terhelés | `df`, `/proc` |
+
+Az adatok lekérdezése 2026-10-31-én egyenként 0,1 másodpercen belül volt, ezért a 15 másodperces jelentés nem terheli a gépet.
+
+**Összkép**
+
+| Felirat | Mikor |
+| --- | --- |
+| Hiba | Egy szolgáltatás nem fut vagy `unhealthy`, a modell nincs letöltve, vagy az utolsó dbt-futás vagy mentés hibás |
+| Nincs friss adat | A `host` vagy a `worker` jelentés 60 másodpercnél régebbi |
+| Feldolgozás fut | A worker tételen dolgozik |
+| Várakozik | Van nyitott tétel, a worker a következő körre vár |
+| Minden rendben | Egyik sem igaz |
+
+**Feldolgozási lépések**
+
+A worker ezeket jelenti: `idle`, `download`, `storage`, `read_json`, `read_text`, `close`. A modell hívása percekig blokkol, ezért a jelentő szál külön fut, és saját HTTP-klienst használ. A tétel eredménye `ok`, `unparsed`, `unreadable` vagy `duplicate`.
+
+Nincs riasztás és nincs előzmény: az oldal a pillanatnyi állapotot mutatja, a naplók továbbra is a `podman compose logs` paranccsal olvashatók. Ha a webapp nem fut, az oldal sem nyílik meg. A döntés indoka: [[0008-allapot-kepernyo-a-webappban|ADR 0008]].
 
 ## Események és nyitott kérdések
 

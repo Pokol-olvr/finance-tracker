@@ -28,6 +28,7 @@ flowchart TB
       bronz["Bronz<br/>csak hozzáfűz"] -->|dbt| silver["Silver<br/>tétel szint"] -->|dbt| gold["Gold<br/>mutatók"]
     end
     metabase["Metabase<br/>dashboardok és what-if"]
+    status["Állapotjelentés<br/>systemd timer"]
   end
   subgraph main["Főgép (RTX 5070)"]
     trainer["Trainer<br/>Unsloth, LoRA, GGUF"]
@@ -36,6 +37,7 @@ flowchart TB
   web <-->|"képek le, javaslatok fel, döntések le"| worker
   mail -->|IMAP| worker
   worker <--> ollama
+  status -->|"stack állapota fel"| web
   worker --> garage
   worker -->|jóváhagyott adat| bronz
   gold -->|csak a goldot| metabase
@@ -153,6 +155,15 @@ A silver és a gold táblákat dbt Core építi a bronzból, SQL-modellekkel és
 - **Tesztek:** a tételek összege egyezik a végösszeggel; nincs duplikált blokk; minden tételnek van kategóriája (ez csak figyelmeztetés); az átvezetések nem kerülnek a kiadások közé.
 - **Ütemezés:** a worker néhány percenként megnézi a Pi-t. Jóváhagyások után lefut a `dbt build`, éjjel pedig egy teljes futás is; a Metabase-ben így mindig friss adat van.
 
+### Állapot képernyő
+
+A stack minden része a webapp `/status` oldalán látszik: szolgáltatások, modell, feldolgozás, dbt, mentés és a gép. A részletek: [[Sprint 3]], az indoklás: [[0008-allapot-kepernyo-a-webappban|ADR 0008]].
+
+- **Irány:** az adat az otthoni oldalról megy a webapp felé, mint minden más, ezért a Pi-re költözéskor csak a cím változik.
+- **Gazdagép:** egy systemd timer 15 másodpercenként jelenti a `compose ps`, a timerek, a lemez és a memória adatait. Így egyik konténer sem kapja meg a Podman-socketet, amely az összes konténer feletti teljes irányítást adná.
+- **Worker:** a lépéseit és az Ollama állapotát maga jelenti, külön szálon, mert a modell hívása percekig blokkol.
+- **Elavulás:** a régi jelentés szürke, soha nem zöld, így a leállt otthoni gép nem látszhat egészségesnek.
+
 ## BI és tervezési felület
 
 A BI eszköz a Metabase nyílt forrású kiadása (AGPL), amely csak a gold sémát olvassa ([licenc](https://metabase.com/license)). Kattintgatással épít dashboardot, nem kell hozzá kód, és saját gépen fut.
@@ -171,7 +182,7 @@ Két Compose-fájl van: egy a Pi-n, egy az otthoni stackhez. A laptopon rootless
 | Pi | tailscale | Privát hálózat a telefonnal és az otthoni géppel |
 | Pi | caddy | HTTPS a saját domainen |
 | Pi | authelia | Kétfaktoros belépés |
-| Pi | webapp | Feltöltés, ellenőrzési sor, SQLite |
+| Pi | webapp | Feltöltés, ellenőrzési sor, állapot képernyő, SQLite |
 | Otthon | postgres | Bronz, silver, gold, és a Metabase saját beállításai |
 | Otthon | garage | Object store a nyers képeknek |
 | Otthon | ollama | Képfelismerő modell, egyelőre a laptop CPU-ján |
@@ -234,5 +245,8 @@ Hét fázisban érdemes haladni; mindegyik után már használható rendszer van
 - [PaddleOCR PP-OCRv5 többnyelvű támogatás](https://www.paddleocr.ai/v3.1.1/en/version3.x/algorithm/PP-OCRv5/PP-OCRv5_multi_languages.html)
 - [Blokkfelismerés mérése helyi modellel – DocIntel](https://github.com/Yacine-ai-tech/DocIntel)
 - [Garage S3 tároló](https://garagehq.deuxfleurs.fr/)
+- [Uptime Kuma és Gatus összehasonlítás – Bitdoze](https://www.bitdoze.com/uptime-kuma-vs-gatus/)
+- [Dozzle naplónézegető – Docker Hub](https://hub.docker.com/r/amir20/dozzle)
+- [cAdvisor és a Podman API hibajegy](https://github.com/google/cadvisor/issues/3781)
 - [Headscale és a Tailscale nyílt részei](https://github.com/trigram-dev/headscale)
 - [Qwen3-VL finomhangolás Unslothtal](https://unsloth.ai/docs/de/modelle/tutorials/qwen3-how-to-run-and-fine-tune/qwen3-vl-how-to-run-and-fine-tune)

@@ -8,7 +8,7 @@ tags: [penzugy, projekt]
 
 # Fejlesztési terv
 
-8 epic, 10 kéthetes sprint, kb. 158 story pont. Minden story egy feladat: a 📅 dátum a sprint vége, a címkék az epicet és a sprintet jelölik. A [Tasks](https://publish.obsidian.md/tasks/) bővítménnyel szűrhető, pl. `tags include #sprint/S1`.
+8 epic, 10 kéthetes sprint, kb. 163 story pont. Minden story egy feladat: a 📅 dátum a sprint vége, a címkék az epicet és a sprintet jelölik. A [Tasks](https://publish.obsidian.md/tasks/) bővítménnyel szűrhető, pl. `tags include #sprint/S1`.
 
 Részletes sprintterv: [[Sprint 1]] · [[Sprint 2]] · [[Sprint 3]] · Kapcsolódó: [[Üzleti koncepció]] · [[Technikai terv]] · [[Release folyamat]] · [[Változásnapló]]
 
@@ -37,6 +37,7 @@ gantt
   section Epicek
   E1 Alapinfrastruktúra        :e1, 2026-11-02, 2026-11-15
   E2 Adatmodell, medallion     :e2, 2026-11-02, 2026-11-29
+  E1 Állapot képernyő          :e1b, 2026-11-30, 2026-12-13
   E3 Postaláda helyben          :e3a, 2026-11-30, 2026-12-13
   E4 Blokkbeolvasás            :e4, 2026-11-30, 2027-01-10
   E5 Szabályok                 :e5a, 2026-12-28, 2027-01-10
@@ -49,9 +50,9 @@ gantt
   Első éles használat          :milestone, m1, 2027-01-24, 0d
 ```
 
-## FIN-E1 Alapinfrastruktúra (S1, 12 SP)
+## FIN-E1 Alapinfrastruktúra (S1, S3, 17 SP)
 
-Kész, ha: az otthoni Compose fut, az adat megmarad és mentődik.
+Kész, ha: az otthoni Compose fut, az adat megmarad és mentődik, az állapota pedig egy weboldalon látszik.
 
 - [ ] FIN-101 Git repo mappákkal (pi, home, worker, dbt) és README · 2 SP #E1 #sprint/S1 📅 2026-11-15
     - Elfogadás: klónozás után a `docker compose up` elindul
@@ -63,6 +64,8 @@ Kész, ha: az otthoni Compose fut, az adat megmarad és mentődik.
     - Elfogadás: egy visszaállítási próba sikeres
 - [ ] FIN-105 CI: lint, migrációk és Compose-ellenőrzés minden pushra · 3 SP #E1 #sprint/S1 📅 2026-11-15
     - Elfogadás: hibás migrációnál a CI piros; a dbt lépés a 2. sprinttől kapcsol be
+- [ ] FIN-106 Állapot képernyő: a stack részei, a feldolgozás és az ütemezett futások egy weboldalon · 5 SP #E1 #sprint/S3 📅 2026-12-13
+    - Elfogadás: egy leállított szolgáltatás 30 másodpercen belül hibaként látszik, az elavult adat soha nem zöld
 
 ## FIN-E2 Adatmodell és medallion alap (S1–S2, 14 SP)
 
