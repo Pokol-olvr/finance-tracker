@@ -85,17 +85,17 @@
 <body>
   <main>
     <p class="top-link"><a href="/status">Stack állapota</a></p>
-    <h1>Blokk feltöltése</h1>
+    <h1>Blokk vagy számla feltöltése</h1>
     <form id="upload">
       <div id="drop" class="drop">
-        <label for="photos">Fotók</label>
+        <label for="photos">Fotók vagy PDF-ek</label>
         <input id="photos" type="file" multiple
-               accept="image/jpeg,image/png,image/heic,image/webp,.heic">
+               accept="image/jpeg,image/png,image/heic,image/webp,.heic,application/pdf,.pdf">
         <p class="hint">Egyszerre legfeljebb 20 fájl, ide is behúzhatod őket.</p>
       </div>
       <fieldset class="modes">
         <legend>Mit töltesz fel?</legend>
-        <label class="tag"><input type="radio" name="mode" value="separate" checked>Minden fájl külön blokk</label>
+        <label class="tag"><input type="radio" name="mode" value="separate" checked>Minden fájl külön dokumentum</label>
         <label class="tag"><input type="radio" name="mode" value="group">Egy hosszú blokk több képből</label>
       </fieldset>
       <ol id="files"></ol>
@@ -105,9 +105,9 @@
       <label>Vásárló
         <select name="purchased_by" required>{{members}}</select>
       </label>
-      <label>A blokk dátuma
+      <label>A vásárlás dátuma
         <input type="date" name="purchase_date">
-        <span class="hint">Üresen a blokkról olvassuk ki.</span>
+        <span class="hint">Üresen a dokumentumról olvassuk ki.</span>
       </label>
       <label>Ki fizetett
         <select name="payer" required>
@@ -163,6 +163,10 @@
 
     function isGroup() {
       return form.elements.mode.value === "group";
+    }
+
+    function isPdf(file) {
+      return file.type === "application/pdf" || /\.pdf$/i.test(file.name);
     }
 
     function showStatus(message, isError) {
@@ -247,7 +251,7 @@
 
     function errorMessage(response) {
       if (response.status === 413) return "A fájl nagyobb 20 MB-nál.";
-      if (response.status === 415) return "Csak JPEG, PNG, HEIC vagy WebP tölthető fel.";
+      if (response.status === 415) return "Csak JPEG, PNG, HEIC, WebP vagy PDF tölthető fel.";
       if (response.status === 422) return "Ellenőrizd a mezőket.";
       return `A feltöltés nem sikerült (${response.status}).`;
     }
@@ -340,7 +344,7 @@
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       if (!selected.length) {
-        showStatus("Válassz legalább egy fotót.", true);
+        showStatus("Válassz legalább egy fájlt.", true);
         return;
       }
       if (!form.querySelector('input[name="tags"]:checked')) {
@@ -349,6 +353,10 @@
       }
       if (isGroup() && (selected.length < MIN_PAGES || selected.length > MAX_PAGES)) {
         showStatus(`Egy blokkhoz ${MIN_PAGES}–${MAX_PAGES} kép tartozhat.`, true);
+        return;
+      }
+      if (isGroup() && selected.some((entry) => isPdf(entry.file))) {
+        showStatus("A PDF önmagában egy dokumentum, csak képek fűzhetők össze.", true);
         return;
       }
       submitButton.disabled = true;

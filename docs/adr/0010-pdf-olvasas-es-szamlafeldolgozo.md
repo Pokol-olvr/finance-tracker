@@ -1,6 +1,6 @@
 # 0010 PDF-olvasás és külön számlafeldolgozó
 
-**Állapot:** javasolt
+**Állapot:** elfogadva
 
 **Dátum:** 2026-11-01
 

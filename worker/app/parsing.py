@@ -7,10 +7,24 @@ from uuid import UUID
 import psycopg
 
 from app import bronze
+from app.document_parser import parse_document
 from app.receipt_checks import run_checks, status_of
-from app.receipt_parser import PARSER_VERSION, parse_pages
+from app.receipt_parser import PARSER_VERSION
 
 log = logging.getLogger("worker")
+
+UPLOAD_DAY_LIMIT = 1
+
+
+def entered_date(page: dict) -> str | None:
+    """Az űrlap a mai napot kínálja fel, ezért a feltöltés napja nem számít beírt dátumnak.
+
+    Egy nap tűrés kell, mert a feltöltés ideje UTC, a felkínált dátum pedig helyi idő.
+    """
+    entered = page["purchase_date"]
+    if entered is None or abs((entered - page["uploaded_at"].date()).days) <= UPLOAD_DAY_LIMIT:
+        return None
+    return entered.isoformat()
 
 
 def parse_group(conn: psycopg.Connection, group_id: UUID, pages: list[dict]) -> str:
@@ -20,16 +34,15 @@ def parse_group(conn: psycopg.Connection, group_id: UUID, pages: list[dict]) -> 
     if not all(texts):
         return store(conn, group_id, extraction_ids, "unparsed", {"error": "A kép nem olvasható"}, {})
     try:
-        parsed = parse_pages(texts)
+        parsed = parse_document(texts)
     except (ValueError, IndexError, KeyError, TypeError) as error:
         log.error("A(z) %s blokk feldolgozása nem sikerült: %s", group_id, type(error).__name__)
         return store(conn, group_id, extraction_ids, "unparsed", {"error": "A feldolgozó hibázott"}, {})
 
-    entered = pages[0]["purchase_date"]
     seen_elsewhere = bronze.seen_elsewhere(
         conn, group_id, parsed["tax_number"], parsed["receipt_number"]
     )
-    checks = run_checks(parsed, entered.isoformat() if entered else None, seen_elsewhere)
+    checks = run_checks(parsed, entered_date(pages[0]), seen_elsewhere)
     return store(conn, group_id, extraction_ids, status_of(parsed, checks), parsed, checks)
 
 

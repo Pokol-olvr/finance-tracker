@@ -52,6 +52,25 @@ def test_header_and_footer_fields():
     assert result["change"] == 655
 
 
+def test_quantity_above_name_with_vat_code_at_line_end():
+    result = parsed("quantity_first")
+
+    assert values(result) == [299, 399, 1290, 350]
+    assert result["total"] == 2338
+    apple = result["items"][0]
+    assert (apple["name"], apple["vat_code"]) == ("ALMALÉ 1L", "C27")
+    assert (apple["quantity"], apple["unit"], apple["unit_price"]) == (2, "DB", 149.5)
+    assert result["items"][2]["name"] == "FŰMAG 1,5 KG"
+    assert result["payments"] == [{"method": "card", "amount": 2338}]
+    assert result["receipt_number"] == "0042/00017"
+
+
+def test_quantity_decides_when_a_name_ends_in_a_number():
+    item = parsed("quantity_first")["items"][3]
+
+    assert (item["name"], item["value"]) == ("TÁPOLDAT 5", 350)
+
+
 def test_value_can_stand_on_its_own_line():
     result = parsed("price_below")
 

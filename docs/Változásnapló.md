@@ -20,11 +20,15 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 - FIN-402 Saját feldolgozó a szöveges olvasatra: tételek, végösszeg, fizetés, dátum és nyugtaszám a `bronze.receipt_parse` táblában; a tárolt szövegek modell nélkül újra feldolgozhatók.
 - FIN-402 `worker/tools/read_folder.py`: repón kívüli mappa kiolvasása a bronz érintése nélkül.
 - FIN-404 Automatikus ellenőrzés: összeg, tételszorzat, fizetés, dátum és ismételt blokk; az állapotoldalon az „Ellenőrzésre vár” szám is látszik.
+- FIN-412 Számlafeldolgozó: az A4-es számlából szállító, adószám, sorszám, dátumok, tételek, áfaösszesítő és végösszeg lesz; az ismeretlen táblázatú számla `review`, a szállítólevél, a díjbekérő és a proforma nem kiadás.
+- FIN-312 PDF-feltöltés: a szöveges PDF modell nélkül, a szkennelt PDF a modellen át dolgozódik fel, a `read_folder` is kezeli; új függőség a `pypdfium2`.
 
 ### Módosítva
 
 - A modell blokkonként egyszer fut, a JSON-olvasat kikerült, mert rosszul párosította a neveket és az árakat.
 - Az állapotoldal „rendben” felirata az ellenőrzések sikerét jelenti, nem az érvényes JSON-t.
+- A blokkfeldolgozó felismeri azt a formátumot is, ahol a mennyiség a név fölött áll, és a sor végén áfakód van.
+- A feltöltés napja nem számít beírt dátumnak, így a régi dokumentum nem kerül emiatt ellenőrzésre.
 
 ### Frissítési teendők
 

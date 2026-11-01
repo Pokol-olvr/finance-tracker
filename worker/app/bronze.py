@@ -11,7 +11,7 @@ insert into bronze.raw_document
   (sha256, object_key, source_type, uploaded_by, uploaded_at,
    purchased_by, purchase_date, payer, tags, group_id, page_no, page_count)
 values
-  (%(sha256)s, %(object_key)s, 'photo', %(uploaded_by)s, %(uploaded_at)s,
+  (%(sha256)s, %(object_key)s, %(source_type)s, %(uploaded_by)s, %(uploaded_at)s,
    %(purchased_by)s, %(purchase_date)s, %(payer)s, %(tags)s,
    %(group_id)s, %(page_no)s, %(page_count)s)
 on conflict (sha256) do nothing
@@ -38,7 +38,8 @@ on conflict (group_id, parser_version) do nothing
 
 # Dokumentumonként a legutóbbi kiolvasás; a régi sorok szövege is feldolgozható.
 PENDING_PAGES = """
-select pages.group_id, pages.extraction_id, pages.page_count, pages.purchase_date, pages.payload
+select pages.group_id, pages.extraction_id, pages.page_count, pages.purchase_date,
+       pages.uploaded_at, pages.payload
 from (
   select
     coalesce(d.group_id, d.id) as group_id,
@@ -46,6 +47,7 @@ from (
     d.page_no,
     d.page_count,
     d.purchase_date,
+    d.uploaded_at,
     e.payload,
     row_number() over (partition by d.id order by e.created_at desc) as recency
   from bronze.raw_document as d
@@ -74,8 +76,11 @@ def find_document(conn: psycopg.Connection, sha256: str) -> UUID | None:
     return row[0] if row else None
 
 
-def insert_document(conn: psycopg.Connection, item: dict, object_key: str) -> UUID:
-    row = conn.execute(INSERT_DOCUMENT, item | {"object_key": object_key}).fetchone()
+def insert_document(
+    conn: psycopg.Connection, item: dict, object_key: str, source_type: str = "photo"
+) -> UUID:
+    fields = item | {"object_key": object_key, "source_type": source_type}
+    row = conn.execute(INSERT_DOCUMENT, fields).fetchone()
     return row[0] if row else find_document(conn, item["sha256"])
 
 

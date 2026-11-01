@@ -29,6 +29,8 @@ Javasolt sorrend: FIN-310, FIN-402, FIN-311, FIN-404, FIN-412, FIN-312, végül 
 
 **Bővítés 2026-11-01-én:** a tömeges feltöltés első körében két A4-es számla, egy szállítólevél és egy új formátumú blokk érkezett. Mind a négy `unparsed` lett, mert a feldolgozó csak az ismert blokksorokat kezeli. A számla és a PDF ezért nem vár a Sprint 6-ig ([[0010-pdf-olvasas-es-szamlafeldolgozo|ADR 0010]]). Az új blokkformátum a FIN-410 része.
 
+A feldolgozó után a tárolt 11 dokumentumból 8 blokk és 2 számla `ok`, minden ellenőrzéssel, a szállítólevél pedig `unparsed` marad, és nem kerül a kiadások közé. A szabályok ezeken a dokumentumokon készültek, ezért ez sem pontossági mérés.
+
 **Irányváltás:** a Sprint 3 után egy saját blokkon a JSON-olvasat összekeverte a neveket és az árakat, a szöveges olvasatban viszont minden szám helyes volt. Ezért a szerkezetet saját, szabályalapú feldolgozó adja, a JSON-olvasat kikerül ([[0009-szabalyalapu-blokkfeldolgozo|ADR 0009]]). A FIN-403 feltételes lett, és az 5. sprintbe került.
 
 **Mérés 2026-11-01-én:** 7 blokkon, ebből 1 saját, 6 netről gyűjtött. A fájlok a bronzba kerültek, ezért a FIN-309 törli őket.
@@ -220,7 +222,7 @@ A `group_id` és a `parser_version` együtt egyedi. A nyers szöveg a `bronze.ex
 | `sum` | Tételek + betétdíj + kedvezmény + utalvány = végösszeg | Soha |
 | `line_total` | Mennyiség × egységár = érték, 1 Ft tűréssel | Egysoros tételnél |
 | `payment` | Fizetett − visszajáró = végösszeg; készpénznél legfeljebb 2 Ft eltérés | Ha nincs fizetett összeg a blokkon |
-| `date` | A beolvasott dátum = a feltöltéskor beírt dátum | Ha valamelyik dátum hiányzik |
+| `date` | A beolvasott dátum = a feltöltéskor beírt dátum | Ha valamelyik dátum hiányzik, vagy a beírt dátum a feltöltés napja, mert az űrlap azt kínálja fel |
 | `duplicate` | Az adószám és a nyugtaszám egy másik dokumentumnál nem szerepel | Ha valamelyik hiányzik |
 
 A készpénzes kerekítés a végösszeget 0-ra vagy 5-re végződőre viszi, ezért legfeljebb 2 Ft az eltérés; bankkártyánál alapból nincs kerekítés ([forrás](https://njt.jog.gov.hu/jogszabaly/2008-3-00-00)). A betétdíj az ellenőrzésben benne van, mert a végösszeg tartalmazza.
@@ -233,26 +235,26 @@ Az ellenőrzési sor képernyője a FIN-405 feladata. Addig a `review` blokkok a
 
 **Részfeladatok**
 
-- [ ] Típusfelismerés a szövegből: számla, ha szerepel a `Számla` felirat, a `Vevő` és a `Nettó`, különben blokk; a szállítólevél soha nem számla 📅 2026-12-27
-- [ ] Fejléc: szállító neve és adószáma, sorszám, fizetési mód, teljesítés, kelte, határidő, címke mellett és oszlopba rendezve is 📅 2026-12-27
-- [ ] Végösszeg: `Fizetendő végösszeg`, `Összesen bruttó`, a címke után vagy a következő sorban 📅 2026-12-27
-- [ ] Áfaösszesítő: nettó, áfa és bruttó, kulcsonként 📅 2026-12-27
-- [ ] Tételek két elrendezésben: egy sorban és cellánként külön sorban; a név több sorra is törhet 📅 2026-12-27
-- [ ] Ellenőrzés: a tételek bruttója = végösszeg, nettó + áfa = bruttó, dátum a teljesítéshez, ismételt számla adószám és sorszám alapján 📅 2026-12-27
-- [ ] `PARSER_VERSION` 2, a tárolt szövegek újrafeldolgozása modell nélkül 📅 2026-12-27
-- [ ] Kitalált számlák a `worker/tests/invoices/` mappában, elrendezésenként egy 📅 2026-12-27
+- [x] Típusfelismerés a szövegből: számla, ha szerepel a `Számla` felirat, a `Vevő` és a `Nettó`, különben blokk; a szállítólevél soha nem számla 📅 2026-12-27
+- [x] Fejléc: szállító neve és adószáma, sorszám, fizetési mód, teljesítés, kelte, határidő, címke mellett és oszlopba rendezve is 📅 2026-12-27
+- [x] Végösszeg: `Fizetendő végösszeg`, `Összesen bruttó`, a címke után vagy a következő sorban 📅 2026-12-27
+- [x] Áfaösszesítő: nettó, áfa és bruttó, kulcsonként 📅 2026-12-27
+- [x] Tételek két elrendezésben: egy sorban és cellánként külön sorban; a név több sorra is törhet 📅 2026-12-27
+- [x] Ellenőrzés: a tételek bruttója = végösszeg, nettó + áfa = bruttó, dátum a teljesítéshez, ismételt számla adószám és sorszám alapján 📅 2026-12-27
+- [x] `PARSER_VERSION` növelése, a tárolt szövegek újrafeldolgozása modell nélkül 📅 2026-12-27
+- [x] Kitalált számlák a `worker/tests/invoices/` mappában, elrendezésenként egy 📅 2026-12-27
 - [ ] A hiányzó számlaminták pótlása legalább 3 saját számla szövegéből 📅 2026-12-27
 
 **Elfogadási feltételek**
 
-- [ ] Mindkét elrendezés kitalált számlájából a tételek kiadják a végösszeget
+- [x] Mindkét elrendezés kitalált számlájából a tételek kiadják a végösszeget
 - [ ] A két tárolt számla végösszege, teljesítési dátuma és szállítói adószáma egyezik a papírral
-- [ ] Ismeretlen táblázatú számla `review` lesz a végösszeggel, és nem kap kitalált tételt
-- [ ] A szállítólevél `unparsed` marad, és nem kap tételt
-- [ ] A vevő neve és címe nem szerepel a `receipt_parse.payload` mezőben, ezt teszt igazolja
-- [ ] Nem forintos számla `review` lesz
-- [ ] A meglévő kitalált blokkok eredménye nem változik, és a tárolt `ok` blokkok továbbra is `ok`
-- [ ] Saját számla szövege, kiállítója vagy összege nem került a repóba
+- [x] Ismeretlen táblázatú számla `review` lesz a végösszeggel, és nem kap kitalált tételt
+- [x] A szállítólevél `unparsed` marad, és nem kap tételt
+- [x] A vevő neve és címe nem szerepel a `receipt_parse.payload` mezőben, ezt teszt igazolja
+- [x] Nem forintos számla `review` lesz
+- [x] A meglévő kitalált blokkok eredménye nem változik, és a tárolt `ok` blokkok továbbra is `ok`
+- [x] Saját számla szövege, kiállítója vagy összege nem került a repóba
 
 **A `payload` kulcsai:** a blokk kulcsai maradnak, így a FIN-406 mindkettőt ugyanúgy olvassa, a számla ezekkel bővül.
 
@@ -280,20 +282,20 @@ Az ellenőrzési sor képernyője a FIN-405 feladata. Addig a `review` blokkok a
 
 **Részfeladatok**
 
-- [ ] Webapp: PDF elfogadása a tartalma alapján (`%PDF-`), a tallózóban is, a 20 MB-os határral 📅 2026-12-27
-- [ ] A több képes blokk módban a PDF elutasítása, mert egy PDF önmagában egy dokumentum 📅 2026-12-27
-- [ ] Worker: `pypdfium2` függőség, szövegréteg kiolvasása lapokon át 📅 2026-12-27
-- [ ] Szövegréteg nélküli PDF: legfeljebb 5 lap képpé alakítása a blokkal azonos, 1400 pixeles határral, és olvasás a modellel 📅 2026-12-27
-- [ ] Bronz: `source_type` `pdf`, a `model_name` a szövegrétegnél a könyvtár neve és verziója 📅 2026-12-27
-- [ ] Jelszavas vagy sérült PDF `unreadable` eredménnyel zár, és nem állítja meg a workert 📅 2026-12-27
-- [ ] Teszt-PDF-ek a tesztben generálva, kitalált adattal 📅 2026-12-27
+- [x] Webapp: PDF elfogadása a tartalma alapján (`%PDF-`), a tallózóban is, a 20 MB-os határral 📅 2026-12-27
+- [x] A több képes blokk módban a PDF elutasítása, mert egy PDF önmagában egy dokumentum 📅 2026-12-27
+- [x] Worker: `pypdfium2` függőség, szövegréteg kiolvasása lapokon át 📅 2026-12-27
+- [x] Szövegréteg nélküli PDF: legfeljebb 5 lap képpé alakítása a blokkal azonos, 1400 pixeles határral, és olvasás a modellel 📅 2026-12-27
+- [x] Bronz: `source_type` `pdf`, a `model_name` a szövegrétegnél a könyvtár neve és verziója 📅 2026-12-27
+- [x] Jelszavas vagy sérült PDF `unreadable` eredménnyel zár, és nem állítja meg a workert 📅 2026-12-27
+- [x] Teszt-PDF-ek a tesztben generálva, kitalált adattal 📅 2026-12-27
 
 **Elfogadási feltételek**
 
-- [ ] Kitalált szöveges PDF modellhívás nélkül lesz `ok`
-- [ ] Kitalált, képből álló PDF a modellen át dolgozódik fel
-- [ ] Jelszavas PDF után a következő dokumentum feldolgozódik
-- [ ] A több képes módban a PDF hibaüzenetet kap
+- [x] Kitalált szöveges PDF modellhívás nélkül lesz `ok`
+- [x] Kitalált, képből álló PDF a modellen át dolgozódik fel
+- [x] Jelszavas PDF után a következő dokumentum feldolgozódik
+- [x] A több képes módban a PDF hibaüzenetet kap
 - [ ] Egy saját szöveges PDF-en a sorok sorrendje helyes, vagy a hiba le van írva
 
 ## FIN-410 Mérés 5–10 saját blokkon · 2 SP
@@ -304,6 +306,7 @@ Az ellenőrzési sor képernyője a FIN-405 feladata. Addig a `review` blokkok a
 
 - [ ] Legalább 5 saját blokk feltöltése, legalább 3 boltból, köztük kártyás és készpénzes 📅 2026-12-27
 - [ ] A hiányzó sorminták felvétele; hozzájuk kitalált tesztblokk 📅 2026-12-27
+    - Az első új formátum, ahol a mennyiség a név fölött áll, már bekerült (`quantity_first`).
 - [ ] Eredmény a lenti táblázatban, csak arányokkal 📅 2026-12-27
 - [ ] Döntés a FIN-403-ról és a kép méretéről 📅 2026-12-27
 

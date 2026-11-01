@@ -103,15 +103,28 @@ def test_server_sets_upload_time(client, valid_form, worker_headers):
     [("JPEG", "image/jpeg"), ("PNG", "image/png"), ("WEBP", "image/webp")],
 )
 def test_type_comes_from_content_not_name(image_format, expected):
-    assert inbox.detect_image_type(image_bytes(image_format)) == expected
+    assert inbox.detect_file_type(image_bytes(image_format)) == expected
 
 
 def test_heic_is_detected_from_header():
-    assert inbox.detect_image_type(b"\x00\x00\x00\x18ftypheic" + bytes(16)) == "image/heic"
+    assert inbox.detect_file_type(b"\x00\x00\x00\x18ftypheic" + bytes(16)) == "image/heic"
+
+
+def test_pdf_is_detected_from_content():
+    assert inbox.detect_file_type(b"%PDF-1.7 kitalalt") == "application/pdf"
+
+
+def test_pdf_can_be_uploaded(client, valid_form, worker_headers):
+    response = upload(client, valid_form, b"%PDF-1.7 kitalalt", "szamla.pdf")
+
+    assert response.status_code == 201
+    item = only_new_item(client, worker_headers)
+    assert item["content_type"] == "application/pdf"
+    assert (item["group_id"], item["page_count"]) == (None, 1)
 
 
 def test_wrong_type_is_rejected(client, valid_form, worker_headers):
-    response = upload(client, valid_form, b"%PDF-1.7 nem kep", "blokk.jpg")
+    response = upload(client, valid_form, b"GIF89a nem blokk", "blokk.jpg")
 
     assert response.status_code == 415
     assert client.get("/inbox/items", params={"status": "new"}, headers=worker_headers).json() == {
@@ -189,9 +202,20 @@ def test_group_counts_as_one_receipt(client, valid_form):
 
 
 def test_bad_file_stops_the_whole_group(client, valid_form, worker_headers, inbox_dir):
-    response = group_upload(client, valid_form, [image_bytes("JPEG"), b"%PDF-1.7 nem kep"])
+    response = group_upload(client, valid_form, [image_bytes("JPEG"), b"GIF89a nem blokk"])
 
     assert response.status_code == 415
+    assert client.get("/inbox/items", params={"status": "new"}, headers=worker_headers).json() == {
+        "items": []
+    }
+    assert [path.name for path in inbox_dir.iterdir() if path.name != "inbox.sqlite3"] == []
+
+
+def test_pdf_cannot_join_a_group(client, valid_form, worker_headers, inbox_dir):
+    response = group_upload(client, valid_form, [image_bytes("JPEG"), b"%PDF-1.7 kitalalt"])
+
+    assert response.status_code == 422
+    assert "PDF" in response.json()["detail"]
     assert client.get("/inbox/items", params={"status": "new"}, headers=worker_headers).json() == {
         "items": []
     }

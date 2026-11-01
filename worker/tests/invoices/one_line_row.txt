@@ -1,0 +1,27 @@
+L
+Példa Stúdió Bt. 1011 Budapest
+Kitalált utca 12.
+Adószám: 12345678-2-41
+Bankszámlaszám:
+11111111-22222222-33333333
+SZÁMLA
+Sorszám: PS-2026-17
+VEVÖ:
+Teszt Elek
+1111 Budapest
+Nemlétező köz 3/B 2/5.
+Fizetési mód: átutalás
+Teljesítés dátuma: 2026.10.20.
+Kiállítás dátuma: 2026.10.21.
+Fizetési határidó: 2026.10.28.
+Megnevezés
+Menny. Egységár Nettó ár Áfa Áfa összeg Bruttó ár
+Tervezési díj 2 db 5 000 10 000 27% 2 700 12 700
+2026.X.17
+Nyomtatás 1 db 1 000 1 000 AAM 0 1 000
+Összesen: 11 000 2 700 13 700
+Áfa összesen: 2 700
+Összesen:
+13 700 Ft
+A számla kitalált, a tesztekhez készült!
+Oldal 1/1

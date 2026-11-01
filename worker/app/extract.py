@@ -28,14 +28,18 @@ def full_model_name(model: str) -> str:
     return model if ":" in model else f"{model}:latest"
 
 
+def to_jpeg(image: Image.Image) -> bytes:
+    output = BytesIO()
+    image.convert("RGB").save(output, format="JPEG", quality=90)
+    return output.getvalue()
+
+
 def prepare_image(content: bytes) -> bytes:
     """A modell bemenete: álló, kicsinyített JPEG. Az eredeti a Garage-ban változatlan marad."""
     with Image.open(BytesIO(content)) as image:
         upright = ImageOps.exif_transpose(image).convert("RGB")
     upright.thumbnail((MAX_SIDE, MAX_SIDE))
-    output = BytesIO()
-    upright.save(output, format="JPEG", quality=90)
-    return output.getvalue()
+    return to_jpeg(upright)
 
 
 class ReceiptReader:
@@ -60,6 +64,9 @@ class ReceiptReader:
             image = prepare_image(content)
         except (OSError, ValueError, Image.DecompressionBombError) as error:
             return {"error": f"A kép nem olvasható: {error}"}
+        return self.read_image(image, report)
+
+    def read_image(self, image: bytes, report: Callable[[str], None]) -> dict:
         report("read_text")
         response = self.client.post(
             "/api/chat",

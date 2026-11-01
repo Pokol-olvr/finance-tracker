@@ -24,6 +24,43 @@ def invented_receipt() -> bytes:
     return buffer.getvalue()
 
 
+def invented_pdf(rows: list[tuple[int, int, str]]) -> bytes:
+    """Szöveges, egylapos PDF: (x, y, szöveg) sorok, a megadott sorrendben a fájlban."""
+    text = "".join(
+        f"BT /F1 10 Tf {x} {y} Td ({value.replace('(', '[').replace(')', ']')}) Tj ET\n"
+        for x, y, value in rows
+    ).encode("cp1252", "replace")
+    page = (
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R "
+        b"/Resources << /Font << /F1 5 0 R >> >> >>"
+    )
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        page,
+        b"<< /Length %d >>\nstream\n%s\nendstream" % (len(text), text),
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
+    ]
+    body = b"%PDF-1.7\n"
+    offsets = []
+    for number, content in enumerate(objects, 1):
+        offsets.append(len(body))
+        body += b"%d 0 obj\n%s\nendobj\n" % (number, content)
+    table = len(body)
+    body += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objects) + 1)
+    body += b"".join(b"%010d 00000 n \n" % offset for offset in offsets)
+    body += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(objects) + 1, table)
+    return body
+
+
+def scanned_pdf(pages: int = 1) -> bytes:
+    """Csak képből álló PDF, szövegréteg nélkül."""
+    images = [Image.new("RGB", (120, 160), "white") for _ in range(pages)]
+    buffer = BytesIO()
+    images[0].save(buffer, format="PDF", save_all=True, append_images=images[1:])
+    return buffer.getvalue()
+
+
 def make_item(content: bytes) -> dict:
     return {
         "id": str(uuid4()),
@@ -75,6 +112,7 @@ class FakeReader:
         self.payload = payload or {"ocr_text": SAMPLE_TEXT, "seconds": 80.0}
         self.error = error
         self.calls = 0
+        self.images: list[bytes] = []
 
     def version(self) -> str:
         return "teszt-valtozat"
@@ -85,6 +123,10 @@ class FakeReader:
         if self.error:
             raise self.error
         return self.payload
+
+    def read_image(self, image: bytes, report) -> dict:
+        self.images.append(image)
+        return self.read(image, report)
 
 
 @pytest.fixture

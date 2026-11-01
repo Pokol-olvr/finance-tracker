@@ -1,0 +1,16 @@
+SZÁMLA
+Vevő neve: Kitalált Vásárló Kft.
+Vevő címe: 3300 Eger, Nincsilyen tér 5.
+Adószám: 11223344-2-10
+Szállító: Példa Szerviz Zrt.
+6720 Szeged, Soha utca 2.
+Adószám: 44332211-2-06
+Számla sorszáma: 2026/000123
+Teljesítés kelte Számla kelte Fizetési határidő
+2026.09.30. 2026.10.01. 2026.10.09.
+Fizetési mód: készpénz
+Megnevezés Mennyiség Me. Egységár Nettó érték Áfa% Áfa érték Bruttó érték
+Karbantartás 1,5 óra 10 000 15 000 27% 4 050 19 050
+Alkatrész 3 db 1.500 Ft 4.500 Ft 5 % 225 Ft 4.725 Ft
+Nettó összesen: 19 500 Ft
+Bruttó végösszeg: 23 775 Ft

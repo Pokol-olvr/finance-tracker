@@ -7,7 +7,7 @@ from difflib import get_close_matches
 from itertools import product
 
 # Ha a szabály változik, a worker a meglévő szövegeket is újra feldolgozza, modellfutás nélkül.
-PARSER_VERSION = "1"
+PARSER_VERSION = "3"
 
 MAX_AMBIGUOUS_LINES = 12
 MAX_OVERLAP_LINES = 15
@@ -18,8 +18,13 @@ AMOUNT = rf"-?(?:{GROUPED}|\d+)"
 ITEM_LINE = re.compile(r"^(?P<code>[a-z]?[A-E][0O][0OD])\s+(?P<rest>.+)$")
 QUANTITY_LINE = re.compile(
     r"^(?P<quantity>\d+(?:[,.]\d+)?)\s*(?P<unit>[^\W\d_]+)\s*[*xX]\s*"
-    rf"(?P<unit_price>{GROUPED}|\d+)\s*(?:ft)?\s*/\s*[^\W\d_]+(?:\s+(?P<value>{GROUPED}|\d+))?$",
+    rf"(?P<unit_price>(?:{GROUPED}|\d+)(?:,\d+)?)\s*(?:ft)?\s*/\s*[^\W\d_]+"
+    rf"(?:\s+(?P<value>{GROUPED}|\d+))?$",
     re.IGNORECASE,
+)
+# Egyes boltoknál a mennyiség a név fölött áll, és a sor végén az áfakód van, pl. `ALMA 299 C27`.
+VALUE_WITH_CODE = re.compile(
+    rf"^(?P<name>.*?\S)\s+(?P<value>{AMOUNT})\s+(?P<code>[A-E]\d{{2}})$", re.IGNORECASE
 )
 TARE_LINE = re.compile(r"^\d+[,.]\d+\s*KG\s*-\s*\d+[,.]\d+\s*KG\b", re.IGNORECASE)
 BARE_AMOUNT = re.compile(rf"^(?P<value>{AMOUNT})(?:\s*FT)?$", re.IGNORECASE)
@@ -57,6 +62,11 @@ def to_int(text: str) -> int:
 
 def to_number(text: str) -> float:
     return float(text.replace(",", "."))
+
+
+def to_price(text: str) -> int | float:
+    number = to_number(text.replace(" ", ""))
+    return int(number) if number.is_integer() else number
 
 
 def is_item_start(line: str) -> bool:
@@ -102,7 +112,7 @@ def parse_item(lines: list[str], index: int, end: int) -> tuple[dict, int, int]:
         if quantity_match:
             quantity = to_number(quantity_match["quantity"])
             unit = quantity_match["unit"].upper()
-            unit_price = to_int(quantity_match["unit_price"])
+            unit_price = to_price(quantity_match["unit_price"])
             if quantity_match["value"]:
                 value = to_int(quantity_match["value"])
         elif bare:
@@ -162,6 +172,47 @@ def read_items(lines: list[str], total: int | None) -> tuple[list[dict], int]:
     resolve_amounts(items, total)
     for item in items:
         item["kind"] = classify(item["name"], item["value"])
+    return items, unmatched
+
+
+def settle_value(name: str, text: str, quantity_match: re.Match | None) -> tuple[str, int]:
+    """A `5 350` lehet 5 350 Ft, vagy egy 5-re végződő név 350 Ft-tal: a szorzat dönt."""
+    value = to_int(text)
+    if quantity_match is None or re.fullmatch(r"\d{1,3} \d{3}", text) is None:
+        return name, value
+    expected = to_number(quantity_match["quantity"]) * to_price(quantity_match["unit_price"])
+    head, tail = text.split()
+    if abs(expected - int(tail)) <= 1 < abs(expected - value):
+        return f"{name} {head}", int(tail)
+    return name, value
+
+
+def read_quantity_first(lines: list[str]) -> tuple[list[dict], int]:
+    """Mennyiségsor, alatta a név az értékkel és az áfakóddal; a köztes kódsorok nem számítanak."""
+    items = []
+    unmatched = 0
+    quantity_match = None
+    for line in lines:
+        row = VALUE_WITH_CODE.match(line)
+        if QUANTITY_LINE.match(line):
+            quantity_match = QUANTITY_LINE.match(line)
+        elif row:
+            name, value = settle_value(row["name"], row["value"], quantity_match)
+            items.append(
+                {
+                    "name": name,
+                    "match_name": match_key(name),
+                    "vat_code": row["code"].upper(),
+                    "kind": classify(name, value),
+                    "quantity": to_number(quantity_match["quantity"]) if quantity_match else None,
+                    "unit": quantity_match["unit"].upper() if quantity_match else None,
+                    "unit_price": to_price(quantity_match["unit_price"]) if quantity_match else None,
+                    "value": value,
+                }
+            )
+            quantity_match = None
+        else:
+            unmatched += 1
     return items, unmatched
 
 
@@ -286,6 +337,8 @@ def parse(text: str) -> dict:
         footer_lines = lines[total_index + 1 :]
 
     items, unmatched = read_items(lines[first_item:end], total)
+    if not items:
+        items, unmatched = read_quantity_first(lines[:end])
     # Az elcsúszott sorrendet csak akkor fogadjuk el, ha azzal kijön a végösszeg.
     if not items_add_up(items, total) and first_item > 0 and BARE_AMOUNT.match(lines[first_item - 1]):
         shifted, shifted_unmatched = read_items(values_first(lines[first_item - 1 : end]), total)
