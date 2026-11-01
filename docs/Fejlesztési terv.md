@@ -8,7 +8,7 @@ tags: [penzugy, projekt]
 
 # Fejlesztési terv
 
-8 epic, 10 kéthetes sprint, kb. 199 story pont. Minden story egy feladat: a 📅 dátum a sprint vége, a címkék az epicet és a sprintet jelölik. A [Tasks](https://publish.obsidian.md/tasks/) bővítménnyel szűrhető, pl. `tags include #sprint/S1`.
+8 epic, 10 kéthetes sprint, kb. 214 story pont. Minden story egy feladat: a 📅 dátum a sprint vége, a címkék az epicet és a sprintet jelölik. A [Tasks](https://publish.obsidian.md/tasks/) bővítménnyel szűrhető, pl. `tags include #sprint/S1`.
 
 Részletes sprintterv: [[Sprint 1]] · [[Sprint 2]] · [[Sprint 3]] · [[Sprint 4]] · Kapcsolódó: [[Üzleti koncepció]] · [[Technikai terv]] · [[Release folyamat]] · [[Változásnapló]]
 
@@ -41,8 +41,10 @@ gantt
   E3 Postaláda helyben          :e3a, 2026-11-30, 2026-12-27
   E4 Blokkbeolvasás            :e4, 2026-11-30, 2027-01-10
   E5 Szabályok                 :e5a, 2026-12-28, 2027-01-10
+  E2 Riportfelület             :e2b, 2026-12-28, 2027-01-10
   E3 Pi és e-mail              :e3b, 2027-01-11, 2027-01-24
   E5 Címkézés, tanulás         :e5b, 2027-01-25, 2027-02-07
+  E4 Visszaváltási bizonylat   :e4b, 2027-01-25, 2027-02-07
   E6 Teljes pénzügyi kép       :e6, 2027-02-08, 2027-02-21
   E7 Tervezés                  :e7, 2027-02-22, 2027-03-07
   E8 Tanítás, költözés         :e8, 2027-03-08, 2027-03-21
@@ -67,9 +69,9 @@ Kész, ha: az otthoni Compose fut, az adat megmarad és mentődik, az állapota 
 - [ ] FIN-106 Állapot képernyő: a stack részei, a feldolgozás és az ütemezett futások egy weboldalon · 5 SP #E1 #sprint/S3 📅 2026-12-13
     - Elfogadás: egy leállított szolgáltatás 30 másodpercen belül hibaként látszik, az elavult adat soha nem zöld
 
-## FIN-E2 Adatmodell és medallion alap (S1–S2, 14 SP)
+## FIN-E2 Adatmodell és medallion alap (S1–S2, S5, 22 SP)
 
-Kész, ha: kézi bejegyzésből gold mutató és Áttekintés dashboard lesz.
+Kész, ha: kézi bejegyzésből gold mutató és Áttekintés riport lesz.
 
 - [ ] FIN-201 Bronz sémák: nyers dokumentum, modellkimenet, kézi bejegyzés; módosítás és törlés tiltva · 3 SP #E2 #sprint/S1 📅 2026-11-15
     - Elfogadás: egy UPDATE-kísérlet hibát ad
@@ -81,6 +83,8 @@ Kész, ha: kézi bejegyzésből gold mutató és Áttekintés dashboard lesz.
     - Elfogadás: három mintahónapon egyezik a kézi számolással
 - [ ] FIN-205 Metabase Áttekintés dashboard · 2 SP #E2 #sprint/S2 📅 2026-11-29
     - Elfogadás: ez a hónap, az előző és az átlag egy képernyőn látszik
+- [ ] FIN-206 Streamlit riportfelület, a Metabase kivezetése · 8 SP #E2 #sprint/S5 📅 2027-01-10
+    - Elfogadás: az új Áttekintés ugyanazokat a számokat adja, a Kiadások lefúrható az Ellenőrzésig, és a Metabase kikerült a stackből
 
 ## FIN-E3 Postaláda, Pi és e-mail (S3–S4, S6, 39 SP)
 
@@ -103,7 +107,7 @@ Kész, ha: telefonról feltöltött vagy e-mailben továbbított számla eljut a
 - [ ] FIN-308 Webapp és postaláda költözése a Pi-re: `pi/` Compose, Caddy és Authelia mögött · 3 SP #E3 #sprint/S6 📅 2027-01-24
     - Elfogadás: telefonról feltölthető, a worker a Pi postaládájából húz
 - [ ] FIN-309 A `finance` adatbázis üres újraépítése az első éles használat előtt · 1 SP #E3 #sprint/S6 📅 2027-01-24
-    - Elfogadás: a bronz és a Garage `raw` bucket üres, a mock adat és a próbablokkok eltűntek a restic-pillanatképekből is, a Metabase dashboardjai megmaradnak
+    - Elfogadás: a bronz és a Garage `raw` bucket üres, a mock adat és a próbablokkok eltűntek a restic-pillanatképekből is, a riportoldalak üres adattal is működnek
 - [ ] FIN-310 Tömeges feltöltés: több blokk egyszerre, közös adatokkal · 2 SP #E3 #sprint/S4 📅 2026-12-27
     - Elfogadás: 12 kép egy mozdulattal feltölthető, egy rossz fájl a többit nem állítja meg
 - [ ] FIN-311 Több képből álló hosszú blokk feltöltése és összefűzése · 5 SP #E3 #sprint/S4 📅 2026-12-27
@@ -111,7 +115,7 @@ Kész, ha: telefonról feltöltött vagy e-mailben továbbított számla eljut a
 - [ ] FIN-312 PDF-feltöltés és -olvasás: szövegréteg, szkennelt PDF-nél a modell · 3 SP #E3 #sprint/S4 📅 2026-12-27
     - Elfogadás: egy szöveges PDF modellhívás nélkül, egy szkennelt PDF a modellen át dolgozódik fel
 
-## FIN-E4 Blokkbeolvasás (S3–S5, 51 SP)
+## FIN-E4 Blokkbeolvasás (S3–S5, S7, 56 SP)
 
 Kész, ha: a blokkból tétel szintű silver lesz, kivételnél ellenőrzéssel. A FIN-403 csak akkor kell, ha a FIN-410 mérése szerint a szöveges olvasat hibái miatt túl sok blokk kerül ellenőrzésre.
 
@@ -125,29 +129,29 @@ Kész, ha: a blokkból tétel szintű silver lesz, kivételnél ellenőrzéssel.
     - Elfogadás: eltérésnél a blokk az ellenőrzési sorba kerül, és az állapotoldalon sem „rendben”
 - [ ] FIN-405 Javaslat visszatöltése a postaládába, kivétel alapú Ellenőrzés képernyő · 8 SP #E4 #sprint/S4 📅 2026-12-27
     - Elfogadás: az eredeti és a feldolgozott adat egymás mellett látszik, a kivétel böngészőből jóváhagyható, javítható vagy elvethető, és a döntés eljut a bronzba; telefonról a FIN-308 után
-- [ ] FIN-406 Silver tétel szint: blokk, blokktétel, bolt-egységesítés, korrekciós tábla · 5 SP #E4 #sprint/S5 📅 2027-01-10
-    - Elfogadás: javítás után a silver a javított értéket mutatja, a bronz változatlan
+- [ ] FIN-406 Silver tétel szint: dokumentum, tétel, bolt-egységesítés, javítások, kiszerelés · 8 SP #E4 #sprint/S5 📅 2027-01-10
+    - Elfogadás: az eldöntött dokumentum tételei a silverben vannak, javítás után a javított érték látszik, a függő dokumentum nem számít, a bronz változatlan
 - [ ] FIN-407 Mérés 20–30 saját blokkon · 2 SP #E4 #sprint/S5 📅 2027-01-10
     - Elfogadás: a mezőnkénti pontosság le van írva
 - [ ] FIN-408 Kiolvasás a workerben: GLM-OCR hívás, nyers eredmény és modellverzió a bronzba · 3 SP #E4 #sprint/S3 📅 2026-12-13
     - Elfogadás: egy feltöltött blokk kiolvasása a `bronze.extraction` táblába kerül, modellverzióval
-- [ ] FIN-409 DRS-betétdíj külön vezetése: várható összeg, kézi állítás és nullázás · 3 SP #E4 #sprint/S5 📅 2027-01-10
-    - Elfogadás: a betétdíj nincs a kiadások között, a várható összeg látszik, nullázás után 0, a bronz változatlan
+- [ ] FIN-409 DRS-betétdíj külön vezetése: várható összeg, kézi állítás és nullázás · 5 SP #E4 #sprint/S5 📅 2027-01-10
+    - Elfogadás: a betétdíj nincs a kiadások között, a várható összeg látszik, a beváltott utalvány csökkenti, nullázás után 0, a bronz változatlan
 - [ ] FIN-410 Mérés 5–10 saját blokkon, legalább 3 boltból · 2 SP #E4 #sprint/S4 📅 2026-12-27
     - Elfogadás: a mezőnkénti pontosság le van írva, és a FIN-403-ról döntés született
-- [ ] FIN-411 Visszaváltási bizonylat feltöltése és az utalványsor párosítása · 3 SP #E4 #sprint/S5 📅 2027-01-10
+- [ ] FIN-411 Visszaváltási bizonylat feltöltése és az utalványsor párosítása · 3 SP #E4 #sprint/S7 📅 2027-02-07
     - Elfogadás: a feltöltött bizonylat csökkenti a várható betétdíjat, és a hozzá tartozó utalványsor nem csökkenti másodszor
 - [ ] FIN-412 Szabályalapú számlafeldolgozó a szöveges olvasatra, két táblázat-elrendezéssel · 5 SP #E4 #sprint/S4 📅 2026-12-27
     - Elfogadás: a végösszeg, a teljesítés dátuma és a szállító adószáma egyezik a papírral, az ismeretlen táblázatú számla `review` lesz, és nem kap kitalált tételt, a szállítólevél pedig nem számít kiadásnak
 - [ ] FIN-413 Döntés újranyitása, az elvetett fájl újrafeltöltése és előtöltött javítás · 5 SP #E4 #sprint/S4 📅 2026-12-27
     - Elfogadás: az elvetett dokumentum visszahozható, újrafeltöltéskor is újranyílik, és a javítás a szövegből kinyert sorokkal indul
 
-## FIN-E5 Címkézés és tanulás (S5, S7, 21 SP)
+## FIN-E5 Címkézés és tanulás (S5, S7, 23 SP)
 
 Kész, ha: a címkék előre kitöltve jönnek, a pontosság mérve van.
 
-- [ ] FIN-501 Címke- és boltszabályok tárolása és alkalmazása a silverben · 3 SP #E5 #sprint/S5 📅 2027-01-10
-    - Elfogadás: szabályra illeszkedő tétel automatikusan címkét kap
+- [ ] FIN-501 Címke- és boltszabályok: Szabályok oldal, tárolás és alkalmazás a silverben · 5 SP #E5 #sprint/S5 📅 2027-01-10
+    - Elfogadás: a Szabályok oldalon felvett szabályra illeszkedő tétel automatikusan címkét kap, a régi blokkokon is
 - [ ] FIN-502 Tételek besorolása a blokk címkéi közül, bizonytalannál kérdés · 5 SP #E5 #sprint/S7 📅 2027-02-07
     - Elfogadás: tétel csak a blokkon megadott címkét kaphatja
 - [ ] FIN-503 Szövegosztályozó tételnévből és boltból, éjszakai újratanítással · 5 SP #E5 #sprint/S7 📅 2027-02-07
@@ -176,13 +180,13 @@ Kész, ha: bérpapír, kivonat, hitelek, közös kártya és a személyes fülek
 
 ## FIN-E7 Tervezés (S9, 17 SP)
 
-Kész, ha: célok, what-if és javasolt utalás látszik a Metabase-ben.
+Kész, ha: célok, what-if és javasolt utalás látszik a riportoldalakon.
 
 - [ ] FIN-701 Célok kezelése a webappban, a Revolut-zseb egyenlegével · 3 SP #E7 #sprint/S9 📅 2027-03-07
     - Elfogadás: minden cél állása látszik
 - [ ] FIN-702 Szükséges havi összeg és megvalósíthatóság a szabad keret alapján · 3 SP #E7 #sprint/S9 📅 2027-03-07
     - Elfogadás: a dashboard jelzi, ha egy cél nem fér bele
-- [ ] FIN-703 What-if paraméterek a Metabase-ben · 3 SP #E7 #sprint/S9 📅 2027-03-07
+- [ ] FIN-703 What-if a riportoldalakon · 3 SP #E7 #sprint/S9 📅 2027-03-07
     - Elfogadás: az étterem 20%-os csökkentésére új céldátum jelenik meg
 - [ ] FIN-704 Javasolt utalás a közös kártyára, 50/50 · 3 SP #E7 #sprint/S9 📅 2027-03-07
     - Elfogadás: a javaslat fejenkénti összeggel jelenik meg

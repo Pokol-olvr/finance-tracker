@@ -121,6 +121,10 @@ A legnagyobb kockázat nem technikai, hanem a fegyelem: ha a blokk feltöltése 
 - A döntés visszavonható, és az elvetett dokumentum újrafeltöltéskor is újranyílik. A rossz fotó újrapróbálása az új fotó, mert a modell ugyanarra a fájlra ugyanazt adja.
 - A DRS-betétdíj nem kiadás: külön, várható összegként vezetjük, kézzel állítható, és visszaváltáskor nullázható.
 - A visszaváltás bizonylata feltölthető, és egy visszaváltás csak egyszer csökkenti a várható betétdíjat: a blokk utalványsora csak akkor, ha nincs hozzá feltöltött bizonylat. Minden automatikus csökkentés kézzel felülírható.
+- A kiadásba csak a rendben lévő, jóváhagyott vagy javított dokumentum számít. Az ellenőrzésre váró, a nem kiadás és az elvetett dokumentum nem.
+- Egy címkés blokknál a szabály nélküli tétel a blokk címkéjét kapja. Több címkénél besorolatlan marad, amíg a tételenkénti besorolás el nem készül.
+- A kategória- és boltszabályokat külön oldalon vesszük fel.
+- A riportok saját oldalakon készülnek, nem általános BI-eszközben, ezért a számok mellett mondatos javaslat és lefúrás is lehet. Az eseti, kattintgatós elemzés ezzel megszűnik.
 
 ### Még eldöntendő
 

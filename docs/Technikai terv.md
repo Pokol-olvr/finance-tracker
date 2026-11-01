@@ -27,7 +27,7 @@ flowchart TB
     subgraph pg["PostgreSQL"]
       bronz["Bronz<br/>csak hozzáfűz"] -->|dbt| silver["Silver<br/>tétel szint"] -->|dbt| gold["Gold<br/>mutatók"]
     end
-    metabase["Metabase<br/>dashboardok és what-if"]
+    reports["Riportok (Streamlit)<br/>oldalak és what-if"]
     status["Állapotjelentés<br/>systemd timer"]
   end
   subgraph main["Főgép (RTX 5070)"]
@@ -40,13 +40,13 @@ flowchart TB
   status -->|"stack állapota fel"| web
   worker --> garage
   worker -->|jóváhagyott adat| bronz
-  gold -->|csak a goldot| metabase
+  gold -->|csak a goldot| reports
   silver -->|javított címkék| trainer
   garage <-->|"adatkészlet le, modell fel"| trainer
   garage -->|modell| ollama
 ```
 
-A telefon Tailscale-en és 2FA-val csak a Pi-t éri el; az e-mailben továbbított számlákat a worker IMAP-pal húzza le egy külön postafiókból. Az otthoni worker lehúzza a képeket a Garage-ba, a modellel javaslatot készít, visszaküldi jóváhagyásra, majd a jóváhagyott adatot a bronzba írja. Onnan a dbt építi a silvert és a goldot, amelyet a Metabase olvas. A tanítás a főgépen fut: az adatkészletet a Garage-ból veszi, a kész modellt oda teszi vissza, és az Ollama onnan tölti be. Minden kapcsolatot az otthoni oldal nyit.
+A telefon Tailscale-en és 2FA-val csak a Pi-t éri el; az e-mailben továbbított számlákat a worker IMAP-pal húzza le egy külön postafiókból. Az otthoni worker lehúzza a képeket a Garage-ba, a modellel javaslatot készít, visszaküldi jóváhagyásra, majd a jóváhagyott adatot a bronzba írja. Onnan a dbt építi a silvert és a goldot, amelyet a riportfelület olvas. A tanítás a főgépen fut: az adatkészletet a Garage-ból veszi, a kész modellt oda teszi vissza, és az Ollama onnan tölti be. Minden kapcsolatot az otthoni oldal nyit.
 
 ## Futtatási környezet
 
@@ -69,6 +69,8 @@ A webapp a Pi-n fut, a telefonon PWA-ként jelenik meg, és eléri a kamerát. A
 | --- | --- |
 | Fotó | Blokk lefotózása, mellé: ki vásárolt (alapból a feltöltő), a blokkon szereplő dátum, és egy vagy több címke (pl. élelmiszer + háztartás). A feltöltés időbélyege automatikus |
 | Ellenőrzés | Az eredeti dokumentum a feldolgozott adatok mellett. Döntést csak kivételeknél kér: ha a tételek összege nem egyezik a végösszeggel, ha a beírt és a beolvasott dátum eltér, vagy ha egy tétel címkéje nem egyértelmű |
+| Szabályok | Kategória- és boltszabályok felvétele és kikapcsolása |
+| Betétdíj | A várható betétdíj, kézi állítás és nullázás |
 | Kézi bejegyzés | Blokk nélküli kiadás vagy bevétel |
 | Bérpapír | Elektronikus bérpapír (PDF) feltöltése, a nettó összeg megerősítése |
 | Kivonat | Banki kivonat sorainak kézi rögzítése vagy beillesztése |
@@ -137,8 +139,8 @@ A blokk beolvasása és a címkék kitalálása két külön feladat, mert egés
 Egy PostgreSQL adatbázis három sémával (bronze, silver, gold), mellette a nyers fájlok egy fájltárban.
 
 - **Object store a nyers fájloknak:** [Garage](https://garagehq.deuxfleurs.fr/) (AGPLv3), egy csomópontos, S3-kompatibilis store, három mappával: `raw/` (nyers fájlok), `datasets/` (tanítási adatkészletek), `models/` (modellek). Költözéskor rclone-nal egy lépésben átszinkronizálható. A MinIO-t nem javaslom: a közösségi kiadás 2025 októberétől nem kap Docker image-et, 2026-ban a repót archiválták ([forrás](https://itsfoss.com/news/minio-moves-away-from-open-source/)).
-- **Bronz csak hozzáfűz:** soha nincs UPDATE vagy DELETE. A javítás a silverben, külön korrekciós táblában történik.
-- **Szabályok:** a kategória- és boltszabályokat a jóváhagyások hozzák létre; a worker a Pi-ről a bronzba hozza őket, a silver forrásként olvassa.
+- **Bronz csak hozzáfűz:** soha nincs UPDATE vagy DELETE. A javítás a `bronze.review_decision` táblába kerül, és a silver ebből olvassa; hogy melyik dokumentum számít a kiadásba, azt egyetlen modell dönti el ([[0013-beszamitas-a-silverben|ADR 0013]]).
+- **Szabályok:** a kategória- és boltszabályokat a Szabályok oldalon vesszük fel, a FIN-502 után a tételekről is; a worker a Pi-ről a bronzba hozza őket, a silver forrásként olvassa.
 - **Betétdíj:** a DRS-sor a silverben külön típusú tétel, ezért nem kerül a kiadások közé. A várható összeg a betétdíj-tételek és a kézi korrekciók összege. A nullázás is korrekció, amely az aktuális egyenleget vonja le, így a bronz csak hozzáfűzhető marad. A blokk összegellenőrzésében és a kivonat párosításában a betétdíj benne marad, mert a kifizetett összeg tartalmazza. A visszaváltási bizonylat külön dokumentumtípus, és a feltöltése csökkenti a várható összeget. A beváltott utalvány a blokkon fizetési sor: nem csökkenti a tételek kiadását, a várható összeget pedig csak akkor, ha nincs hozzá azonos összegű, még nem párosított bizonylat. Így egy visszaváltás nem számít kétszer.
 
 | Réteg | Fő táblák | Jelleg |
@@ -154,7 +156,7 @@ A silver és a gold táblákat dbt Core építi a bronzból, SQL-modellekkel és
 - **Verzió:** a stabil 1.x vonalat használjuk a Postgres-adapterrel (`dbt-core` 1.12.6, `dbt-postgres` 1.11.0). Az új telepítésekhez már a dbt v2 az alap, de a frissítési útmutató a támogatott adapterek között nem sorolja fel a Postgrest, és az alapértelmezett csomag saját licenccel jön; az Apache 2.0 licencű változat a `dbt-oss` (2026-10-31, [forrás](https://docs.getdbt.com/docs/dbt-versions/dbt-upgrade/upgrading-to-v2)). Az 1.x továbbra is támogatott.
 - **Könnyebb kezdés:** ha gyorsan látni akarsz valamit, indulhat sima Postgres-nézetekkel és materializált nézetekkel, amelyeket egy rövid script frissít. Az SQL később változatlanul átemelhető dbt-modellekbe.
 - **Tesztek:** a tételek összege egyezik a végösszeggel; nincs duplikált blokk; minden tételnek van kategóriája (ez csak figyelmeztetés); az átvezetések nem kerülnek a kiadások közé.
-- **Ütemezés:** a worker néhány percenként megnézi a Pi-t. Jóváhagyások után lefut a `dbt build`, éjjel pedig egy teljes futás is; a Metabase-ben így mindig friss adat van.
+- **Ütemezés:** a worker néhány percenként megnézi a Pi-t. A `dbt build` óránként fut, mert a konténerben futó worker nem tud dbt-t indítani; a döntés így egy órán belül a riportokban is látszik.
 
 ### Állapot képernyő
 
@@ -167,12 +169,15 @@ A stack minden része a webapp `/status` oldalán látszik: szolgáltatások, mo
 
 ## BI és tervezési felület
 
-A BI eszköz a Metabase nyílt forrású kiadása (AGPL), amely csak a gold sémát olvassa ([licenc](https://metabase.com/license)). Kattintgatással épít dashboardot, nem kell hozzá kód, és saját gépen fut.
+A riportfelület Streamlitben készül, és csak a gold sémát olvassa ([[0014-streamlit-a-metabase-helyett|ADR 0014]]). Az oldalak Pythonban íródnak, ezért a felhasználó csak azt látja, amit megépítünk, viszont minden új nézet kódmódosítás.
 
-- **Fülek:** minden üzleti fül egy Metabase-dashboard: Közös háztartás, a két Személyes, Áttekintés, Kiadások, Költségkeret, Hitelek és tartozások, Célok, Előrejelzés.
-- **What-if:** SQL-kérdések szám paraméterrel, pl. „étterem csökkentése %-ban” vagy „havi célösszeg”, és a dashboard azonnal mutatja, mikorra jön össze a cél.
-- **Adatbevitel:** a célok, szabályok és tartozások a webappban születnek; a Metabase csak megjelenít. Így a BI réteg cserélhető marad.
-- **Alternatíva:** az Apache Superset többet tud, de nehezebb üzemeltetni; két felhasználóhoz a Metabase elég.
+- **Fülek:** minden üzleti fül egy oldal, közös felső menüvel: Közös háztartás, a két Személyes, Áttekintés, Kiadások, Költségkeret, Hitelek és tartozások, Célok, Előrejelzés.
+- **What-if:** csúszka vagy szám mező az oldalon, pl. „étterem csökkentése %-ban” vagy „havi célösszeg”, és az oldal azonnal újraszámolja, mikorra jön össze a cél.
+- **Javaslatok:** a gold számaiból mondat készül, pl. mennyivel érdemes emelni a közös befizetést.
+- **Lefúrás:** a dokumentumtól a tételekig, onnan az Ellenőrzés képernyőn az eredetiig.
+- **Adatbevitel:** a célok, szabályok és tartozások a webappban születnek; a Streamlit csak megjelenít.
+- **Hely:** az otthoni stackben fut a gold mellett, a Pi-re nem költözik.
+- **Külső hívás:** a használati statisztika ki van kapcsolva, és a `browser.serverAddress` beállítása miatt induláskor nem kérdezi le a nyilvános IP-címet.
 
 ## Docker Compose és költözés a Proxmoxra
 
@@ -184,25 +189,24 @@ Két Compose-fájl van: egy a Pi-n, egy az otthoni stackhez. A laptopon rootless
 | Pi | caddy | HTTPS a saját domainen |
 | Pi | authelia | Kétfaktoros belépés |
 | Pi | webapp | Feltöltés, ellenőrzési sor, állapot képernyő, SQLite |
-| Otthon | postgres | Bronz, silver, gold, és a Metabase saját beállításai |
+| Otthon | postgres | Bronz, silver, gold |
 | Otthon | garage | Object store a nyers képeknek |
 | Otthon | ollama | Képfelismerő modell, egyelőre a laptop CPU-ján |
 | Otthon | worker | Letöltés a Pi-ről és a postafiókból (IMAP), kinyerés, címkejavaslat, visszatöltés |
 | Otthon | dbt | Transzformáció ütemezett jobként |
-| Otthon | metabase | Dashboardok |
+| Otthon | reports | Riportoldalak Streamlitben |
 | Főgép | trainer | Alkalmanként: adatkészlet a Garage-ból, finomhangolás, a kész modell vissza a Garage-ba |
 
 ### Hogy a költözés egyszerű legyen
 
 - Minden adat egy mappában van (bind mount), a beállítások `.env`-ben, a Compose-fájl gitben.
-- A Metabase a beállításait és dashboardjait a Postgresben tárolja, nem a beépített fájlalapú adatbázisban, így azok az adatbázissal együtt költöznek.
 - A Pi oldalán nincs teendő: a kapcsolatot az otthoni oldal nyitja, csak a worker kulcsa költözik.
 
 ### A költözés lépései
 
 1. A Proxmoxon VM készül GPU-átadással (NVIDIA driver és container toolkit), benne Docker.
 2. A régi helyen leáll a worker; a Pi addig gyűjti az új képeket.
-3. Adatbázis-mentés és visszatöltés: elég a bronz, az app táblák és a Metabase adatbázisa.
+3. Adatbázis-mentés és visszatöltés: elég a bronz és az app táblák, a riportoldalak a repóban vannak.
 4. Az object store tartalma rclone-nal átszinkronizálódik.
 5. A `dbt build` újraépíti a silvert és a goldot; ellenőrzés: egyeznek-e a régi számokkal.
 6. A főgépen finomhangolt, 6 GB-ba férő modellt (GGUF) a Proxmox Ollamája a Garage-ból tölti be, és a tesztkészleten lefut egy összehasonlítás.
@@ -223,7 +227,7 @@ Ha a saját építés túl nagy falatnak bizonyul, a Firefly III a legközelebbi
 
 Hét fázisban érdemes haladni; mindegyik után már használható rendszer van. A részletes bontás: [[Fejlesztési terv]].
 
-1. **Alap a laptopon:** Compose Postgresszel, Garage-dzsal és Metabase-zel; kézi bejegyzés; az első silver és gold modellek; egy Áttekintés dashboard.
+1. **Alap a laptopon:** Compose Postgresszel, Garage-dzsal és riportfelülettel; kézi bejegyzés; az első silver és gold modellek; egy Áttekintés riport.
 2. **Blokkbeolvasás helyben:** fotófeltöltés vásárlóval, dátummal és címkékkel, helyi postaláda, a worker a képeket az object store-ba tölti; GLM-OCR alapmodell, kivétel alapú ellenőrzés, tétel szintű silver és szabályok. Ezt 20–30 saját blokkon tesztelni.
 3. **Pi postaláda és címkézés:** Tailscale, Caddy, Authelia, a webapp költözése a Pi-re, e-mailes számlák, majd a címkeosztályozó.
 4. **Teljes kép:** bérpapír, kivonat, hitelek és tartozások, közös kártya és átvezetések, a Közös háztartás és a Személyes fülek.
@@ -235,7 +239,8 @@ Hét fázisban érdemes haladni; mindegyik után már használható rendszer van
 
 - [MinIO közösségi kiadás leállása és alternatívák – It's FOSS](https://itsfoss.com/news/minio-moves-away-from-open-source/)
 - [Frissítés a dbt v2-re – dbt Labs](https://docs.getdbt.com/docs/dbt-versions/dbt-upgrade/upgrading-to-v2)
-- [Metabase licencek](https://metabase.com/license)
+- [Streamlit dokumentáció](https://docs.streamlit.io/)
+- [Metabase megjelenés és csomagok](https://www.metabase.com/docs/latest/configuring-metabase/appearance)
 - [Firefly III funkciók](https://docs.firefly-iii.org/explanation/firefly-iii/about/introduction/)
 - [Actual Budget összehasonlítás](https://railway.com/deploy/actual-budget-open-source-ynab-alternative--actual-personal-finance)
 - [GLM-OCR modelloldal és licenc – Z.ai](https://huggingface.co/zai-org/GLM-OCR)
