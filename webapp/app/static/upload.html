@@ -47,6 +47,39 @@
     button:disabled { opacity: 0.6; cursor: progress; }
     #status { min-height: 24px; margin: 0; color: var(--muted); }
     #status.error { color: var(--error); }
+    .drop {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+      border: 1px dashed var(--line);
+      border-radius: 6px;
+      font-weight: 400;
+    }
+    .drop.active { border-color: var(--accent); }
+    .modes { display: grid; gap: 4px; }
+    .hint { margin: 0; color: var(--muted); font-size: 14px; font-weight: 400; }
+    #files { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; font-size: 14px; }
+    #files li {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .file-name { overflow-wrap: anywhere; }
+    .file-state { display: block; color: var(--muted); }
+    .file-state.error { color: var(--error); }
+    .file-actions { display: flex; gap: 4px; }
+    .file-actions button {
+      min-height: 32px;
+      min-width: 32px;
+      padding: 0 8px;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--line);
+      font-weight: 400;
+    }
   </style>
 </head>
 <body>
@@ -54,10 +87,18 @@
     <p class="top-link"><a href="/status">Stack állapota</a></p>
     <h1>Blokk feltöltése</h1>
     <form id="upload">
-      <label>Fotó
-        <input type="file" name="file" required
+      <div id="drop" class="drop">
+        <label for="photos">Fotók</label>
+        <input id="photos" type="file" multiple
                accept="image/jpeg,image/png,image/heic,image/webp,.heic">
-      </label>
+        <p class="hint">Egyszerre legfeljebb 20 fájl, ide is behúzhatod őket.</p>
+      </div>
+      <fieldset class="modes">
+        <legend>Mit töltesz fel?</legend>
+        <label class="tag"><input type="radio" name="mode" value="separate" checked>Minden fájl külön blokk</label>
+        <label class="tag"><input type="radio" name="mode" value="group">Egy hosszú blokk több képből</label>
+      </fieldset>
+      <ol id="files"></ol>
       <label>Feltöltő
         <select name="uploaded_by" required>{{members}}</select>
       </label>
@@ -65,7 +106,8 @@
         <select name="purchased_by" required>{{members}}</select>
       </label>
       <label>A blokk dátuma
-        <input type="date" name="purchase_date" required>
+        <input type="date" name="purchase_date">
+        <span class="hint">Üresen a blokkról olvassuk ki.</span>
       </label>
       <label>Ki fizetett
         <select name="payer" required>
@@ -81,12 +123,21 @@
     </form>
   </main>
   <script>
+    const MAX_FILES = 20;
+    const MIN_PAGES = 2;
+    const MAX_PAGES = 5;
     const form = document.getElementById("upload");
     const statusLine = document.getElementById("status");
+    const photos = document.getElementById("photos");
+    const drop = document.getElementById("drop");
+    const fileList = document.getElementById("files");
     const uploader = form.elements.uploaded_by;
     const purchaser = form.elements.purchased_by;
     const dateField = form.elements.purchase_date;
+    const submitButton = form.querySelector('button[type="submit"]');
+    let selected = [];
     let purchaserChosen = false;
+    let dateChosen = false;
 
     function rememberedUploader() {
       try {
@@ -110,9 +161,19 @@
       return local.toISOString().slice(0, 10);
     }
 
+    function isGroup() {
+      return form.elements.mode.value === "group";
+    }
+
     function showStatus(message, isError) {
       statusLine.textContent = message;
       statusLine.classList.toggle("error", isError);
+    }
+
+    // Több külön blokknak nincs közös dátuma, ezért ilyenkor a blokkokról olvassuk ki.
+    function updateDate() {
+      if (dateChosen) return;
+      dateField.value = !isGroup() && selected.length > 1 ? "" : localToday();
     }
 
     function setDefaults() {
@@ -122,15 +183,128 @@
       }
       purchaser.value = uploader.value;
       purchaserChosen = false;
+      dateChosen = false;
       dateField.value = localToday();
       dateField.max = localToday();
+      updateDate();
     }
 
-    async function errorMessage(response) {
+    function moveFile(index, offset) {
+      const target = index + offset;
+      if (target < 0 || target >= selected.length) return;
+      [selected[index], selected[target]] = [selected[target], selected[index]];
+      renderFiles();
+    }
+
+    function actionButton(label, title, action) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = label;
+      button.title = title;
+      button.addEventListener("click", action);
+      return button;
+    }
+
+    function renderFiles() {
+      fileList.replaceChildren();
+      selected.forEach((entry, index) => {
+        const row = document.createElement("li");
+        const text = document.createElement("span");
+        text.className = "file-name";
+        text.textContent = isGroup() ? `${index + 1}. ${entry.file.name}` : entry.file.name;
+        const state = document.createElement("span");
+        state.className = entry.failed ? "file-state error" : "file-state";
+        state.textContent = entry.state;
+        text.append(state);
+        const actions = document.createElement("span");
+        actions.className = "file-actions";
+        if (isGroup()) {
+          actions.append(actionButton("↑", "Feljebb", () => moveFile(index, -1)));
+          actions.append(actionButton("↓", "Lejjebb", () => moveFile(index, 1)));
+        }
+        actions.append(actionButton("×", "Eltávolítás", () => {
+          selected.splice(index, 1);
+          renderFiles();
+          updateDate();
+        }));
+        row.append(text, actions);
+        fileList.append(row);
+      });
+    }
+
+    function addFiles(files) {
+      selected = selected.filter((entry) => entry.state !== "Feltöltve");
+      for (const file of files) {
+        if (selected.length >= MAX_FILES) {
+          showStatus(`Egyszerre legfeljebb ${MAX_FILES} fájl tölthető fel.`, true);
+          break;
+        }
+        selected.push({ file, state: "", failed: false });
+      }
+      renderFiles();
+      updateDate();
+    }
+
+    function errorMessage(response) {
       if (response.status === 413) return "A fájl nagyobb 20 MB-nál.";
       if (response.status === 415) return "Csak JPEG, PNG, HEIC vagy WebP tölthető fel.";
       if (response.status === 422) return "Ellenőrizd a mezőket.";
       return `A feltöltés nem sikerült (${response.status}).`;
+    }
+
+    function commonFields() {
+      const fields = new FormData(form);
+      fields.delete("mode");
+      return fields;
+    }
+
+    async function send(entry) {
+      entry.state = "Feltöltés…";
+      entry.failed = false;
+      renderFiles();
+      const fields = commonFields();
+      fields.append("file", entry.file);
+      try {
+        const response = await fetch("/uploads", { method: "POST", body: fields });
+        entry.failed = !response.ok;
+        entry.state = response.ok ? "Feltöltve" : errorMessage(response);
+      } catch {
+        entry.failed = true;
+        entry.state = "A szerver nem érhető el.";
+      }
+      renderFiles();
+    }
+
+    async function sendSeparately() {
+      for (const [index, entry] of selected.entries()) {
+        showStatus(`Feltöltés: ${index + 1}/${selected.length}`, false);
+        if (entry.state !== "Feltöltve") await send(entry);
+      }
+      return selected.filter((entry) => entry.failed).length;
+    }
+
+    async function sendAsGroup() {
+      const fields = commonFields();
+      for (const entry of selected) fields.append("files", entry.file);
+      showStatus("Feltöltés…", false);
+      let state = "Feltöltve";
+      let failed = false;
+      try {
+        const response = await fetch("/uploads/group", { method: "POST", body: fields });
+        if (!response.ok) {
+          failed = true;
+          state = errorMessage(response);
+        }
+      } catch {
+        failed = true;
+        state = "A szerver nem érhető el.";
+      }
+      for (const entry of selected) {
+        entry.state = state;
+        entry.failed = failed;
+      }
+      renderFiles();
+      return failed ? selected.length : 0;
     }
 
     uploader.addEventListener("change", () => {
@@ -139,31 +313,59 @@
     purchaser.addEventListener("change", () => {
       purchaserChosen = true;
     });
+    dateField.addEventListener("change", () => {
+      dateChosen = true;
+    });
+    photos.addEventListener("change", () => {
+      addFiles(photos.files);
+      photos.value = "";
+    });
+    for (const radio of form.elements.mode) {
+      radio.addEventListener("change", () => {
+        renderFiles();
+        updateDate();
+      });
+    }
+    drop.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      drop.classList.add("active");
+    });
+    drop.addEventListener("dragleave", () => drop.classList.remove("active"));
+    drop.addEventListener("drop", (event) => {
+      event.preventDefault();
+      drop.classList.remove("active");
+      addFiles(event.dataTransfer.files);
+    });
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
+      if (!selected.length) {
+        showStatus("Válassz legalább egy fotót.", true);
+        return;
+      }
       if (!form.querySelector('input[name="tags"]:checked')) {
         showStatus("Válassz legalább egy címkét.", true);
         return;
       }
-      const button = form.querySelector("button");
-      button.disabled = true;
-      showStatus("Feltöltés…", false);
-      try {
-        const response = await fetch("/uploads", { method: "POST", body: new FormData(form) });
-        if (response.ok) {
-          rememberUploader(uploader.value);
-          form.reset();
-          setDefaults();
-          showStatus("Feltöltve, a kiolvasás pár percen belül elkészül.", false);
-        } else {
-          showStatus(await errorMessage(response), true);
-        }
-      } catch {
-        showStatus("A szerver nem érhető el.", true);
-      } finally {
-        button.disabled = false;
+      if (isGroup() && (selected.length < MIN_PAGES || selected.length > MAX_PAGES)) {
+        showStatus(`Egy blokkhoz ${MIN_PAGES}–${MAX_PAGES} kép tartozhat.`, true);
+        return;
       }
+      submitButton.disabled = true;
+      const failed = isGroup() ? await sendAsGroup() : await sendSeparately();
+      submitButton.disabled = false;
+      if (failed) {
+        showStatus(`${failed} fájl nem ment fel, a többi rendben.`, true);
+        return;
+      }
+      rememberUploader(uploader.value);
+      const count = selected.length;
+      // A lista ürítése védi ki, hogy egy újabb kattintás ugyanazt küldje el még egyszer.
+      selected = [];
+      renderFiles();
+      form.reset();
+      setDefaults();
+      showStatus(`Feltöltve: ${count} fájl. A kiolvasás az állapotoldalon követhető.`, false);
     });
 
     setDefaults();

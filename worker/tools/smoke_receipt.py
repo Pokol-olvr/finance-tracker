@@ -7,6 +7,7 @@ from io import BytesIO
 
 from app.config import get_settings
 from app.extract import ReceiptReader
+from app.receipt_parser import parse
 from PIL import Image, ImageDraw, ImageFont
 
 LINES = [
@@ -14,11 +15,13 @@ LINES = [
     "1111 Budapest, Próba utca 1.",
     "ADÓSZÁM: 12345678-2-41",
     "",
-    "TÚRÓ RUDI 30G               189",
-    "MOSÓGÉL 1,1L              2 790",
-    "CSIRKEMELL FILÉ 1KG       3 149",
-    "ŐSZIBARACK BEFŐTT           899",
-    "KENYÉR FEHÉR 500G           599",
+    "NYUGTA",
+    "",
+    "C00 TÚRÓ RUDI 30G           189",
+    "C00 MOSÓGÉL 1,1L          2 790",
+    "A00 CSIRKEMELL FILÉ 1KG   3 149",
+    "C00 ŐSZIBARACK BEFŐTT       899",
+    "B00 KENYÉR FEHÉR 500G       599",
     "",
     "ÖSSZESEN:             7 626 Ft",
     "BANKKÁRTYA:           7 626 Ft",
@@ -26,7 +29,8 @@ LINES = [
     "2026.10.29  09:15  NYUGTASZÁM: 0043",
 ]
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
-REQUIRED_FIELDS = {"store", "date", "items", "total"}
+EXPECTED_ITEMS = 5
+EXPECTED_TOTAL = 7626
 TIME_LIMIT_SECONDS = 60
 
 
@@ -52,9 +56,10 @@ def main() -> int:
 
     print(json.dumps(result, ensure_ascii=False, indent=2))
     print(f"Idő: {elapsed:.0f} mp")
-    missing = REQUIRED_FIELDS - set(result.get("parsed") or {})
-    if missing:
-        print(f"HIBA: hiányzó mezők: {sorted(missing)}")
+    parsed = parse(result.get("ocr_text") or "")
+    print(f"Tételek: {len(parsed['items'])}, végösszeg: {parsed['total']}")
+    if len(parsed["items"]) != EXPECTED_ITEMS or parsed["total"] != EXPECTED_TOTAL:
+        print(f"HIBA: {EXPECTED_ITEMS} tétel és {EXPECTED_TOTAL} Ft a helyes.")
         return 1
     if elapsed > TIME_LIMIT_SECONDS:
         print(f"HIBA: {TIME_LIMIT_SECONDS} másodpercnél tovább tartott.")

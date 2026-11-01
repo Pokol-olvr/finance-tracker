@@ -1,7 +1,6 @@
 """A blokk kiolvasása a helyi modellel. A nyers kimenet a bronzba kerül, a sémát a FIN-402 hozza."""
 
 import base64
-import json
 from collections.abc import Callable
 from io import BytesIO
 
@@ -11,33 +10,9 @@ from pillow_heif import register_heif_opener
 
 register_heif_opener()
 
-PROMPT_VERSION = "1"
-PROMPT = (
-    "Extract the receipt into this JSON format, keep Hungarian accents, "
-    "write prices as digits only:\n"
-    '{"store":"","date":"","items":[{"name":"","price":""}],"total":"","payment_method":""}'
-)
-# Ollama structured output: a kényszer nélkül a modell néha vessző nélkül sorolta a tételeket.
-OUTPUT_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "store": {"type": "string"},
-        "date": {"type": "string"},
-        "items": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {"name": {"type": "string"}, "price": {"type": "string"}},
-                "required": ["name", "price"],
-            },
-        },
-        "total": {"type": "string"},
-        "payment_method": {"type": "string"},
-    },
-    "required": ["store", "date", "items", "total", "payment_method"],
-}
-# A szöveges mód a fotószerű mintákon is pontosabb volt, a JSON-é a szerkezet.
-TEXT_PROMPT = "Text Recognition:"
+PROMPT_VERSION = "2"
+# A szerkezetet a feldolgozó adja a szövegből, mert a modell JSON-módban rosszul párosított.
+PROMPT = "Text Recognition:"
 # A hosszabb oldal felső határa: 1000 px kb. 40, 1400 px kb. 80, 2000 px kb. 190 másodperc CPU-n,
 # és a mintákon 1400 fölött nem javult a pontosság.
 MAX_SIDE = 1400
@@ -63,16 +38,6 @@ def prepare_image(content: bytes) -> bytes:
     return output.getvalue()
 
 
-def parse_output(text: str) -> dict | None:
-    """A kimenet ```json jelölésben is jöhet; a csonka vagy nem objektum kimenetből None lesz."""
-    start, end = text.find("{"), text.rfind("}")
-    try:
-        parsed = json.loads(text[start : end + 1])
-    except ValueError:
-        return None
-    return parsed if isinstance(parsed, dict) else None
-
-
 class ReceiptReader:
     def __init__(self, base_url: str, model: str, num_thread: int):
         self.name = model
@@ -89,41 +54,37 @@ class ReceiptReader:
                 return model["digest"]
         raise ModelMissing(f"A {wanted} modell hiányzik, futtasd a scripts/ollama-pull.sh-t.")
 
-    def chat(self, prompt: str, image: bytes, output_format: dict | None = None) -> dict:
-        request = {
-            "model": self.name,
-            "stream": False,
-            "keep_alive": "0",
-            "options": {
-                "temperature": 0,
-                "num_thread": self.num_thread,
-                "num_predict": NUM_PREDICT,
-            },
-            "messages": [
-                {"role": "user", "content": prompt, "images": [base64.b64encode(image).decode()]}
-            ],
-        }
-        if output_format:
-            request["format"] = output_format
-        response = self.client.post("/api/chat", json=request)
-        response.raise_for_status()
-        return response.json()
-
     def read(self, content: bytes, report: Callable[[str], None]) -> dict:
         """A bronzba kerülő eredmény. A kapcsolati hiba kivétel, így a tétel nyitva marad."""
         try:
             image = prepare_image(content)
         except (OSError, ValueError, Image.DecompressionBombError) as error:
             return {"error": f"A kép nem olvasható: {error}"}
-        report("read_json")
-        structured = self.chat(PROMPT, image, OUTPUT_SCHEMA)
         report("read_text")
-        text = self.chat(TEXT_PROMPT, image)
-        nanoseconds = structured.get("total_duration", 0) + text.get("total_duration", 0)
+        response = self.client.post(
+            "/api/chat",
+            json={
+                "model": self.name,
+                "stream": False,
+                "keep_alive": "0",
+                "options": {
+                    "temperature": 0,
+                    "num_thread": self.num_thread,
+                    "num_predict": NUM_PREDICT,
+                },
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": PROMPT,
+                        "images": [base64.b64encode(image).decode()],
+                    }
+                ],
+            },
+        )
+        response.raise_for_status()
+        result = response.json()
         return {
-            "raw_text": structured["message"]["content"],
-            "parsed": parse_output(structured["message"]["content"]),
-            "ocr_text": text["message"]["content"],
-            "done_reason": structured.get("done_reason"),
-            "seconds": round(nanoseconds / 1e9, 1),
+            "ocr_text": result["message"]["content"],
+            "done_reason": result.get("done_reason"),
+            "seconds": round(result.get("total_duration", 0) / 1e9, 1),
         }

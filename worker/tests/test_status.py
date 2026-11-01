@@ -33,14 +33,14 @@ def stack(sent: list, loaded: bool = False):
 def test_report_contains_step_and_model_state(tmp_path):
     sent = []
     reporter = reporter_with(stack(sent, loaded=True), tmp_path)
-    reporter.step("read_json")
+    reporter.step("read_text")
 
     reporter.report_once()
 
     assert sent[0].url.path == "/inbox/status/worker"
     assert sent[0].headers["authorization"] == "Bearer titok"
     report = json.loads(sent[0].content)
-    assert report["step"] == "read_json"
+    assert report["step"] == "read_text"
     assert report["ollama_reachable"] is True
     assert report["model_version"] == "abc"
     assert report["model_downloaded"] is True

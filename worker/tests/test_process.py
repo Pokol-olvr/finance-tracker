@@ -4,10 +4,20 @@ import hashlib
 
 import httpx
 import pytest
-from app.main import HashMismatch, object_key, outcome_of, process, run_once
+from app.main import HashMismatch, group_items, object_key, process, run_once
 from app.storage import BUCKET
 from botocore.exceptions import EndpointConnectionError
-from conftest import FakeInbox, FakeReader, invented_receipt, make_item, no_report
+from conftest import (
+    FIRST_PAGE,
+    SAMPLE_TEXT,
+    SECOND_PAGE,
+    FakeInbox,
+    FakeReader,
+    invented_receipt,
+    make_group,
+    make_item,
+    no_report,
+)
 
 
 def documents(conn, sha256):
@@ -34,9 +44,9 @@ def test_item_reaches_garage_and_bronze_then_closes(conn, storage):
     content = invented_receipt()
     item = make_item(content)
     inbox = FakeInbox({item["id"]: content})
-    reader = FakeReader({"raw_text": "{}", "parsed": {"store": "TESZT"}})
+    reader = FakeReader({"ocr_text": SAMPLE_TEXT, "seconds": 80.0})
 
-    process(item, conn, inbox, storage, reader, no_report)
+    process([item], conn, inbox, storage, reader, no_report)
 
     rows = documents(conn, item["sha256"])
     assert len(rows) == 1
@@ -46,9 +56,10 @@ def test_item_reaches_garage_and_bronze_then_closes(conn, storage):
     assert fields == ["person_a", "person_b", "shared", "2026-11-30", ["élelmiszer", "háztartás"]]
     assert hashlib.sha256(stored_bytes(storage, key)).hexdigest() == item["sha256"]
     assert extractions(conn, document_id) == [
-        ("teszt-modell", "teszt-valtozat", "1", {"raw_text": "{}", "parsed": {"store": "TESZT"}})
+        ("teszt-modell", "teszt-valtozat", "2", {"ocr_text": SAMPLE_TEXT, "seconds": 80.0})
     ]
     assert inbox.closed == [item["id"]]
+    assert inbox.outcomes == [{"result": "ok", "seconds": 80.0, "items": 2}]
 
 
 def test_same_image_twice_is_written_once_and_both_close(conn, storage):
@@ -58,8 +69,8 @@ def test_same_image_twice_is_written_once_and_both_close(conn, storage):
     inbox = FakeInbox({first["id"]: content, second["id"]: content})
     reader = FakeReader()
 
-    process(first, conn, inbox, storage, reader, no_report)
-    process(second, conn, inbox, storage, reader, no_report)
+    process([first], conn, inbox, storage, reader, no_report)
+    process([second], conn, inbox, storage, reader, no_report)
 
     rows = documents(conn, first["sha256"])
     assert len(rows) == 1
@@ -75,15 +86,15 @@ def test_restart_before_close_finishes_without_duplicate(conn, storage):
     inbox = FakeInbox({item["id"]: content})
     reader = FakeReader()
 
-    def die(_item_id, _outcome):
+    def die(_item_id, _outcome=None):
         raise httpx.ConnectError("a worker itt leállt")
 
     inbox.close = die
     with pytest.raises(httpx.ConnectError):
-        process(item, conn, inbox, storage, reader, no_report)
+        process([item], conn, inbox, storage, reader, no_report)
 
     restarted = FakeInbox({item["id"]: content})
-    process(item, conn, restarted, storage, reader, no_report)
+    process([item], conn, restarted, storage, reader, no_report)
 
     rows = documents(conn, item["sha256"])
     assert len(rows) == 1
@@ -99,14 +110,14 @@ def test_unreachable_model_keeps_item_open_and_raw_file_safe(conn, storage):
     down = FakeReader(error=httpx.ConnectError("az Ollama nem érhető el"))
 
     with pytest.raises(httpx.ConnectError):
-        process(item, conn, inbox, storage, down, no_report)
+        process([item], conn, inbox, storage, down, no_report)
 
     assert inbox.closed == []
     rows = documents(conn, item["sha256"])
     assert extractions(conn, rows[0][0]) == []
     assert hashlib.sha256(stored_bytes(storage, rows[0][1])).hexdigest() == item["sha256"]
 
-    process(item, conn, inbox, storage, FakeReader(), no_report)
+    process([item], conn, inbox, storage, FakeReader(), no_report)
 
     assert len(extractions(conn, rows[0][0])) == 1
     assert inbox.closed == [item["id"]]
@@ -118,7 +129,7 @@ def test_failed_read_is_kept_and_item_closes(conn, storage):
     inbox = FakeInbox({item["id"]: content})
     reader = FakeReader({"error": "A kép nem olvasható"})
 
-    process(item, conn, inbox, storage, reader, no_report)
+    process([item], conn, inbox, storage, reader, no_report)
 
     document_id = documents(conn, item["sha256"])[0][0]
     assert extractions(conn, document_id)[0][3] == {"error": "A kép nem olvasható"}
@@ -131,9 +142,9 @@ def test_new_model_version_reads_again(conn, storage):
     inbox = FakeInbox({item["id"]: content})
     reader = FakeReader()
 
-    process(item, conn, inbox, storage, reader, no_report)
+    process([item], conn, inbox, storage, reader, no_report)
     reader.version = lambda: "uj-valtozat"
-    process(item, conn, inbox, storage, reader, no_report)
+    process([item], conn, inbox, storage, reader, no_report)
 
     document_id = documents(conn, item["sha256"])[0][0]
     assert {row[1] for row in extractions(conn, document_id)} == {"teszt-valtozat", "uj-valtozat"}
@@ -144,7 +155,7 @@ def test_hash_mismatch_keeps_item_open(conn, storage):
     inbox = FakeInbox({item["id"]: b"serult fajl"})
 
     with pytest.raises(HashMismatch):
-        process(item, conn, inbox, storage, FakeReader(), no_report)
+        process([item], conn, inbox, storage, FakeReader(), no_report)
 
     assert inbox.closed == []
     assert documents(conn, item["sha256"]) == []
@@ -162,7 +173,7 @@ def test_unreachable_garage_keeps_item_open(conn):
     reader = FakeReader()
 
     with pytest.raises(EndpointConnectionError):
-        process(item, conn, inbox, DownStorage(), reader, no_report)
+        process([item], conn, inbox, DownStorage(), reader, no_report)
 
     assert inbox.closed == []
     assert documents(conn, item["sha256"]) == []
@@ -172,14 +183,17 @@ def test_unreachable_garage_keeps_item_open(conn):
 def test_failed_item_does_not_stop_the_next_one(monkeypatch):
     processed = []
 
-    def fake_process(item, *_):
-        if item["id"] == "rossz":
+    def fake_process(items, *_):
+        if items[0]["id"] == "rossz":
             raise httpx.ConnectError("hiba")
-        processed.append(item["id"])
+        processed.append(items[0]["id"])
 
     class Inbox:
         def list_new(self):
-            return [{"id": "rossz"}, {"id": "jo"}]
+            return [
+                {"id": "rossz", "group_id": None, "page_no": 1, "page_count": 1},
+                {"id": "jo", "group_id": None, "page_no": 1, "page_count": 1},
+            ]
 
     class Connection:
         def __enter__(self):
@@ -210,26 +224,82 @@ def test_steps_are_reported_in_order(conn, storage):
     item = make_item(content)
     steps = []
 
-    process(item, conn, FakeInbox({item["id"]: content}), storage, FakeReader(), steps.append)
+    process([item], conn, FakeInbox({item["id"]: content}), storage, FakeReader(), steps.append)
 
-    assert steps == ["download", "storage", "read_json", "close"]
+    assert steps == ["download", "storage", "read_text", "parse", "close"]
 
 
-@pytest.mark.parametrize(
-    ("payload", "expected"),
-    [
-        (None, {"result": "duplicate"}),
-        ({"error": "A kép nem olvasható"}, {"result": "unreadable"}),
-        ({"parsed": None, "seconds": 80.0}, {"result": "unparsed", "seconds": 80.0}),
-        (
-            {"parsed": {"items": [{}, {}]}, "seconds": 80.0},
-            {"result": "ok", "seconds": 80.0, "items": 2},
-        ),
-        ({"parsed": {}, "seconds": 80.0}, {"result": "ok", "seconds": 80.0, "items": 0}),
-    ],
-)
-def test_outcome_has_no_receipt_content(payload, expected):
-    assert outcome_of(payload) == expected
+def test_unreadable_image_is_reported_as_such(conn, storage):
+    content = invented_receipt()
+    item = make_item(content)
+    inbox = FakeInbox({item["id"]: content})
+
+    process([item], conn, inbox, storage, FakeReader({"error": "rossz kép"}), no_report)
+
+    assert inbox.outcomes == [{"result": "unreadable"}]
+
+
+def test_same_image_again_is_reported_as_duplicate(conn, storage):
+    content = invented_receipt()
+    first, second = make_item(content), make_item(content)
+    inbox = FakeInbox({first["id"]: content, second["id"]: content})
+    reader = FakeReader()
+
+    process([first], conn, inbox, storage, reader, no_report)
+    process([second], conn, inbox, storage, reader, no_report)
+
+    assert inbox.outcomes[1] == {"result": "duplicate"}
+
+
+def test_group_is_stored_read_and_closed_together(conn, storage):
+    contents = [invented_receipt(), invented_receipt()]
+    items = make_group(contents)
+    inbox = FakeInbox({item["id"]: content for item, content in zip(items, contents, strict=True)})
+    pages = iter([{"ocr_text": FIRST_PAGE, "seconds": 80.0}, {"ocr_text": SECOND_PAGE, "seconds": 70.0}])
+    reader = FakeReader()
+    reader.read = lambda _content, _report: next(pages)
+
+    process(items, conn, inbox, storage, reader, no_report)
+
+    assert len(storage.written) == 2
+    assert inbox.closed == [item["id"] for item in items]
+    assert inbox.outcomes == [{"result": "ok", "seconds": 150.0, "items": 3}, None]
+
+
+def test_group_restart_does_not_read_finished_pages_again(conn, storage):
+    contents = [invented_receipt(), invented_receipt()]
+    items = make_group(contents)
+    files = {item["id"]: content for item, content in zip(items, contents, strict=True)}
+    calls = []
+
+    def read(_content, _report):
+        calls.append(1)
+        if len(calls) == 2:
+            raise httpx.ConnectError("a worker itt leállt")
+        return {"ocr_text": FIRST_PAGE, "seconds": 80.0}
+
+    reader = FakeReader()
+    reader.read = read
+    with pytest.raises(httpx.ConnectError):
+        process(items, conn, FakeInbox(files), storage, reader, no_report)
+
+    reader.read = lambda _content, _report: {"ocr_text": SECOND_PAGE, "seconds": 70.0}
+    inbox = FakeInbox(files)
+    process(items, conn, inbox, storage, reader, no_report)
+
+    assert len(calls) == 2
+    assert inbox.outcomes[0]["result"] == "ok"
+
+
+def test_groups_wait_for_all_pages_and_sort_them():
+    first = {"id": "a", "group_id": "g", "page_no": 2, "page_count": 2}
+    second = {"id": "b", "group_id": "g", "page_no": 1, "page_count": 2}
+    single = {"id": "c", "group_id": None, "page_no": 1, "page_count": 1}
+    partial = {"id": "d", "group_id": "h", "page_no": 1, "page_count": 2}
+
+    groups = group_items([first, second, single, partial])
+
+    assert [[item["id"] for item in pages] for pages in groups] == [["b", "a"], ["c"]]
 
 
 @pytest.mark.parametrize(
@@ -245,3 +315,14 @@ def test_object_key_uses_month_and_extension(content_type, extension):
     item = {"purchase_date": "2026-12-05", "sha256": "ab", "content_type": content_type}
 
     assert object_key(item) == f"photo/2026/12/ab.{extension}"
+
+
+def test_object_key_falls_back_to_upload_month():
+    item = {
+        "purchase_date": None,
+        "uploaded_at": "2026-11-01T10:00:00+00:00",
+        "sha256": "ab",
+        "content_type": "image/png",
+    }
+
+    assert object_key(item) == "photo/2026/11/ab.png"

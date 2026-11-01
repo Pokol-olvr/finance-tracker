@@ -8,6 +8,10 @@ import pytest
 from app.storage import BUCKET, Storage
 from PIL import Image
 
+SAMPLE_TEXT = "NYUGTA\nC00 KENYÉR 500G 599\nC00 TEJ 1L 449\nÖSSZESEN: 1 048 FT\n"
+FIRST_PAGE = "NYUGTA\nC00 KENYÉR 500G 599\nC00 TEJ 1L 449\n"
+SECOND_PAGE = "C00 TEJ 1L 449\nB00 VAJ 200G 899\nÖSSZESEN: 1 947 FT\n"
+
 test_database_url = os.environ.get("TEST_DATABASE_URL")
 test_garage_endpoint = os.environ.get("TEST_GARAGE_ENDPOINT")
 
@@ -31,7 +35,19 @@ def make_item(content: bytes) -> dict:
         "purchase_date": "2026-11-30",
         "payer": "shared",
         "tags": ["élelmiszer", "háztartás"],
+        "group_id": None,
+        "page_no": 1,
+        "page_count": 1,
     }
+
+
+def make_group(contents: list[bytes]) -> list[dict]:
+    group_id = str(uuid4())
+    return [
+        make_item(content)
+        | {"group_id": group_id, "page_no": page_no, "page_count": len(contents)}
+        for page_no, content in enumerate(contents, 1)
+    ]
 
 
 def no_report(_step: str) -> None:
@@ -56,7 +72,7 @@ class FakeReader:
     name = "teszt-modell"
 
     def __init__(self, payload: dict | None = None, error: Exception | None = None):
-        self.payload = payload or {"raw_text": "{}", "parsed": {}}
+        self.payload = payload or {"ocr_text": SAMPLE_TEXT, "seconds": 80.0}
         self.error = error
         self.calls = 0
 
@@ -65,7 +81,7 @@ class FakeReader:
 
     def read(self, content: bytes, report) -> dict:
         self.calls += 1
-        report("read_json")
+        report("read_text")
         if self.error:
             raise self.error
         return self.payload

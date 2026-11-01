@@ -33,8 +33,9 @@ Javasolt sorrend: FIN-310, FIN-402, FIN-311, FIN-404, végül a FIN-410. A töme
 | --- | --- |
 | JSON-olvasat | 1 blokkon, további 1-en nem adott tételt |
 | Szöveges olvasat, rövid próbaszabállyal | 4 blokkon, köztük egy 48 tételesen |
+| Szöveges olvasat, a FIN-402 feldolgozójával | Mind a 7 blokkon, összesen 162 tétellel |
 
-A próbaszabály 2 blokkon nem találta meg a végösszeg sorát, 1-en pedig nem jött ki az összeg. A mért tételek 6 blokkon előfordultak, és a JSON a tényleges érték helyett gyakran a súlyt adta.
+A mért tételek 6 blokkon előfordultak, és a JSON a tényleges érték helyett gyakran a súlyt adta. A feldolgozó után mind a 7 blokkon helyes a mennyiség × egységár is, 6 blokk `ok`, 1 pedig `review` lett, mert ott a beírt dátum eltért a blokkon lévőtől. A szabályok ezeken a blokkokon készültek, ezért ez nem pontossági mérés: új boltoknál a FIN-410 mutatja meg az eredményt.
 
 **Adat:** a tesztek blokkjai kitaláltak, a `worker/tests/receipts/` mappában, szöveges fájlként. Saját blokk szövege nem kerülhet a repóba, ide csak arányok és kitalált példák jönnek.
 
@@ -44,20 +45,20 @@ A próbaszabály 2 blokkon nem találta meg a végösszeg sorát, 1-en pedig nem
 
 **Részfeladatok**
 
-- [ ] Több fájl választható egyszerre, behúzással is; legfeljebb 20 fájl körönként 📅 2026-12-27
-- [ ] A feltöltő, a vásárló, a fizető fél és a címkék minden fájlra érvényesek 📅 2026-12-27
-- [ ] Az oldal fájlonként hívja a `POST /uploads` végpontot, és soronként mutatja az eredményt 📅 2026-12-27
-- [ ] A `purchase_date` opcionális: ha üres, a dátum a blokkról jön; jövőbeli dátum továbbra sem adható meg 📅 2026-12-27
-- [ ] Dátum nélkül a Garage-kulcs hónapja a feltöltés hónapja 📅 2026-12-27
-- [ ] pytest-tesztek a dátum nélküli feltöltésre; az oldal próbája böngészőben 📅 2026-12-27
+- [x] Több fájl választható egyszerre, behúzással is; legfeljebb 20 fájl körönként 📅 2026-12-27
+- [x] A feltöltő, a vásárló, a fizető fél és a címkék minden fájlra érvényesek 📅 2026-12-27
+- [x] Az oldal fájlonként hívja a `POST /uploads` végpontot, és soronként mutatja az eredményt 📅 2026-12-27
+- [x] A `purchase_date` opcionális: ha üres, a dátum a blokkról jön; jövőbeli dátum továbbra sem adható meg 📅 2026-12-27
+- [x] Dátum nélkül a Garage-kulcs hónapja a feltöltés hónapja 📅 2026-12-27
+- [x] pytest-tesztek a dátum nélküli feltöltésre; az oldal próbája böngészőben 📅 2026-12-27
 
 **Elfogadási feltételek**
 
-- [ ] 12 kitalált kép egy mozdulattal feltölthető
-- [ ] Egy rossz fájl a többit nem állítja meg, és a sorában látszik az oka
-- [ ] Az oldal mutatja, hányadik fájlnál tart
-- [ ] Dátum nélkül is sikeres a feltöltés, és a bronzban üres a `purchase_date`
-- [ ] Egyetlen fájl feltöltése ugyanúgy működik, mint eddig
+- [x] 12 kitalált kép egy mozdulattal feltölthető
+- [x] Egy rossz fájl a többit nem állítja meg, és a sorában látszik az oka
+- [x] Az oldal mutatja, hányadik fájlnál tart
+- [x] Dátum nélkül is sikeres a feltöltés, és a bronzban üres a `purchase_date`
+- [x] Egyetlen fájl feltöltése ugyanúgy működik, mint eddig
 
 Eltérő címkékhez külön kör kell: a címke továbbra is a feltöltéskor adott, a blokkra vonatkozó jelölés.
 
@@ -67,33 +68,33 @@ Eltérő címkékhez külön kör kell: a címke továbbra is a feltöltéskor a
 
 **Részfeladatok**
 
-- [ ] `worker/app/receipt_parser.py`: tiszta függvény, a szöveges olvasatból szerkezetet ad, hálózat és adatbázis nélkül 📅 2026-12-27
-- [ ] A lenti sormintákra épülő szabályok, `PARSER_VERSION` verzióval 📅 2026-12-27
-- [ ] Összegek egész forintban; a szóközös ezres tagolás egyben marad 📅 2026-12-27
-- [ ] Minden tétel megőrzi a nyers nevet, mellette ékezet nélküli egyeztető kulcsot kap (`match_name`) 📅 2026-12-27
-- [ ] A DRS-sor `kind = deposit`, a beváltott utalvány `kind = voucher` jelölést kap a FIN-409-hez és a FIN-411-hez 📅 2026-12-27
-- [ ] `bronze.receipt_parse` tábla migrációval, csak hozzáfűzhetően 📅 2026-12-27
-- [ ] A worker a kiolvasás után futtatja a feldolgozót 📅 2026-12-27
-- [ ] Új `PARSER_VERSION` esetén a worker a meglévő szövegeket is újra feldolgozza, modellfutás nélkül 📅 2026-12-27
-- [ ] A JSON-olvasat kivezetése: egy modellhívás marad, a `PROMPT_VERSION` 2 lesz; a régi sorok a bronzban maradnak 📅 2026-12-27
-- [ ] `scripts/last-extraction.sh`: a feldolgozott tételek és az ellenőrzések is látszanak 📅 2026-12-27
-- [ ] `worker/tools/read_folder.py`: repón kívüli mappa képeit olvassa, az eredményt repón kívülre írja, a bronzhoz nem nyúl 📅 2026-12-27
-- [ ] pytest-tesztek kitalált blokkokkal, mintánként a várt eredménnyel 📅 2026-12-27
-- [ ] Migrációs teszt: a `scripts/test-bronze.sh` az új táblára is ellenőrzi a hozzáfűzés-védelmet 📅 2026-12-27
-- [ ] README: a feldolgozó működése és új formátum felvétele 📅 2026-12-27
+- [x] `worker/app/receipt_parser.py`: tiszta függvény, a szöveges olvasatból szerkezetet ad, hálózat és adatbázis nélkül 📅 2026-12-27
+- [x] A lenti sormintákra épülő szabályok, `PARSER_VERSION` verzióval 📅 2026-12-27
+- [x] Összegek egész forintban; a szóközös ezres tagolás egyben marad 📅 2026-12-27
+- [x] Minden tétel megőrzi a nyers nevet, mellette ékezet nélküli egyeztető kulcsot kap (`match_name`) 📅 2026-12-27
+- [x] A DRS-sor `kind = deposit`, a beváltott utalvány `kind = voucher` jelölést kap a FIN-409-hez és a FIN-411-hez 📅 2026-12-27
+- [x] `bronze.receipt_parse` tábla migrációval, csak hozzáfűzhetően 📅 2026-12-27
+- [x] A worker a kiolvasás után futtatja a feldolgozót 📅 2026-12-27
+- [x] Új `PARSER_VERSION` esetén a worker a meglévő szövegeket is újra feldolgozza, modellfutás nélkül 📅 2026-12-27
+- [x] A JSON-olvasat kivezetése: egy modellhívás marad, a `PROMPT_VERSION` 2 lesz; a régi sorok a bronzban maradnak 📅 2026-12-27
+- [x] `scripts/last-extraction.sh`: a feldolgozott tételek és az ellenőrzések is látszanak 📅 2026-12-27
+- [x] `worker/tools/read_folder.py`: repón kívüli mappa képeit olvassa, az eredményt repón kívülre írja, a bronzhoz nem nyúl 📅 2026-12-27
+- [x] pytest-tesztek kitalált blokkokkal, mintánként a várt eredménnyel 📅 2026-12-27
+- [x] Migrációs teszt: a `scripts/test-bronze.sh` az új táblára is ellenőrzi a hozzáfűzés-védelmet 📅 2026-12-27
+- [x] README: a feldolgozó működése és új formátum felvétele 📅 2026-12-27
 
 **Elfogadási feltételek**
 
-- [ ] A lenti kitalált blokkból 2 tétel és 1 betétdíj lesz, a pontos értékekkel
-- [ ] A `1 346` összeg 1346 Ft, és egyetlen ezres tagolású összeg sem veszíti el az elejét
-- [ ] Név végén álló mennyiség (`1,5L`, `500G`) nem lesz ár
-- [ ] A kétsoros tételnél a név az első, az érték a második sorból jön
-- [ ] A mért tételnél az érték a sor végén álló összeg, nem a súly és nem az egységár
-- [ ] A hibás ékezetű név (`GÒNGYÓLEG`) is betétdíjnak számít
-- [ ] Új `PARSER_VERSION` után a meglévő szövegből új `bronze.receipt_parse` sor lesz, modellhívás nélkül
-- [ ] Ugyanarra a blokkra ugyanazzal a verzióval nem készül második sor
-- [ ] Egy blokk feldolgozása a modell nélkül 1 másodperc alatt lefut
-- [ ] A feldolgozó hibája nem állítja meg a workert, a blokk `unparsed` állapotba kerül
+- [x] A lenti kitalált blokkból 2 tétel és 1 betétdíj lesz, a pontos értékekkel
+- [x] A `1 346` összeg 1346 Ft, és egyetlen ezres tagolású összeg sem veszíti el az elejét
+- [x] Név végén álló mennyiség (`1,5L`, `500G`) nem lesz ár
+- [x] A kétsoros tételnél a név az első, az érték a második sorból jön
+- [x] A mért tételnél az érték a sor végén álló összeg, nem a súly és nem az egységár
+- [x] A hibás ékezetű név (`GÒNGYÓLEG`) is betétdíjnak számít
+- [x] Új `PARSER_VERSION` után a meglévő szövegből új `bronze.receipt_parse` sor lesz, modellhívás nélkül
+- [x] Ugyanarra a blokkra ugyanazzal a verzióval nem készül második sor
+- [x] Egy blokk feldolgozása a modell nélkül 1 másodperc alatt lefut
+- [x] A feldolgozó hibája nem állítja meg a workert, a blokk `unparsed` állapotba kerül
 
 **Kitalált minta**
 
@@ -132,14 +133,17 @@ Várt eredmény: 1196 Ft kiadás, 150 Ft betétdíj, 1346 Ft végösszeg. A kés
 | Mennyiségsor | `3 DB * 199 Ft/DB 597` | Mennyiség, egység, egységár, érték |
 | Mért tétel | `0,532 KG * 1 299 Ft/KG 691` | Tört mennyiség, egységár, érték |
 | Betétdíj | `E00 DRS GÖNGYÖLEG` | Mint a tétel, `kind = deposit` |
-| Kedvezmény | `KEDVEZMÉNY -120` | Negatív érték, `kind = discount` |
+| Érték külön sorban | `C00 TÉSZTA 500G`, utána `399` | Az érték a név alatti sorból |
+| Érték a név előtt | `399`, utána `C00 TÉSZTA 500G` | Elcsúszott sorrend, csak akkor fogadjuk el, ha kijön a végösszeg |
+| Tára | `0,950 KG - 0,010 KG TÁRA` | Kimarad |
+| Kedvezmény | `eC00 KÁVÉ KEDVEZMÉNY -300`, `eC00 TÉSZTA AKCIO` | Negatív érték, `kind = discount` |
 | Utalvány | `DRS UTALVÁNY -300` | Negatív érték, `kind = voucher`; nem csökkenti a kiadást |
 | Végösszeg | `ÖSSZESEN: 1 346 Ft` | Végösszeg |
 | Fizetés | `KESZPENZ:`, `BANKKARTYA:`, `VISSZAJARO:` | Fizetési mód, fizetett összeg, visszajáró |
 | Adószám | `ADOSZAM: 12345678-2-41` | A bolt azonosítója |
 | Nyugtaszám | `NYUGTASZAM:`, utána dátum és szám | Dátum, idő, nyugtaszám |
 
-Az egysoros, a kétsoros tétel, a mért tétel és a végösszeg formája a fenti blokkokon igazolt, de nem minden bolt adja ugyanígy: van, ahol nincs ÁFA-kód a sor elején, és van, ahol a végösszeg sora más alakú. A kedvezmény, az utalvány és a kerekítés sora feltételezés, ezeket a FIN-410 saját blokkjain ellenőrizni kell. Az ÁFA-kódot szövegként tároljuk, a jelentésére nem építünk, mert a forrását nem találtuk meg.
+A minták a fenti 7 blokkon igazoltak, az utalvány kivételével: az feltételezés, ezt saját blokkon ellenőrizni kell. Az olvasat a kódot néha elrontja (`COD`, `BOD`), és a címkéket is (`Rankkartva`), ezért mindkettőnél van hibatűrés. Ha a név számra végződik, a `10 449` kétféleképpen olvasható: a feldolgozó azt választja, amelyikkel kijön a végösszeg. Az ÁFA-kódot szövegként tároljuk, a jelentésére nem építünk, mert a forrását nem találtuk meg.
 
 **Tábla: `bronze.receipt_parse`**
 
@@ -162,24 +166,24 @@ A `group_id` és a `parser_version` együtt egyedi. A nyers szöveg a `bronze.ex
 
 **Részfeladatok**
 
-- [ ] Kapcsoló a feltöltő oldalon: „Egy hosszú blokk több képből”, legfeljebb 5 képpel 📅 2026-12-27
-- [ ] A képek sorrendje az oldalon állítható, alapból a választás sorrendje 📅 2026-12-27
-- [ ] `POST /uploads/group`: a képek egy kérésben érkeznek; ha egy hibás, egyik sem kerül a postaládába 📅 2026-12-27
-- [ ] `group_id`, `page_no` és `page_count` a postaládában; a meglévő SQLite-tábla bővítése `user_version` alapján 📅 2026-12-27
-- [ ] `group_id` és `page_no` a `bronze.raw_document` táblában; a régi soroknál a `group_id` üres, és a dokumentum azonosítója számít 📅 2026-12-27
-- [ ] A worker képenként tárol és olvas, a csoportot együtt zárja le 📅 2026-12-27
-- [ ] A feldolgozó a szövegeket oldalsorrendben fűzi össze, a képek átfedését kiszűri 📅 2026-12-27
-- [ ] Az állapotoldal blokkot számol, nem képet 📅 2026-12-27
-- [ ] pytest-tesztek kitalált, kétképes blokkal 📅 2026-12-27
+- [x] Kapcsoló a feltöltő oldalon: „Egy hosszú blokk több képből”, legfeljebb 5 képpel 📅 2026-12-27
+- [x] A képek sorrendje az oldalon állítható, alapból a választás sorrendje 📅 2026-12-27
+- [x] `POST /uploads/group`: a képek egy kérésben érkeznek; ha egy hibás, egyik sem kerül a postaládába 📅 2026-12-27
+- [x] `group_id`, `page_no` és `page_count` a postaládában; a meglévő SQLite-tábla bővítése `user_version` alapján 📅 2026-12-27
+- [x] `group_id` és `page_no` a `bronze.raw_document` táblában; a régi soroknál a `group_id` üres, és a dokumentum azonosítója számít 📅 2026-12-27
+- [x] A worker képenként tárol és olvas, a csoportot együtt zárja le 📅 2026-12-27
+- [x] A feldolgozó a szövegeket oldalsorrendben fűzi össze, a képek átfedését kiszűri 📅 2026-12-27
+- [x] Az állapotoldal blokkot számol, nem képet 📅 2026-12-27
+- [x] pytest-tesztek kitalált, kétképes blokkal 📅 2026-12-27
 
 **Elfogadási feltételek**
 
-- [ ] Egy kétképes kitalált blokkból egyetlen `bronze.receipt_parse` sor lesz, egy végösszeggel
-- [ ] A két képen is látszó sor csak egyszer számít
-- [ ] Mindkét kép változatlanul a Garage-ban van, saját hash-sel
-- [ ] A worker két kép között leállítva újraindítás után befejezi a csoportot, modellhívás-ismétlés nélkül
-- [ ] Ha az egyik kép olvashatatlan, a csoport `unparsed` lesz, és mindkét kép megmarad a bronzban
-- [ ] Hibás fájlnál a postaládába egyik kép sem kerül
+- [x] Egy kétképes kitalált blokkból egyetlen `bronze.receipt_parse` sor lesz, egy végösszeggel
+- [x] A két képen is látszó sor csak egyszer számít
+- [x] Mindkét kép változatlanul a Garage-ban van, saját hash-sel
+- [x] A worker két kép között leállítva újraindítás után befejezi a csoportot, modellhívás-ismétlés nélkül
+- [x] Ha az egyik kép olvashatatlan, a csoport `unparsed` lesz, és mindkét kép megmarad a bronzban
+- [x] Hibás fájlnál a postaládába egyik kép sem kerül
 
 **Átfedés:** a két fotó általában tartalmaz közös sorokat. A feldolgozó az előző kép utolsó és a következő első sorait hasonlítja össze, ékezet nélkül, és a megegyező sorokat egyszer veszi. Ha ez téved, a `sum` ellenőrzés jelzi. A képek összefűzése nem kell, mert a modell így is kis méretű részeket kap, ami jobb olvasást adhat. Ezt mérni kell.
 
@@ -189,21 +193,21 @@ A `group_id` és a `parser_version` együtt egyedi. A nyers szöveg a `bronze.ex
 
 **Részfeladatok**
 
-- [ ] A lenti ellenőrzések a feldolgozott blokkon, eredményük a `checks` mezőbe kerül 📅 2026-12-27
-- [ ] Állapot: `ok`, ha minden ellenőrzés sikeres; `review`, ha valamelyik nem; `unparsed`, ha nincs tétel vagy végösszeg 📅 2026-12-27
-- [ ] Az állapotoldal „rendben” felirata csak `ok` blokkra jelenik meg, a többi „ellenőrzés kell” vagy „nem feldolgozható” 📅 2026-12-27
-- [ ] A Feltöltés kártyán „Ellenőrzésre vár” szám 📅 2026-12-27
-- [ ] pytest-tesztek ellenőrzésenként, sikeres és hibás kitalált blokkal 📅 2026-12-27
+- [x] A lenti ellenőrzések a feldolgozott blokkon, eredményük a `checks` mezőbe kerül 📅 2026-12-27
+- [x] Állapot: `ok`, ha minden ellenőrzés sikeres; `review`, ha valamelyik nem; `unparsed`, ha nincs tétel vagy végösszeg 📅 2026-12-27
+- [x] Az állapotoldal „rendben” felirata csak `ok` blokkra jelenik meg, a többi „ellenőrzés kell” vagy „nem feldolgozható” 📅 2026-12-27
+- [x] A Feltöltés kártyán „Ellenőrzésre vár” szám 📅 2026-12-27
+- [x] pytest-tesztek ellenőrzésenként, sikeres és hibás kitalált blokkal 📅 2026-12-27
 
 **Elfogadási feltételek**
 
-- [ ] A kitalált minta `ok` állapotú, a kerekítés ellenére
-- [ ] Egy tétel átírt áráról az összegellenőrzés `review` állapotot ad
-- [ ] Eltérő beírt és beolvasott dátum `review` állapotot ad
-- [ ] Ugyanaz a blokk újrafotózva, eltérő hash-sel `review` állapotot ad, és nem számít kétszer
-- [ ] Bankkártyás blokknál nincs kerekítési tűrés
-- [ ] Az állapotoldalon a „rendben” felirat érvényes JSON-ra már nem jelenik meg, csak sikeres ellenőrzésre
-- [ ] A `review` blokk nyers képe és szövege a Garage-ban és a bronzban megmarad
+- [x] A kitalált minta `ok` állapotú, a kerekítés ellenére
+- [x] Egy tétel átírt áráról az összegellenőrzés `review` állapotot ad
+- [x] Eltérő beírt és beolvasott dátum `review` állapotot ad
+- [x] Ugyanaz a blokk újrafotózva, eltérő hash-sel `review` állapotot ad, és nem számít kétszer
+- [x] Bankkártyás blokknál nincs kerekítési tűrés
+- [x] Az állapotoldalon a „rendben” felirat érvényes JSON-ra már nem jelenik meg, csak sikeres ellenőrzésre
+- [x] A `review` blokk nyers képe és szövege a Garage-ban és a bronzban megmarad
 
 **Ellenőrzések**
 

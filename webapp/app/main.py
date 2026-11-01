@@ -32,6 +32,8 @@ from app.schemas import (
 )
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
+MIN_GROUP_PAGES = 2
+MAX_GROUP_PAGES = 5
 STATIC_DIR = Path(__file__).parent / "static"
 
 app = FastAPI(title="Pénzügyi nyomkövető")
@@ -116,16 +118,32 @@ def status_data() -> dict:
     )
 
 
-@app.post("/uploads", status_code=status.HTTP_201_CREATED)
-def create_upload(file: UploadFile, form: Annotated[UploadForm, Form()]) -> dict[str, str]:
+def read_image(file: UploadFile) -> tuple[bytes, str, str]:
     content = file.file.read(MAX_UPLOAD_BYTES + 1)
     if len(content) > MAX_UPLOAD_BYTES:
         raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, "A fájl nagyobb 20 MB-nál.")
     content_type = inbox.detect_image_type(content)
     if content_type is None:
         raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "Nem támogatott fájltípus.")
-    item = inbox.add(form, content, file.filename or "", content_type)
+    return content, file.filename or "", content_type
+
+
+@app.post("/uploads", status_code=status.HTTP_201_CREATED)
+def create_upload(file: UploadFile, form: Annotated[UploadForm, Form()]) -> dict[str, str]:
+    item = inbox.add(form, *read_image(file))
     return {"id": item["id"], "sha256": item["sha256"]}
+
+
+@app.post("/uploads/group", status_code=status.HTTP_201_CREATED)
+def create_group_upload(
+    files: list[UploadFile], form: Annotated[UploadForm, Form()]
+) -> dict[str, str]:
+    if not MIN_GROUP_PAGES <= len(files) <= MAX_GROUP_PAGES:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            f"Egy blokkhoz {MIN_GROUP_PAGES}–{MAX_GROUP_PAGES} kép tartozhat.",
+        )
+    return {"group_id": inbox.add_group(form, [read_image(file) for file in files])}
 
 
 @worker_api.get("/items")

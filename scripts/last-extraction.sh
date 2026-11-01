@@ -6,14 +6,24 @@ source "$(dirname "$0")/lib.sh"
 
 compose exec -T postgres psql -U postgres -d finance -v ON_ERROR_STOP=1 -v limit="${1:-1}" -x <<'SQL'
 select d.purchase_date, d.uploaded_by, d.purchased_by, d.payer, d.tags, d.object_key,
+       d.page_no, d.page_count,
        e.model_name, e.created_at,
        e.payload ->> 'seconds' as seconds,
        e.payload ->> 'done_reason' as done_reason,
        e.payload ->> 'error' as error,
        e.payload ->> 'ocr_text' as ocr_text,
-       jsonb_pretty(e.payload -> 'parsed') as parsed
+       p.status as parse_status,
+       jsonb_pretty(p.checks) as checks,
+       jsonb_pretty(p.payload) as parsed
 from bronze.extraction as e
 join bronze.raw_document as d on d.id = e.document_id
+left join lateral (
+  select status, checks, payload
+  from bronze.receipt_parse
+  where group_id = coalesce(d.group_id, d.id)
+  order by created_at desc
+  limit 1
+) as p on true
 order by e.created_at desc
 limit :limit;
 SQL

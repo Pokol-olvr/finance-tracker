@@ -84,16 +84,30 @@ A `purchased_by` és a `payer` a `HOUSEHOLD_MEMBERS` kódjait használja, a `pay
 
 ## Blokk feltöltése és kiolvasása
 
-A `http://127.0.0.1:8000` oldalon kell megadni a fotót, a feltöltőt, a vásárlót, a blokk dátumát, a fizető felet és legalább egy címkét. A képet JPEG, PNG, HEIC vagy WebP formátumban, legfeljebb 20 MB-ig fogadja. A telefon a FIN-308-ig nem éri el az oldalt, ezért a fotót előbb a laptopra kell áttenni.
+A `http://127.0.0.1:8000` oldalon kell megadni a fotókat, a feltöltőt, a vásárlót, a fizető felet és legalább egy címkét. A képet JPEG, PNG, HEIC vagy WebP formátumban, fájlonként legfeljebb 20 MB-ig fogadja. A telefon a FIN-308-ig nem éri el az oldalt, ezért a fotót előbb a laptopra kell áttenni.
+
+- **Több blokk egyszerre:** legfeljebb 20 fájl tölthető fel körönként, behúzással is. A megadott adatok mindegyikre érvényesek, és egy rossz fájl nem állítja meg a többit. Több fájlnál a dátum üres marad, és a blokkról olvassuk ki.
+- **Hosszú blokk több képből:** az „Egy hosszú blokk több képből” kapcsolóval 2–5 kép tartozik egy blokkhoz, a nyilakkal rendezhető sorrendben. A két képen is látszó sorok egyszer számítanak. Ha bármelyik fájl hibás, egyik sem kerül be.
 
 A worker percenként megnézi a postaládát, és tételenként végigviszi a folyamatot:
 
 1. Letölti a fájlt, és ellenőrzi a hash-t.
 2. Ha ez a kép még nincs a bronzban, a `raw` bucketbe teszi `photo/ÉÉÉÉ/HH/<sha256>.<kiterjesztés>` kulccsal, és beírja a `bronze.raw_document` táblába.
-3. Kétszer kiolvastatja a modellel, JSON-ként és szövegként, és az eredményt a `bronze.extraction` táblába teszi.
-4. Lezárja a tételt, a fájl ekkor törlődik a postaládából.
+3. Szöveggé olvastatja a modellel, és az eredményt a `bronze.extraction` táblába teszi.
+4. A szövegből a saját feldolgozó tételeket, végösszeget és fizetési adatokat készít, ellenőrzi őket, és az eredményt a `bronze.receipt_parse` táblába teszi.
+5. Lezárja a tételt, a fájl ekkor törlődik a postaládából.
 
-Egy fotó a laptopon kb. 2,5–3,5 perc, a tételek sorban futnak. Ha az Ollama vagy a Garage nem érhető el, a tétel nyitva marad, és a worker a következő körben folytatja. A rossz kimenet is a bronzba kerül, és lezárja a tételt. Az indoklás: [ADR 0007](docs/adr/0007-ket-olvasat-1400-pixelen.md).
+Ha az Ollama vagy a Garage nem érhető el, a tétel nyitva marad, és a worker a következő körben folytatja. A rossz kimenet is a bronzba kerül, és lezárja a tételt. A tételek sorban futnak. Az indoklás: [ADR 0009](docs/adr/0009-szabalyalapu-blokkfeldolgozo.md).
+
+| Ellenőrzés | Szabály |
+| --- | --- |
+| `sum` | A tételek, a betétdíj, a kedvezmény és az utalvány összege a végösszeg |
+| `line_total` | Mennyiség × egységár = érték, 1 Ft tűréssel |
+| `payment` | Fizetett − visszajáró = végösszeg, készpénznél 2 Ft tűréssel |
+| `date` | A beírt és a beolvasott dátum egyezik |
+| `duplicate` | Az adószám és a nyugtaszám másik blokkon nem szerepel |
+
+A blokk állapota `ok`, ha egyik ellenőrzés sem bukott el, `review`, ha valamelyik igen, és `unparsed`, ha nincs tétel vagy végösszeg. Egy ellenőrzés kimarad, ha hiányzik hozzá az adat. A `worker/app/receipt_parser.py` szabályai magyar blokkformátumokra készültek. Új formátumhoz szabályt és kitalált tesztblokkot kell felvenni a `worker/tests/receipts/` mappába, majd növelni a `PARSER_VERSION` értékét. A worker induláskor a tárolt szövegeket modell nélkül újra feldolgozza.
 
 A legutóbbi kiolvasás, illetve az utolsó három:
 
@@ -102,13 +116,23 @@ scripts/last-extraction.sh
 scripts/last-extraction.sh 3
 ```
 
-A kimenet saját blokk adatát is tartalmazhatja, ezért nem kerülhet a repóba vagy hibajegybe. A bronzba került blokk nem törölhető, csak a FIN-309 építi újra üresen az adatbázist és a Garage-ot. A fotót a napi mentés a restic-pillanatképekbe is beviszi.
+A kimenetben a szöveges olvasat, a feldolgozott tételek és az ellenőrzések is látszanak. Saját blokk adatát is tartalmazhatja, ezért nem kerülhet a repóba vagy hibajegybe. A bronzba került blokk nem törölhető, csak a FIN-309 építi újra üresen az adatbázist és a Garage-ot. A fotót a napi mentés a restic-pillanatképekbe is beviszi.
 
 A modell kitalált mintablokkon így próbálható ki, ez a bronzba nem ír:
 
 ```sh
 podman compose -f home/docker-compose.yml run --rm --no-deps worker python -m tools.smoke_receipt
 ```
+
+Egy repón kívüli mappa képei a bronz érintése nélkül is kiolvashatók. Képenként egy `.txt` és egy `.json` fájl készül, megszakítás után a futás folytatható:
+
+```sh
+podman compose -f home/docker-compose.yml run --rm --no-deps --user 0 \
+  -v "$HOME/blokk-mintak:/be:ro,z" -v "$HOME/blokk-eredmeny:/ki:z" \
+  worker python -m tools.read_folder /be /ki
+```
+
+A kimenet nem kerülhet a repóba: a szöveges fájlokat a commit előtti ellenőrzés nem szűri.
 
 A worker tesztjei a `scripts/test-worker.sh` paranccsal futnak, valódi Garage-dzsal és Postgresszel, a modellt egy csonk helyettesíti.
 
@@ -126,7 +150,7 @@ A `http://127.0.0.1:8000/status` oldal kilenc kártyán mutatja a stack részeit
 
 Az adatot két forrás küldi a webappnak, a `WORKER_API_TOKEN` tokennel. A `scripts/status-report.sh`-t a `finance-status.timer` 15 másodpercenként futtatja, ez jelenti a szolgáltatásokat, a timereket, a Garage és a Postgres adatait, a lemezt és a memóriát. A worker a lépéseit és az Ollama állapotát jelenti, külön szálon, mert a modell hívása percekig tart. A modell a betöltése alatt még `Betöltve: nem` állapotot mutat.
 
-Az oldalon nincs fájlnév és blokktartalom, előzményt és riasztást nem tárol. Ha a webapp nem fut, az oldal sem nyílik meg, ekkor a `podman compose -f home/docker-compose.yml ps` marad. Az indoklás: [ADR 0008](docs/adr/0008-allapot-kepernyo-a-webappban.md).
+A „rendben” csak olyan blokkra jelenik meg, amelynek az ellenőrzései nem buktak el, az „Ellenőrzésre vár” szám a többit mutatja. Az oldalon nincs fájlnév és blokktartalom, előzményt és riasztást nem tárol. Ha a webapp nem fut, az oldal sem nyílik meg, ekkor a `podman compose -f home/docker-compose.yml ps` marad. Az indoklás: [ADR 0008](docs/adr/0008-allapot-kepernyo-a-webappban.md).
 
 ## Migrációk
 

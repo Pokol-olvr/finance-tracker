@@ -3,15 +3,7 @@ from io import BytesIO
 
 import httpx
 import pytest
-from app.extract import (
-    MAX_SIDE,
-    PROMPT,
-    TEXT_PROMPT,
-    ModelMissing,
-    ReceiptReader,
-    parse_output,
-    prepare_image,
-)
+from app.extract import MAX_SIDE, PROMPT, ModelMissing, ReceiptReader, prepare_image
 from app.inbox import Inbox
 from conftest import no_report
 from PIL import Image
@@ -67,31 +59,15 @@ def test_prepare_image_flattens_transparent_png():
     assert Image.open(BytesIO(prepare_image(png))).mode == "RGB"
 
 
-@pytest.mark.parametrize(
-    ("text", "expected"),
-    [
-        ('```json\n{"store": "TESZT"}\n```', {"store": "TESZT"}),
-        ('{"store": "TESZT"}', {"store": "TESZT"}),
-        ('{"store": "TESZT"', None),
-        ("[1, 2]", None),
-        ("nincs itt JSON", None),
-        ("", None),
-    ],
-)
-def test_parse_output(text, expected):
-    assert parse_output(text) == expected
-
-
-def test_read_sends_settings_and_keeps_both_readings():
+def test_read_sends_settings_and_keeps_the_text():
     sent = []
 
     def handler(request):
         sent.append(json.loads(request.content))
-        structured = "format" in sent[-1]
         return httpx.Response(
             200,
             json={
-                "message": {"content": '{"store": "TESZT"}' if structured else "TESZT\n7 626 Ft"},
+                "message": {"content": "TESZT\n7 626 Ft"},
                 "done_reason": "stop",
                 "total_duration": 17_000_000_000,
             },
@@ -100,30 +76,14 @@ def test_read_sends_settings_and_keeps_both_readings():
     steps = []
     result = reader_with(handler).read(image_bytes(Image.new("RGB", (32, 32))), steps.append)
 
-    assert steps == ["read_json", "read_text"]
-    assert [request["messages"][0]["content"] for request in sent] == [PROMPT, TEXT_PROMPT]
+    assert steps == ["read_text"]
+    assert len(sent) == 1
+    assert sent[0]["messages"][0]["content"] == PROMPT
     assert sent[0]["options"] == {"temperature": 0, "num_thread": 10, "num_predict": 2000}
-    assert sent[0]["format"]["required"] == ["store", "date", "items", "total", "payment_method"]
-    assert "format" not in sent[1]
+    assert "format" not in sent[0]
     assert sent[0]["keep_alive"] == "0"
     assert sent[0]["stream"] is False
-    assert result == {
-        "raw_text": '{"store": "TESZT"}',
-        "parsed": {"store": "TESZT"},
-        "ocr_text": "TESZT\n7 626 Ft",
-        "done_reason": "stop",
-        "seconds": 34.0,
-    }
-
-
-def test_broken_output_is_kept_without_parsed_value():
-    def handler(_request):
-        return httpx.Response(200, json={"message": {"content": "nem json"}})
-
-    result = reader_with(handler).read(image_bytes(Image.new("RGB", (32, 32))), no_report)
-
-    assert result["raw_text"] == "nem json"
-    assert result["parsed"] is None
+    assert result == {"ocr_text": "TESZT\n7 626 Ft", "done_reason": "stop", "seconds": 17.0}
 
 
 def test_unreadable_image_does_not_reach_the_model():

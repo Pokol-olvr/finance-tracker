@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Literal, Self
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.config import get_settings
 
@@ -54,9 +54,14 @@ class ManualEntry(BaseModel):
 class UploadForm(BaseModel):
     uploaded_by: str
     purchased_by: str | None = None
-    purchase_date: date
+    purchase_date: date | None = None
     payer: str = SHARED_PAYER
     tags: list[str]
+
+    @field_validator("purchase_date", mode="before")
+    @classmethod
+    def empty_date_is_missing(cls, value: object) -> object:
+        return None if value == "" else value
 
     @model_validator(mode="after")
     def check_people(self) -> Self:
@@ -74,7 +79,7 @@ class UploadForm(BaseModel):
     @model_validator(mode="after")
     def check_date(self) -> Self:
         # A szerver UTC-ben fut, a böngésző helyi napja egy nappal előrébb járhat.
-        if self.purchase_date > date.today() + timedelta(days=1):
+        if self.purchase_date and self.purchase_date > date.today() + timedelta(days=1):
             raise ValueError("a blokk dátuma nem lehet jövőbeli")
         return self
 
@@ -117,7 +122,7 @@ class HostReport(BaseModel):
 class WorkerReport(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    step: Literal["idle", "download", "storage", "read_json", "read_text", "close"]
+    step: Literal["idle", "download", "storage", "read_text", "parse", "close"]
     step_started_at: datetime
     ollama_reachable: bool
     model_name: str
@@ -128,6 +133,6 @@ class WorkerReport(BaseModel):
 
 
 class CloseResult(BaseModel):
-    result: Literal["ok", "unparsed", "unreadable", "duplicate"]
+    result: Literal["ok", "review", "unparsed", "unreadable", "duplicate"]
     seconds: float | None = None
     items: int | None = None

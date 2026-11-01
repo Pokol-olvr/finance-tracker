@@ -13,6 +13,23 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 
 ## Kiadatlan
 
+### Hozzáadva
+
+- FIN-310 Tömeges feltöltés: egyszerre legfeljebb 20 fájl, közös adatokkal; a dátum opcionális, üresen a blokkról jön.
+- FIN-311 Hosszú blokk több képből: 2–5 kép egy blokként, a közös sorok egyszer számítanak.
+- FIN-402 Saját feldolgozó a szöveges olvasatra: tételek, végösszeg, fizetés, dátum és nyugtaszám a `bronze.receipt_parse` táblában; a tárolt szövegek modell nélkül újra feldolgozhatók.
+- FIN-402 `worker/tools/read_folder.py`: repón kívüli mappa kiolvasása a bronz érintése nélkül.
+- FIN-404 Automatikus ellenőrzés: összeg, tételszorzat, fizetés, dátum és ismételt blokk; az állapotoldalon az „Ellenőrzésre vár” szám is látszik.
+
+### Módosítva
+
+- A modell blokkonként egyszer fut, a JSON-olvasat kikerült, mert rosszul párosította a neveket és az árakat.
+- Az állapotoldal „rendben” felirata az ellenőrzések sikerét jelenti, nem az érvényes JSON-t.
+
+### Frissítési teendők
+
+- `podman compose -f home/docker-compose.yml up -d --build`: lefut a migráció, a worker pedig feldolgozza a tárolt szövegeket.
+
 ## v0.3.0 · 2026-11-01
 
 ### Hozzáadva
