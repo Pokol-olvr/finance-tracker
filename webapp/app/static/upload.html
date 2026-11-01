@@ -84,7 +84,11 @@
 </head>
 <body>
   <main>
-    <p class="top-link"><a href="/status">Stack állapota</a></p>
+    <nav class="menu" aria-label="Oldalak">
+      <a href="/" aria-current="page">Feltöltés</a>
+      <a href="/review">Ellenőrzés</a>
+      <a href="/status">Állapot</a>
+    </nav>
     <h1>Blokk vagy számla feltöltése</h1>
     <form id="upload">
       <div id="drop" class="drop">
@@ -96,7 +100,7 @@
       <fieldset class="modes">
         <legend>Mit töltesz fel?</legend>
         <label class="tag"><input type="radio" name="mode" value="separate" checked>Minden fájl külön dokumentum</label>
-        <label class="tag"><input type="radio" name="mode" value="group">Egy hosszú blokk több képből</label>
+        <label class="tag"><input type="radio" name="mode" value="group">Egy dokumentum több fájlból</label>
       </fieldset>
       <ol id="files"></ol>
       <label>Feltöltő
@@ -163,10 +167,6 @@
 
     function isGroup() {
       return form.elements.mode.value === "group";
-    }
-
-    function isPdf(file) {
-      return file.type === "application/pdf" || /\.pdf$/i.test(file.name);
     }
 
     function showStatus(message, isError) {
@@ -352,11 +352,7 @@
         return;
       }
       if (isGroup() && (selected.length < MIN_PAGES || selected.length > MAX_PAGES)) {
-        showStatus(`Egy blokkhoz ${MIN_PAGES}–${MAX_PAGES} kép tartozhat.`, true);
-        return;
-      }
-      if (isGroup() && selected.some((entry) => isPdf(entry.file))) {
-        showStatus("A PDF önmagában egy dokumentum, csak képek fűzhetők össze.", true);
+        showStatus(`Egy dokumentumhoz ${MIN_PAGES}–${MAX_PAGES} fájl tartozhat.`, true);
         return;
       }
       submitButton.disabled = true;

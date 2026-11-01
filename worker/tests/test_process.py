@@ -1,6 +1,7 @@
 """Valódi Garage és Postgres; a bronz írás visszagörget, a Garage-objektumok törlődnek."""
 
 import hashlib
+from pathlib import Path
 
 import httpx
 import pytest
@@ -99,6 +100,41 @@ def test_scanned_pdf_goes_through_the_model(conn, storage):
     assert len(reader.images) == 2
     assert extractions(conn, document_id)[0][0] == "teszt-modell"
     assert inbox.outcomes[0]["seconds"] == 160.0
+
+
+def page_pdf(lines: list[str]) -> bytes:
+    return invented_pdf([(50, 820 - 14 * row, line) for row, line in enumerate(lines)])
+
+
+def test_invoice_scanned_into_separate_pdfs_is_one_document(conn, storage):
+    invoices = Path(__file__).parent / "invoices"
+    lines = (invoices / "one_line_row.txt").read_text(encoding="utf-8").splitlines()
+    middle = next(index for index, line in enumerate(lines) if line.startswith("Összesen"))
+    contents = [page_pdf(lines[:middle]), page_pdf(lines[middle:])]
+    items = [item | {"content_type": "application/pdf"} for item in make_group(contents)]
+    inbox = FakeInbox({item["id"]: content for item, content in zip(items, contents, strict=True)})
+    reader = FakeReader()
+
+    process(items, conn, inbox, storage, reader, no_report)
+
+    assert reader.calls == 0
+    assert [documents(conn, item["sha256"])[0][2] for item in items] == ["pdf", "pdf"]
+    assert inbox.closed == [item["id"] for item in items]
+    assert inbox.outcomes == [{"result": "ok", "seconds": None, "items": 2}, None]
+
+
+def test_scanned_pdf_and_photo_form_one_document(conn, storage):
+    contents = [scanned_pdf(), invented_receipt()]
+    items = make_group(contents)
+    items[0] = items[0] | {"content_type": "application/pdf"}
+    inbox = FakeInbox({item["id"]: content for item, content in zip(items, contents, strict=True)})
+    reader = FakeReader({"ocr_text": SAMPLE_TEXT, "seconds": 80.0})
+
+    process(items, conn, inbox, storage, reader, no_report)
+
+    assert reader.calls == 2
+    assert [documents(conn, item["sha256"])[0][2] for item in items] == ["pdf", "photo"]
+    assert len(inbox.closed) == 2
 
 
 def test_broken_pdf_closes_as_unreadable_and_the_next_one_runs(conn, storage):
@@ -259,6 +295,7 @@ def test_failed_item_does_not_stop_the_next_one(monkeypatch):
 
     monkeypatch.setattr("app.main.process", fake_process)
     monkeypatch.setattr("app.main.psycopg.connect", lambda *_, **__: Connection())
+    monkeypatch.setattr("app.main.reviews.sync", lambda *_: None)
 
     class Settings:
         database_url = "postgresql://unused"

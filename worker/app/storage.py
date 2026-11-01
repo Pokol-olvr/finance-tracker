@@ -4,6 +4,13 @@ import boto3
 from botocore.config import Config
 
 BUCKET = "raw"
+EXTENSIONS = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/heic": "heic",
+    "image/webp": "webp",
+    "application/pdf": "pdf",
+}
 
 
 class Storage:
@@ -26,3 +33,6 @@ class Storage:
 
     def put(self, key: str, content: bytes, content_type: str) -> None:
         self.client.put_object(Bucket=BUCKET, Key=key, Body=content, ContentType=content_type)
+
+    def get(self, key: str) -> bytes:
+        return self.client.get_object(Bucket=BUCKET, Key=key)["Body"].read()

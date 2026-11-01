@@ -19,6 +19,12 @@ RATE_CELL = re.compile(r"(?P<rate>\d{1,2})\s*%", re.IGNORECASE)
 CODE_CELL = re.compile(r"[^\W\d_]{2,5}")
 NUMBER_CELL = re.compile(r"-?\d[\d.,]*")
 QUANTITY_CELL = re.compile(r"(?P<quantity>\d+(?:[,.]\d+)?)\s*(?P<unit>[^\W\d_]{1,7})\.?")
+# Mennyiség, egységár és érték, de áfa nélkül: ez csak javaslat lehet, mert nem ellenőrzi magát.
+DRAFT_ROW = re.compile(
+    rf"^(?P<name>.+?)\s+(?P<quantity>\d+(?:[,.]\d+)?)\s*(?P<unit>[^\W\d_]{{1,7}})\.?\s+"
+    rf"(?P<unit_price>{MONEY})\s*(?:Ft\.?|HUF)?\s+(?P<value>{MONEY})\s*(?:Ft\.?|HUF)?$",
+    re.IGNORECASE,
+)
 # A sor elején a név áll, ezért a mennyiséget csak akkor fogadjuk el, ha utána szám jön.
 QUANTITY_IN_ROW = re.compile(rf"(?:^|\s){QUANTITY_CELL.pattern}(?=\s+-?\d)")
 
@@ -48,6 +54,10 @@ PAYMENT_METHODS = (
     ("KESZPENZ", "cash"),
     ("UTANVET", "cash_on_delivery"),
 )
+NOT_A_NAME = {
+    "SZAMLA", "SORSZAM", "ADOSZAM", "EREDETI", "SZALLITOLEVEL", "DIJBEKERO", "PROFORMA",
+}
+HEADER_LOOKBACK = 8
 LABEL_WORDS = 8
 LABEL_POSITION = 3
 AMOUNT_LIMIT = 1
@@ -292,7 +302,7 @@ def store_name_of(part: list[str]) -> str | None:
     for line in part:
         words = words_of(line)
         letters = sum(len(word) for word in words)
-        if letters >= 3 and words[0] not in ("SZAMLA", "SORSZAM", "ADOSZAM", "EREDETI"):
+        if letters >= 3 and words[0] not in NOT_A_NAME:
             return line
     return None
 
@@ -397,9 +407,68 @@ def read_summary(lines: list[str]) -> list[dict]:
     return rows
 
 
-def parse_invoice(text: str) -> dict:
+def clean_lines(text: str) -> list[str]:
     lines = [line.strip() for line in text.splitlines() if line.strip()]
-    lines = [line for line in lines if not line.startswith("```")]
+    return [line for line in lines if not line.startswith("```")]
+
+
+def gross_factor(lines: list[str], body: int) -> float:
+    """Ha a táblázat csak nettót ad, és egy áfakulcs van, a javaslat bruttóra vált."""
+    header = {word for line in lines[max(0, body - HEADER_LOOKBACK) : body] for word in words_of(line)}
+    rates = {
+        int(match[1])
+        for line in lines
+        if words_of(line)[:1] == ["AFA"]
+        for match in re.finditer(r"(\d{1,2})\s*%", line)
+    }
+    if "NETTO" in header and "BRUTTO" not in header and len(rates) == 1:
+        return 1 + rates.pop() / 100
+    return 1
+
+
+def draft_row(line: str, factor: float) -> dict | None:
+    """A sor legjobb értelmezése; lehet hibás, ezért csak a javítás űrlapját tölti ki."""
+    full = parse_row(line)
+    if full:
+        return {key: full[key] for key in ("name", "quantity", "unit", "unit_price", "value")}
+    match = DRAFT_ROW.match(line)
+    if match:
+        return {
+            "name": match["name"],
+            "quantity": to_quantity(match["quantity"]),
+            "unit": match["unit"],
+            "unit_price": to_amount(match["unit_price"]) if factor == 1 else None,
+            "value": round(to_amount(match["value"]) * factor),
+        }
+    trailing = TRAILING_CELL.search(line)
+    if trailing is None or len(words_of(line[: trailing.start()])) == 0:
+        return None
+    return {
+        "name": line[: trailing.start()].strip(),
+        "quantity": None,
+        "unit": None,
+        "unit_price": None,
+        "value": round(to_amount(trailing["amount"]) * factor),
+    }
+
+
+def draft_of(lines: list[str]) -> dict:
+    """Javaslat a javítás űrlapjához: mentés nélkül nem számít adatnak."""
+    body, end = table_bounds(lines)
+    factor = gross_factor(lines, body)
+    rows = [row for line in lines[body:end] if (row := draft_row(line, factor))]
+    dates = read_dates(lines)
+    any_date = next((value for line in lines for value in dates_in(line)), None)
+    return {
+        "store_name": store_name_of(seller_part(lines)),
+        "purchased_on": dates.get("fulfilled") or dates.get("issued") or any_date,
+        "total": read_total(lines)[0],
+        "items": [row | {"kind": "item"} for row in rows],
+    }
+
+
+def parse_invoice(text: str) -> dict:
+    lines = clean_lines(text)
 
     body, end = table_bounds(lines)
     items, unmatched = read_items(lines[body:end])
@@ -426,4 +495,5 @@ def parse_invoice(text: str) -> dict:
         "issued_on": dates.get("issued"),
         "due_on": dates.get("due"),
         "receipt_number": read_number(lines),
+        **({"draft": draft_of(lines)} if not items else {}),
     }

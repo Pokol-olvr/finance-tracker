@@ -96,6 +96,12 @@ class FakeInbox:
         self.files = files
         self.closed: list[str] = []
         self.outcomes: list[dict] = []
+        self.reviews: dict[str, dict] = {}
+        self.pages: dict[tuple[str, int], bytes] = {}
+        self.decisions: list[dict] = []
+        self.decided: set[str] = set()
+        self.synced: list[str] = []
+        self.reopened: list[tuple[str, str, str]] = []
 
     def download(self, item_id: str) -> bytes:
         return self.files[item_id]
@@ -103,6 +109,31 @@ class FakeInbox:
     def close(self, item_id: str, outcome: dict) -> None:
         self.closed.append(item_id)
         self.outcomes.append(outcome)
+
+    def known_reviews(self) -> dict[str, dict]:
+        return {
+            group_id: {
+                "group_id": group_id,
+                "parse_id": package["parse_id"],
+                "decided": group_id in self.decided,
+            }
+            for group_id, package in self.reviews.items()
+        }
+
+    def put_review_page(self, group_id, page_no: int, content: bytes) -> None:
+        self.pages[(str(group_id), page_no)] = content
+
+    def put_review(self, group_id, package: dict) -> None:
+        self.reviews[str(group_id)] = package
+
+    def open_decisions(self) -> list[dict]:
+        return [row for row in self.decisions if row["id"] not in self.synced]
+
+    def close_decision(self, decision_id: str) -> None:
+        self.synced.append(decision_id)
+
+    def reopen_review(self, group_id, decision_id, decided_by: str) -> None:
+        self.reopened.append((str(group_id), str(decision_id), decided_by))
 
 
 class FakeReader:

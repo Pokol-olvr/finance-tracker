@@ -25,6 +25,7 @@ RESULT_LABELS = {
     "unparsed": "nem feldolgozható",
     "unreadable": "olvashatatlan fájl",
     "duplicate": "már megvolt",
+    "reopened": "újranyitva",
 }
 NO_DATA = "Nincs friss adat"
 
@@ -81,7 +82,8 @@ def upload_card(host: dict | None, queue: dict) -> dict:
         fact("Lezárt", format_number(queue.get("closed", 0))),
         fact("Ellenőrzésre vár", format_number(queue.get("review", 0))),
     ]
-    return card("upload", "Feltöltés", state, summary, facts)
+    result = card("upload", "Feltöltés", state, summary, facts)
+    return result | {"link": {"label": "Ellenőrzés megnyitása", "url": "/review"}}
 
 
 def worker_card(host: dict | None, worker: dict | None) -> dict:

@@ -8,7 +8,7 @@ tags: [penzugy, projekt]
 
 # Fejlesztési terv
 
-8 epic, 10 kéthetes sprint, kb. 194 story pont. Minden story egy feladat: a 📅 dátum a sprint vége, a címkék az epicet és a sprintet jelölik. A [Tasks](https://publish.obsidian.md/tasks/) bővítménnyel szűrhető, pl. `tags include #sprint/S1`.
+8 epic, 10 kéthetes sprint, kb. 199 story pont. Minden story egy feladat: a 📅 dátum a sprint vége, a címkék az epicet és a sprintet jelölik. A [Tasks](https://publish.obsidian.md/tasks/) bővítménnyel szűrhető, pl. `tags include #sprint/S1`.
 
 Részletes sprintterv: [[Sprint 1]] · [[Sprint 2]] · [[Sprint 3]] · [[Sprint 4]] · Kapcsolódó: [[Üzleti koncepció]] · [[Technikai terv]] · [[Release folyamat]] · [[Változásnapló]]
 
@@ -111,7 +111,7 @@ Kész, ha: telefonról feltöltött vagy e-mailben továbbított számla eljut a
 - [ ] FIN-312 PDF-feltöltés és -olvasás: szövegréteg, szkennelt PDF-nél a modell · 3 SP #E3 #sprint/S4 📅 2026-12-27
     - Elfogadás: egy szöveges PDF modellhívás nélkül, egy szkennelt PDF a modellen át dolgozódik fel
 
-## FIN-E4 Blokkbeolvasás (S3–S5, 46 SP)
+## FIN-E4 Blokkbeolvasás (S3–S5, 51 SP)
 
 Kész, ha: a blokkból tétel szintű silver lesz, kivételnél ellenőrzéssel. A FIN-403 csak akkor kell, ha a FIN-410 mérése szerint a szöveges olvasat hibái miatt túl sok blokk kerül ellenőrzésre.
 
@@ -139,6 +139,8 @@ Kész, ha: a blokkból tétel szintű silver lesz, kivételnél ellenőrzéssel.
     - Elfogadás: a feltöltött bizonylat csökkenti a várható betétdíjat, és a hozzá tartozó utalványsor nem csökkenti másodszor
 - [ ] FIN-412 Szabályalapú számlafeldolgozó a szöveges olvasatra, két táblázat-elrendezéssel · 5 SP #E4 #sprint/S4 📅 2026-12-27
     - Elfogadás: a végösszeg, a teljesítés dátuma és a szállító adószáma egyezik a papírral, az ismeretlen táblázatú számla `review` lesz, és nem kap kitalált tételt, a szállítólevél pedig nem számít kiadásnak
+- [ ] FIN-413 Döntés újranyitása, az elvetett fájl újrafeltöltése és előtöltött javítás · 5 SP #E4 #sprint/S4 📅 2026-12-27
+    - Elfogadás: az elvetett dokumentum visszahozható, újrafeltöltéskor is újranyílik, és a javítás a szövegből kinyert sorokkal indul
 
 ## FIN-E5 Címkézés és tanulás (S5, S7, 21 SP)
 

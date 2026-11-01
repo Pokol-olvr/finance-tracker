@@ -8,28 +8,18 @@ import time
 from collections.abc import Callable
 from uuid import UUID
 
-import httpx
 import psycopg
-from botocore.exceptions import BotoCoreError, ClientError
 
-from app import bronze, pdf
+from app import bronze, pdf, reviews
 from app.config import Settings, get_settings
 from app.extract import PROMPT_VERSION, ModelMissing, ReceiptReader
 from app.inbox import Inbox
 from app.parsing import parse_pending
 from app.receipt_parser import PARSER_VERSION
 from app.status import StatusReporter
-from app.storage import Storage
+from app.storage import EXTENSIONS, Storage
 
 log = logging.getLogger("worker")
-
-EXTENSIONS = {
-    "image/jpeg": "jpg",
-    "image/png": "png",
-    "image/heic": "heic",
-    "image/webp": "webp",
-    pdf.CONTENT_TYPE: "pdf",
-}
 
 
 class HashMismatch(Exception):
@@ -41,15 +31,7 @@ class IncompleteGroup(Exception):
 
 
 # Ezeknél a tétel nyitva marad, és a következő körben újra próbálkozunk.
-RETRYABLE = (
-    httpx.HTTPError,
-    BotoCoreError,
-    ClientError,
-    psycopg.Error,
-    HashMismatch,
-    IncompleteGroup,
-    ModelMissing,
-)
+RETRYABLE = (*reviews.TRANSIENT, HashMismatch, IncompleteGroup, ModelMissing)
 
 
 def source_type(item: dict) -> str:
@@ -118,7 +100,8 @@ def process(
     result = bronze.parse_result(conn, group_id, PARSER_VERSION)
 
     if not payloads and previous is not None:
-        outcome = {"result": "duplicate"}
+        reopened = reviews.reopen_rejected(conn, inbox, group_id, items[0]["uploaded_by"])
+        outcome = {"result": "reopened" if reopened else "duplicate"}
     elif result is None:
         raise IncompleteGroup("A csoport nem minden képe van meg.")
     else:
@@ -149,10 +132,9 @@ def run_once(
     reporter: StatusReporter,
 ) -> None:
     groups = group_items(inbox.list_new())
-    if not groups:
-        return
     # Autocommit: a modell percekig is futhat, közben nem maradhat nyitva tranzakció.
     with psycopg.connect(settings.database_url, autocommit=True) as conn:
+        reviews.sync(conn, inbox, storage)
         for items in groups:
             label = items[0]["group_id"] or items[0]["id"]
             try:
@@ -162,6 +144,7 @@ def run_once(
             else:
                 log.info("A(z) %s blokk kész.", label)
             reporter.step("idle")
+            reviews.sync(conn, inbox, storage)
 
 
 def reparse_stored(settings: Settings) -> None:

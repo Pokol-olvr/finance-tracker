@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ellenőrzés</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/base.css">
+  <style>
+    main { max-width: 960px; margin: 0 auto; }
+    h1 { margin-bottom: 16px; }
+    h2 { margin: 24px 0 8px; font-size: 18px; }
+    .scroll { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { color: var(--muted); font-weight: 600; }
+    .number { text-align: right; white-space: nowrap; }
+    .failed { display: block; color: var(--error); font-size: 13px; }
+    .empty { margin: 0; color: var(--muted); }
+    #error { color: var(--error); }
+  </style>
+</head>
+<body>
+  <main>
+    <nav class="menu" aria-label="Oldalak">
+      <a href="/">Feltöltés</a>
+      <a href="/review" aria-current="page">Ellenőrzés</a>
+      <a href="/status">Állapot</a>
+    </nav>
+    <h1>Ellenőrzés</h1>
+    <p id="error" role="alert" hidden></p>
+    <section>
+      <h2 id="open-title">Döntésre vár</h2>
+      <div class="scroll"><table id="open" hidden><thead></thead><tbody></tbody></table></div>
+      <p id="open-empty" class="empty">Nincs döntésre váró dokumentum.</p>
+    </section>
+    <section>
+      <h2>Elmúlt 30 nap</h2>
+      <div class="scroll"><table id="closed" hidden><thead></thead><tbody></tbody></table></div>
+      <p id="closed-empty" class="empty">Még nincs lezárt dokumentum.</p>
+    </section>
+  </main>
+  <script>
+    const COLUMNS = ["Dokumentum", "Dátum", "Végösszeg", "Tételek", "Állapot"];
+
+    function element(tag, className, text) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text !== undefined && text !== null) node.textContent = text;
+      return node;
+    }
+
+    function documentCell(row) {
+      const cell = element("td");
+      const link = element("a", "", row.store_name || "Névtelen dokumentum");
+      link.href = `/review/${row.group_id}`;
+      cell.append(link, " · ", row.document_type);
+      for (const text of row.failed) cell.append(element("span", "failed", text));
+      return cell;
+    }
+
+    function renderTable(name, rows) {
+      const table = document.getElementById(name);
+      const head = element("tr");
+      COLUMNS.forEach((title, index) => {
+        head.append(element("th", index === 2 || index === 3 ? "number" : "", title));
+      });
+      table.tHead.replaceChildren(head);
+      table.tBodies[0].replaceChildren(...rows.map((row) => {
+        const line = element("tr");
+        line.append(
+          documentCell(row),
+          element("td", "", row.purchased_on || "–"),
+          element("td", "number", row.total || "–"),
+          element("td", "number", String(row.items)),
+          element("td", "", row.label),
+        );
+        return line;
+      }));
+      table.hidden = rows.length === 0;
+      document.getElementById(`${name}-empty`).hidden = rows.length > 0;
+    }
+
+    async function load() {
+      try {
+        const response = await fetch("/reviews.json", { cache: "no-store" });
+        if (!response.ok) throw new Error(String(response.status));
+        const data = await response.json();
+        document.getElementById("open-title").textContent = `Döntésre vár (${data.open.length})`;
+        renderTable("open", data.open);
+        renderTable("closed", data.closed);
+      } catch {
+        const error = document.getElementById("error");
+        error.textContent = "A lista nem tölthető be, frissítsd az oldalt.";
+        error.hidden = false;
+      }
+    }
+
+    load();
+  </script>
+</body>
+</html>

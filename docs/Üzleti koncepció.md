@@ -114,10 +114,11 @@ A legnagyobb kockázat nem technikai, hanem a fegyelem: ha a blokk feltöltése 
 - Alap kategóriák: élelmiszer, háztartás, lakbér, közlekedés, szórakozás, egészség.
 - Források: blokkfotó, PDF, e-mailben továbbított számla, kézi bejegyzés, elektronikus bérpapír, kézzel felvitt banki kivonat.
 - Hitelek kézzel, mellettük egyéb tartozások is könyvelhetők.
-- Egyszerre több blokk is feltölthető, és egy hosszú blokk több képből is állhat.
+- Egyszerre több blokk is feltölthető, és egy dokumentum több képből vagy PDF-ből is állhat.
 - A számla fotóról és PDF-ből is feldolgozódik. A kiadás dátuma a teljesítés dátuma, a vevő neve és címe pedig nem kerül a feldolgozott adatba.
 - A szállítólevél nem kiadás, a hozzá tartozó számla számít.
 - A kivételnél az eredeti dokumentum a feldolgozott adatok mellett látszik, és jóváhagyható, javítható vagy elvethető. A rendben lévő dokumentum nem kér döntést, de 30 napig visszanézhető.
+- A döntés visszavonható, és az elvetett dokumentum újrafeltöltéskor is újranyílik. A rossz fotó újrapróbálása az új fotó, mert a modell ugyanarra a fájlra ugyanazt adja.
 - A DRS-betétdíj nem kiadás: külön, várható összegként vezetjük, kézzel állítható, és visszaváltáskor nullázható.
 - A visszaváltás bizonylata feltölthető, és egy visszaváltás csak egyszer csökkenti a várható betétdíjat: a blokk utalványsora csak akkor, ha nincs hozzá feltöltött bizonylat. Minden automatikus csökkentés kézzel felülírható.
 

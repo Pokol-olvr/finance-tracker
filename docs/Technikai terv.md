@@ -115,7 +115,7 @@ A blokkfotót egy helyben futó képfelismerő nyelvi modell szöveggé olvassa,
 - **Automatikus ellenőrzés:** a tételek összege egyezzen a végösszeggel, a mennyiség és az egységár a tétel értékével, a fizetett összeg a végösszeggel, a beolvasott dátum a feltöltéskor beírttal, és ugyanaz a nyugtaszám ne szerepeljen kétszer. Ha nem, a blokk az Ellenőrzés képernyőre kerül.
 - **Miért kell a tanítás:** egy mérésben egy hasonló, nem finomhangolt helyi modell ([qwen2.5-VL 7B](https://github.com/Yacine-ai-tech/DocIntel)) a telefonnal fotózott blokkok 77%-át olvasta be hibátlanul. A magyar blokkokon finomhangolt modell ennél jobb lehet, de ezt mérni kell.
 - **Saját tesztkészlet:** a jóváhagyott blokkok egy része félrerakva tesztkészlet. Minden új modellt ezen mérünk, mielőtt a régit leváltja.
-- **Újrafeldolgozhatóság:** a modell kimenete a modell nevével és verziójával kerül a bronzba, így jobb modellel a régi blokkok újra feldolgozhatók. A feldolgozó kimenete saját verzióval külön táblába kerül, ezért jobb szabályokkal a nyers szöveg modell nélkül is újra feldolgozható.
+- **Újrafeldolgozhatóság:** a modell kimenete a modell nevével és verziójával kerül a bronzba, így jobb modellel a régi blokkok újra feldolgozhatók. A feldolgozó kimenete saját verzióval külön táblába kerül, ezért jobb szabályokkal a nyers szöveg modell nélkül is újra feldolgozható. A modell `temperature: 0` beállítással fut, ezért ugyanarra a fájlra ugyanazt adja, így a változatlan újraolvasásnak nincs értelme ([[0012-ujranyitas-az-ujraolvasas-helyett|ADR 0012]]).
 
 Első lépésként 20–30 saját blokkon érdemes kipróbálni, mert a magyar rövidítéseket és ékezeteket a gyakorlat mutatja meg.
 
