@@ -68,7 +68,7 @@ A webapp a Pi-n fut, a telefonon PWA-ként jelenik meg, és eléri a kamerát. A
 | Képernyő | Mit csinál |
 | --- | --- |
 | Fotó | Blokk lefotózása, mellé: ki vásárolt (alapból a feltöltő), a blokkon szereplő dátum, és egy vagy több címke (pl. élelmiszer + háztartás). A feltöltés időbélyege automatikus |
-| Ellenőrzés | Csak kivételeknél: ha a tételek összege nem egyezik a végösszeggel, ha a beírt és a beolvasott dátum eltér, vagy ha egy tétel címkéje nem egyértelmű |
+| Ellenőrzés | Az eredeti dokumentum a feldolgozott adatok mellett. Döntést csak kivételeknél kér: ha a tételek összege nem egyezik a végösszeggel, ha a beírt és a beolvasott dátum eltér, vagy ha egy tétel címkéje nem egyértelmű |
 | Kézi bejegyzés | Blokk nélküli kiadás vagy bevétel |
 | Bérpapír | Elektronikus bérpapír (PDF) feltöltése, a nettó összeg megerősítése |
 | Kivonat | Banki kivonat sorainak kézi rögzítése vagy beillesztése |
@@ -89,9 +89,9 @@ Ajánlás: a már meglévő Tailscale és egy 2FA együtt, mert blokkokról, bé
 Minden kapcsolatot az otthoni oldal nyit a Pi felé, így az otthoni hálózatba nem kell bejövő portot nyitni. Ha a gép ki van kapcsolva, a Pi addig gyűjti a képeket. Amíg a Pi nincs beállítva, a postaláda szerepét az otthoni webapp viszi ugyanazzal az API-val, így a worker a költözéskor csak másik címre mutat ([[0006-blokkbeolvasas-a-pi-elott|ADR 0006]]).
 
 1. Az otthoni worker letölti az új képeket a Pi-ről az object store-ba.
-2. A modell feldolgozza őket, a worker visszatölti a javaslatot a Pi ellenőrzési sorába.
-3. A telefonon jóváhagyod vagy javítod, a worker letölti a döntést a bronzba.
-4. A Pi törli a lezárt tételt.
+2. A modell feldolgozza őket, a worker visszatölti a javaslatot és a fájlt csomagként a Pi ellenőrzési sorába ([[0011-ellenorzes-kepernyo-csomagokkal|ADR 0011]]).
+3. A telefonon jóváhagyod, javítod vagy elveted, a worker letölti a döntést a bronzba.
+4. A Pi a lezárt tétel fájlját a feldolgozás után törli, a csomagot pedig a döntés után 30 nappal.
 
 ### E-mailben továbbított számlák
 
@@ -143,7 +143,7 @@ Egy PostgreSQL adatbázis három sémával (bronze, silver, gold), mellette a ny
 
 | Réteg | Fő táblák | Jelleg |
 | --- | --- | --- |
-| Bronz | nyers dokumentum (fájl, hash, feltöltő, vásárló, időpontok, forrástípus), modellkimenet (szöveg + modellverzió), blokkfeldolgozás (szerkezet + verzió), kézi bejegyzés, bérpapír, kivonatsor, hitel- és tartozásbejegyzés, betétdíj-korrekció | Csak hozzáfűz, változatlan |
+| Bronz | nyers dokumentum (fájl, hash, feltöltő, vásárló, időpontok, forrástípus), modellkimenet (szöveg + modellverzió), blokkfeldolgozás (szerkezet + verzió), ellenőrzési döntés, kézi bejegyzés, bérpapír, kivonatsor, hitel- és tartozásbejegyzés, betétdíj-korrekció | Csak hozzáfűz, változatlan |
 | Silver | blokk, blokktétel, egységes tranzakció (kiadás, bevétel, átvezetés), betétdíj-mozgás, bolt, kategória, fizető fél, korrekció, hitel, tartozás | Tisztított, deduplikált, szabályokkal kategorizált |
 | Gold | havi cash-flow (közös és személyes), kategória-hónap, közös kassza (befizetés, kiadás, javasolt utalás), célok állása, hitelek állása, várható betétdíj, tételár-történet, modellpontosság | Kész mutatók a BI-nak |
 

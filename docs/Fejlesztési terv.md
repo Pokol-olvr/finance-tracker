@@ -8,7 +8,7 @@ tags: [penzugy, projekt]
 
 # Fejlesztési terv
 
-8 epic, 10 kéthetes sprint, kb. 191 story pont. Minden story egy feladat: a 📅 dátum a sprint vége, a címkék az epicet és a sprintet jelölik. A [Tasks](https://publish.obsidian.md/tasks/) bővítménnyel szűrhető, pl. `tags include #sprint/S1`.
+8 epic, 10 kéthetes sprint, kb. 194 story pont. Minden story egy feladat: a 📅 dátum a sprint vége, a címkék az epicet és a sprintet jelölik. A [Tasks](https://publish.obsidian.md/tasks/) bővítménnyel szűrhető, pl. `tags include #sprint/S1`.
 
 Részletes sprintterv: [[Sprint 1]] · [[Sprint 2]] · [[Sprint 3]] · [[Sprint 4]] · Kapcsolódó: [[Üzleti koncepció]] · [[Technikai terv]] · [[Release folyamat]] · [[Változásnapló]]
 
@@ -95,7 +95,7 @@ Kész, ha: telefonról feltöltött vagy e-mailben továbbított számla eljut a
 - [ ] FIN-304 PWA feltöltés: fotó, ki vásárolt, a blokk dátuma, több címke; a feltöltés ideje automatikus · 5 SP #E3 #sprint/S3 📅 2026-12-13
     - Elfogadás: böngészőből egy képernyőn feltölthető; telefonról a FIN-308 után
 - [ ] FIN-305 Postaláda API a workernek: új tételek, letöltés, lezárás, törlés lezárás után · 3 SP #E3 #sprint/S3 📅 2026-12-13
-    - Elfogadás: a lezárt kép eltűnik a postaládából
+    - Elfogadás: a lezárt kép eltűnik a postaládából; az Ellenőrzés képernyő visszatöltött másolata legfeljebb 30 napig marad
 - [ ] FIN-306 Worker: lehúzás a Garage-ba, hash alapú duplikációszűrés, bronz rekord · 5 SP #E3 #sprint/S3 📅 2026-12-13
     - Elfogadás: kétszer feltöltött kép egyszer kerül be
 - [ ] FIN-307 E-mailes számlafogadás: külön postafiók, IMAP-lehúzás, csak a két saját feladótól, címkék a tárgyból, a levél és a mellékletek a Garage-ba · 5 SP #E3 #sprint/S6 📅 2027-01-24
@@ -111,7 +111,7 @@ Kész, ha: telefonról feltöltött vagy e-mailben továbbított számla eljut a
 - [ ] FIN-312 PDF-feltöltés és -olvasás: szövegréteg, szkennelt PDF-nél a modell · 3 SP #E3 #sprint/S4 📅 2026-12-27
     - Elfogadás: egy szöveges PDF modellhívás nélkül, egy szkennelt PDF a modellen át dolgozódik fel
 
-## FIN-E4 Blokkbeolvasás (S3–S5, 43 SP)
+## FIN-E4 Blokkbeolvasás (S3–S5, 46 SP)
 
 Kész, ha: a blokkból tétel szintű silver lesz, kivételnél ellenőrzéssel. A FIN-403 csak akkor kell, ha a FIN-410 mérése szerint a szöveges olvasat hibái miatt túl sok blokk kerül ellenőrzésre.
 
@@ -123,8 +123,8 @@ Kész, ha: a blokkból tétel szintű silver lesz, kivételnél ellenőrzéssel.
     - Elfogadás: bizonytalan blokknál az OCR-szöveg is a bronzba kerül
 - [ ] FIN-404 Automatikus ellenőrzés: összeg, tételszorzat, fizetés, dátum, ismételt blokk · 5 SP #E4 #sprint/S4 📅 2026-12-27
     - Elfogadás: eltérésnél a blokk az ellenőrzési sorba kerül, és az állapotoldalon sem „rendben”
-- [ ] FIN-405 Javaslat visszatöltése a postaládába, kivétel alapú Ellenőrzés képernyő · 5 SP #E4 #sprint/S5 📅 2027-01-10
-    - Elfogadás: böngészőből javítható, a döntés eljut a bronzba; telefonról a FIN-308 után
+- [ ] FIN-405 Javaslat visszatöltése a postaládába, kivétel alapú Ellenőrzés képernyő · 8 SP #E4 #sprint/S4 📅 2026-12-27
+    - Elfogadás: az eredeti és a feldolgozott adat egymás mellett látszik, a kivétel böngészőből jóváhagyható, javítható vagy elvethető, és a döntés eljut a bronzba; telefonról a FIN-308 után
 - [ ] FIN-406 Silver tétel szint: blokk, blokktétel, bolt-egységesítés, korrekciós tábla · 5 SP #E4 #sprint/S5 📅 2027-01-10
     - Elfogadás: javítás után a silver a javított értéket mutatja, a bronz változatlan
 - [ ] FIN-407 Mérés 20–30 saját blokkon · 2 SP #E4 #sprint/S5 📅 2027-01-10
