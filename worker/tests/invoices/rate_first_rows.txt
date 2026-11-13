@@ -1,0 +1,30 @@
+Számla #204518
+Vásárló neve
+Példa utca 1, Budapest, 1111
+Szállítási idő 28.10.2026 18:42
+Fizetési mód
+Példa Pay 9 500,00
+Partner kredit 500,00
+ÁFA Nettó
+Tétel Mennyiség Nettó ár Ár
+% amount egységár
+Sajtos tészta nagy 3 000,00
+Sajtos tészta nagy 27% 1 637,80 2 362,20 2 362,20 3 000,00
+Választható
+Szósz: fokhagymás 27% 1 0,00 0,00 0,00 0,00
+Megjegyzés a szószról
+Málnás szörp
+üveges 27% 2 170,08 315,00 630,00 800,00
+Rántott sajt 27% 1 1 317,74 4 880,52 4 880,52 6 198,26
+Kiszállítási díj 27% 1 106,29 393,71 393,71 500,00
+Sürgősségi díj 27% 1 106,30 393,70 393,70 500,00
+Total HUF-ban (ÁFÁt 2 10
+338,21 998,26
+tartalmazza)
+Nettó ár ÁFA Összesen
+ÁFA 27% 0 1 298,00 2 338,21 10 998,26
+Eladó neve: Példa Étterem Kft.
+Adószám: 11223344-2-13
+Az alábbi feltételek a szolgáltatásra vonatkoznak.
+1. Fogalmak
+A vásárló a rendelést a felületen adja le, és a díjat a Példa Kft. részére fizeti meg.

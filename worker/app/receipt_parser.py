@@ -7,7 +7,7 @@ from difflib import get_close_matches
 from itertools import product
 
 # Ha a szabály változik, a worker a meglévő szövegeket is újra feldolgozza, modellfutás nélkül.
-PARSER_VERSION = "6"
+PARSER_VERSION = "8"
 
 MAX_AMBIGUOUS_LINES = 12
 MAX_OVERLAP_LINES = 15

@@ -9,6 +9,7 @@ from datetime import date
 
 from app.receipt_parser import DATE_TEXT, TAX_NUMBER, classify, match_key
 
+DAY_FIRST_DATE = re.compile(r"\b(\d{2})\.(\d{2})\.(20\d{2})\b")
 MONEY = r"-?\d{1,3}(?:[ .]\d{3})+(?:,\d{1,2})?|-?\d+(?:[,.]\d{1,2})?"
 CURRENCY = r"Ft\.?|HUF|EUR|€|USD|\$|GBP|£"
 CELL = rf"(?P<prefix>€|\$|£)?\s*(?P<amount>{MONEY})\s*(?P<currency>{CURRENCY})?"
@@ -27,6 +28,11 @@ DRAFT_ROW = re.compile(
 )
 # A sor elején a név áll, ezért a mennyiséget csak akkor fogadjuk el, ha utána szám jön.
 QUANTITY_IN_ROW = re.compile(rf"(?:^|\s){QUANTITY_CELL.pattern}(?=\s+-?\d)")
+# Mértékegység nélküli sor: név, áfakulcs, mennyiség, majd áfa, nettó egységár, nettó és bruttó.
+RATE_FIRST_ROW = re.compile(
+    r"^(?P<name>.+?)\s+(?P<rate>\d{1,2})\s*%\s+(?P<quantity>\d+)\s+(?P<cells>\d[\d ,.]*)$"
+)
+VAT_ROW = re.compile(r"(?:AFA\b.*?\s)?(\d{1,2})\s*%")
 
 BUYER_WORDS = {"VEVO", "VASARLO", "MEGRENDELO"}
 SELLER_WORDS = {"SZALLITO", "ELADO", "KIBOCSATO", "KIALLITO", "SZOLGALTATO"}
@@ -38,10 +44,11 @@ TOTAL_LABELS = (
     "OSSZESEN BRUTTO",
     "BRUTTO OSSZESEN",
     "VEGOSSZEG",
+    "FIZETENDO OSSZEG",
     "FIZETENDO",
 )
 DATE_LABELS = re.compile(
-    r"(?P<fulfilled>TELJESITES(?: (?:KELTE|DATUMA|IDEJE|IDOPONTJA|NAPJA))?)"
+    r"(?P<fulfilled>TELJESITES(?: (?:KELTE|DATUMA|IDEJE|IDOPONTJA|NAPJA))?|SZALLITASI IDO)"
     r"|(?P<due>HATARIDO|ESEDEKESSEG)"
     r"|(?P<issued>KIALLITAS(?: (?:KELTE|DATUMA|IDEJE))?|KIBOCSATAS|\bKELTE?\b)"
 )
@@ -61,6 +68,8 @@ HEADER_LOOKBACK = 8
 LABEL_WORDS = 8
 LABEL_POSITION = 3
 AMOUNT_LIMIT = 1
+# Ennyire térhet el a javaslat sorainak összege a végösszegtől, mielőtt egy sor váltja fel.
+DRAFT_SHARE = (0.5, 1.5)
 
 
 def to_amount(text: str) -> int | float:
@@ -159,6 +168,29 @@ def parse_row(line: str) -> dict | None:
     return None
 
 
+def parse_rate_first_row(line: str) -> dict | None:
+    match = RATE_FIRST_ROW.match(line)
+    if match is None:
+        return None
+    quantity = int(match["quantity"])
+    for cells in groupings(match["cells"].split()):
+        if len(cells) != 4:
+            continue
+        vat, unit_price, net, gross = cells
+        if close(net + vat, gross) and close(quantity * unit_price, net):
+            return {
+                "name": match["name"],
+                "quantity": quantity,
+                "unit": None,
+                "vat_rate": int(match["rate"]),
+                "unit_price": unit_price,
+                "net": net,
+                "vat": vat,
+                "value": gross,
+            }
+    return None
+
+
 def groupings_around(tokens: list[str], rates: list[str]) -> Iterator[list[int | float]]:
     """Az áfakulcs két oldala külön cella, ezért az ezres csoport nem léphet át rajta."""
     if not rates:
@@ -216,6 +248,12 @@ def name_of(pending: list[str], own_name: str = "") -> str:
     return " ".join([*parts, own_name]).strip()
 
 
+def after_heading(pending: list[str]) -> list[str]:
+    """Az összeggel záruló sor új tételt nyit, a fölötte lévő sorok az előzőhöz tartoznak."""
+    last = max((i for i, line in enumerate(pending) if TRAILING_CELL.search(line)), default=-1)
+    return pending[last + 1 :]
+
+
 def finish_item(row: dict) -> dict:
     return {
         "name": row["name"],
@@ -236,6 +274,18 @@ def read_items(lines: list[str]) -> tuple[list[dict], int]:
     pending: list[str] = []
     index = 0
     while index < len(lines):
+        rate_first = parse_rate_first_row(lines[index])
+        if rate_first and rate_first["value"] == 0:
+            # Ingyenes választás egy tétel alatt: nem kiadás, és a neve sem a következő tételé.
+            pending = []
+            index += 1
+            continue
+        if rate_first:
+            rate_first["name"] = name_of(after_heading(pending), rate_first["name"])
+            items.append(finish_item(rate_first))
+            pending = []
+            index += 1
+            continue
         row = parse_row(lines[index])
         if row:
             row["name"] = name_of(pending, row["name"])
@@ -308,10 +358,12 @@ def store_name_of(part: list[str]) -> str | None:
 
 
 def dates_in(line: str) -> list[str]:
+    spots = [(match.start(), match.groups()) for match in DATE_TEXT.finditer(line)]
+    spots += [(match.start(), match.groups()[::-1]) for match in DAY_FIRST_DATE.finditer(line)]
     found = []
-    for match in DATE_TEXT.finditer(line):
+    for _, parts in sorted(spots):
         try:
-            found.append(date(*map(int, match.groups())).isoformat())
+            found.append(date(*map(int, parts)).isoformat())
         except ValueError:
             continue
     return found
@@ -378,9 +430,10 @@ def read_total(lines: list[str]) -> tuple[int | float | None, str | None]:
     return None, None
 
 
-def summary_row(lines: list[str], index: int) -> dict | None:
+def summary_row(lines: list[str], index: int, rate: int | None = None) -> dict | None:
     """Nettó, áfa, bruttó ugyanabban a sorban vagy a címke alatt, cellánként."""
-    tail = CURRENCY_MARK.sub(" ", f" {lines[index]} ").split()
+    without_rate = re.sub(r"\d{1,2}\s*%", " ", lines[index])
+    tail = CURRENCY_MARK.sub(" ", f" {without_rate} ").split()
     tokens = [token for token in tail if NUMBER_CELL.fullmatch(token)]
     cells: list[int | float] = []
     for line in lines[index + 1 : index + 6]:
@@ -391,19 +444,24 @@ def summary_row(lines: list[str], index: int) -> dict | None:
             break
     candidates = [*groupings(tokens), cells[:3]]
     for amounts in candidates:
-        if len(amounts) == 3 and close(amounts[0] + amounts[1], amounts[2]):
-            return {"net": amounts[0], "vat": amounts[1], "gross": amounts[2]}
+        if len(amounts) >= 3 and close(amounts[-3] + amounts[-2], amounts[-1]):
+            return {"net": amounts[-3], "vat": amounts[-2], "gross": amounts[-1]}
+    # A nettó cella hibás is lehet: ekkor az áfakulcs ellenőrzi az áfát és a bruttót.
+    for amounts in candidates if rate else []:
+        if len(amounts) >= 2 and close(amounts[-1] * rate / (100 + rate), amounts[-2]):
+            return {"net": amounts[-1] - amounts[-2], "vat": amounts[-2], "gross": amounts[-1]}
     return None
 
 
 def read_summary(lines: list[str]) -> list[dict]:
     rows = []
     for index, line in enumerate(lines):
-        rate = re.match(r"(\d{1,2})\s*%", line)
-        if rate or match_key(line).startswith("OSSZESEN"):
-            row = summary_row(lines, index)
+        match = VAT_ROW.match(match_key(line))
+        rate = int(match[1]) if match else None
+        if rate is not None or match_key(line).startswith("OSSZESEN"):
+            row = summary_row(lines, index, rate)
             if row:
-                rows.append({"rate": int(rate[1]) if rate else None, **row})
+                rows.append({"rate": rate, **row})
     return rows
 
 
@@ -459,10 +517,23 @@ def draft_of(lines: list[str]) -> dict:
     rows = [row for line in lines[body:end] if (row := draft_row(line, factor))]
     dates = read_dates(lines)
     any_date = next((value for line in lines for value in dates_in(line)), None)
+    store_name = store_name_of(seller_part(lines))
+    total = read_total(lines)[0]
+    if total and not DRAFT_SHARE[0] <= sum(row["value"] for row in rows) / total <= DRAFT_SHARE[1]:
+        # Az elcsúszott soroknál többet ér egy sor a végösszeggel: ez rögtön menthető.
+        rows = [
+            {
+                "name": store_name or "Számla",
+                "quantity": None,
+                "unit": None,
+                "unit_price": None,
+                "value": total,
+            }
+        ]
     return {
-        "store_name": store_name_of(seller_part(lines)),
+        "store_name": store_name,
         "purchased_on": dates.get("fulfilled") or dates.get("issued") or any_date,
-        "total": read_total(lines)[0],
+        "total": total,
         "items": [row | {"kind": "item"} for row in rows],
     }
 
@@ -473,6 +544,10 @@ def parse_invoice(text: str) -> dict:
     body, end = table_bounds(lines)
     items, unmatched = read_items(lines[body:end])
     total, currency = read_total(lines)
+    summary = read_summary(lines[end:])
+    if total is None:
+        # Címke nélkül az áfasorok bruttója a végösszeg, a tételek összege ezt is ellenőrzi.
+        total = sum(row["gross"] for row in summary if row["rate"] is not None) or None
     dates = read_dates(lines)
     method = read_method(lines)
     seller = seller_part(lines)
@@ -486,7 +561,7 @@ def parse_invoice(text: str) -> dict:
         "currency": currency,
         "items": items,
         "unmatched_lines": unmatched,
-        "vat_summary": read_summary(lines[end:]),
+        "vat_summary": summary,
         "payments": [{"method": method, "amount": total}] if method and total else [],
         "change": None,
         "rounding": None,
