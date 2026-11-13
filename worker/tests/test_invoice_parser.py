@@ -169,6 +169,61 @@ def test_summary_on_one_line_is_read_too():
     ]
 
 
+def test_rate_before_the_quantity_is_read_from_the_cells():
+    first, second, *_ = parsed("rate_first_rows")["items"]
+
+    assert (first["name"], first["quantity"], first["unit"]) == ("Sajtos tészta nagy", 1, None)
+    assert (first["unit_price"], first["net"], first["vat_rate"]) == (2362.2, 2362.2, 27)
+    assert (first["vat"], first["value"]) == (637.8, 3000)
+    assert (second["quantity"], second["unit_price"], second["value"]) == (2, 315, 800)
+
+
+def test_free_option_is_not_an_item_and_its_name_stays_out():
+    names = [item["name"] for item in parsed("rate_first_rows")["items"]]
+
+    assert len(names) == 5
+    assert not any("Szósz" in name for name in names)
+    assert names[1].endswith("Málnás szörp üveges")
+
+
+def test_total_comes_from_the_vat_row_when_its_label_is_unreadable():
+    result = parsed("rate_first_rows")
+
+    assert result["total"] == 10998.26
+    assert status(result) == "ok"
+
+
+def test_seller_below_the_table_is_read_despite_the_terms():
+    result = parsed("rate_first_rows")
+
+    assert (result["store_name"], result["tax_number"]) == ("Példa Étterem Kft.", "11223344-2-13")
+
+
+def test_delivery_time_is_the_date_of_the_invoice():
+    assert parsed("rate_first_rows")["purchased_on"] == "2026-10-28"
+
+
+def test_unlabelled_day_first_date_takes_no_labels_place():
+    result = parsed("vat_row_total")
+
+    assert (result["issued_on"], result["purchased_on"]) == ("2026-10-20", "2026-10-20")
+
+
+def test_vat_row_with_its_rate_in_the_middle_gives_the_total():
+    result = parsed("vat_row_total")
+
+    assert result["total"] == 40640
+    assert result["vat_summary"] == [{"rate": 27, "net": 32000, "vat": 8640, "gross": 40640}]
+    assert status(result) == "ok"
+
+
+def test_payable_total_wins_over_the_payable_part_of_a_section():
+    result = parsed("two_sections")
+
+    assert result["total"] == 4000
+    assert [(row["name"], row["value"]) for row in result["draft"]["items"]] == [("Példa Energia Zrt.", 4000)]
+
+
 def test_unknown_table_keeps_the_total_without_inventing_items():
     result = parsed("unknown_table")
 
@@ -269,6 +324,20 @@ def test_unknown_table_gets_a_suggestion_too():
     assert result["draft"]["total"] == 1270
     assert result["draft"]["store_name"] == "Ismeretlen Táblázat Kft."
     assert result["draft"]["purchased_on"] == "2026-08-15"
+
+
+def test_suggestion_without_usable_rows_is_one_row_with_the_total():
+    rows = parsed("unknown_table")["draft"]["items"]
+
+    assert [(row["name"], row["value"]) for row in rows] == [("Ismeretlen Táblázat Kft.", 1270)]
+
+
+def test_suggestion_far_from_the_total_gives_way_to_one_row():
+    text = text_of("unknown_table").replace("Havi díj | 1000 | 1270 | csomag", "Havi díj 12000\nÉves díj 3000")
+
+    rows = parse_invoice(text)["draft"]["items"]
+
+    assert [(row["name"], row["value"]) for row in rows] == [("Ismeretlen Táblázat Kft.", 1270)]
 
 
 def test_recognised_invoice_needs_no_suggestion():

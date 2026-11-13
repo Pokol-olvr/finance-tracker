@@ -364,7 +364,7 @@
       if (draft.items.some((item) => !item.name.trim())) return "Minden tételnek legyen neve.";
       if (!draft.items.length) return "Legalább egy tétel kell.";
       if (Math.abs(difference().gap) > SUM_LIMIT) {
-        return "A tételek összege nem egyezik a végösszeggel.";
+        return "A tételek összege nem egyezik a végösszeggel. Ha a végösszeg rossz, azt is írd át.";
       }
       return null;
     }

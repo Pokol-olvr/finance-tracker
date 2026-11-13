@@ -24,6 +24,8 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 
 - A dbt éjszaka helyett óránként fut, így a döntés egy órán belül a riportokban is látszik.
 - A dokumentumok kiadása megjelenik a gold táblákban.
+- A számlafeldolgozó felismeri az áfakulccsal kezdődő, mértékegység nélküli táblázatot, a nap-hónap-év dátumot és az áfasorból a végösszeget, ha annak nincs olvasható címkéje. Az ingyenes választások nem lesznek tételek.
+- Ha a javaslat sorai messze vannak a végösszegtől, a javítás űrlapja egy sorral indul a végösszeggel.
 
 ### Eltávolítva
 
