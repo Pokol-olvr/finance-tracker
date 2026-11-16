@@ -7,7 +7,7 @@ from difflib import get_close_matches
 from itertools import product
 
 # Ha a szabály változik, a worker a meglévő szövegeket is újra feldolgozza, modellfutás nélkül.
-PARSER_VERSION = "6"
+PARSER_VERSION = "7"
 
 MAX_AMBIGUOUS_LINES = 12
 MAX_OVERLAP_LINES = 15
@@ -25,6 +25,8 @@ QUANTITY_LINE = re.compile(
 # Egyes boltoknál a mennyiség a név fölött áll, és a sor végén az áfakód van, pl. `ALMA 299 C27`.
 # A kisbetűs előtag itt is az akciós sorokat jelöli.
 VALUE_WITH_CODE = re.compile(rf"^(?P<name>.*?\S)\s+(?P<value>{AMOUNT})\s+(?P<code>[a-z]?[A-E]\d{{2}})$")
+# A cikkszám a vonalkód száma (EAN), a tétel fölött áll; a termékszabály erre is illeszkedhet.
+EAN_LINE = re.compile(r"^(?:CIKKSZ[AÁ]M|EAN)\s*:?\s*(?P<ean>\d{8,14})$", re.IGNORECASE)
 TARE_LINE = re.compile(r"^\d+[,.]\d+\s*KG\s*-\s*\d+[,.]\d+\s*KG\b", re.IGNORECASE)
 BARE_AMOUNT = re.compile(rf"^(?P<value>{AMOUNT})(?:\s*FT)?$", re.IGNORECASE)
 TRAILING_AMOUNT = re.compile(rf"^(?P<name>.*?\S)\s+(?P<value>{AMOUNT})$")
@@ -102,7 +104,7 @@ def parse_item(lines: list[str], index: int, end: int) -> tuple[dict, int, int]:
     """Egy tétel az indextől a következő tétel elejéig; visszaadja az el nem fogadott sorok számát."""
     match = ITEM_LINE.match(lines[index])
     rest = match["rest"]
-    quantity = unit = unit_price = None
+    quantity = unit = unit_price = ean = None
     value = None
     unmatched = 0
 
@@ -120,6 +122,8 @@ def parse_item(lines: list[str], index: int, end: int) -> tuple[dict, int, int]:
         elif bare:
             # Egy elcsúszott szám után a mennyiségsor alatti érték az érvényes.
             value = to_int(bare["value"])
+        elif EAN_LINE.match(line):
+            ean = EAN_LINE.match(line)["ean"]
         elif not TARE_LINE.match(line):
             unmatched += 1
         position += 1
@@ -138,6 +142,7 @@ def parse_item(lines: list[str], index: int, end: int) -> tuple[dict, int, int]:
         "unit": unit,
         "unit_price": unit_price,
         "value": value,
+        "ean": ean,
         "alternative": alternative,
     }
     return item, position, unmatched
@@ -194,9 +199,12 @@ def read_quantity_first(lines: list[str]) -> tuple[list[dict], int]:
     items = []
     unmatched = 0
     quantity_match = None
+    ean = None
     for line in lines:
         row = VALUE_WITH_CODE.match(line)
-        if QUANTITY_LINE.match(line):
+        if EAN_LINE.match(line):
+            ean = EAN_LINE.match(line)["ean"]
+        elif QUANTITY_LINE.match(line):
             quantity_match = QUANTITY_LINE.match(line)
         elif row:
             name, value = settle_value(row["name"], row["value"], quantity_match)
@@ -210,9 +218,10 @@ def read_quantity_first(lines: list[str]) -> tuple[list[dict], int]:
                     "unit": quantity_match["unit"].upper() if quantity_match else None,
                     "unit_price": to_price(quantity_match["unit_price"]) if quantity_match else None,
                     "value": value,
+                    "ean": ean,
                 }
             )
-            quantity_match = None
+            quantity_match = ean = None
         else:
             unmatched += 1
     return items, unmatched

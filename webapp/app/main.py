@@ -145,7 +145,10 @@ def rules_page() -> str:
 
 @app.get("/rules.json")
 def rules_data() -> dict:
-    return {"rules": inbox.list_rules(), "categories": sorted(CATEGORIES)}
+    rules = inbox.list_rules()
+    # A már felvett termékek a következő szabálynál választhatók, így nem lesz két „csiperke”.
+    products = sorted({rule["target"] for rule in rules if rule["rule_type"] == "product"})
+    return {"rules": rules, "categories": sorted(CATEGORIES), "products": products}
 
 
 @app.post("/rules", status_code=status.HTTP_201_CREATED)

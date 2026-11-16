@@ -78,6 +78,22 @@ def test_quantity_decides_when_a_name_ends_in_a_number():
     assert (item["name"], item["value"]) == ("TÁPOLDAT 5", 350)
 
 
+def test_article_number_is_kept_as_ean():
+    result = parsed("quantity_first")
+
+    assert [item["ean"] for item in result["items"]] == [
+        "5991234567890",
+        "5990000000001",
+        "5990000000002",
+        "5990000000003",
+        None,
+    ]
+
+
+def test_prefixed_items_have_no_ean():
+    assert {item["ean"] for item in parsed("same_line_weighed")["items"]} == {None}
+
+
 def test_deposit_vouchers_below_the_total_count_as_payment():
     result = parsed("deposit_voucher")
 
