@@ -19,10 +19,12 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 - FIN-206 Riportfelület Streamlitben a `reports/` mappában: Áttekintés és Kiadások, lefúrással az Ellenőrzés képernyőig, közös menüvel a webappal.
 - FIN-501 Szabályok oldal a `/rules` címen: tétel- és boltszabályok, amelyek a régi dokumentumokra is érvényesek.
 - FIN-409 Betétdíj oldal a `/deposit` címen: a várható DRS-betétdíj, kézi állítás és nullázás; a betétdíj nem kiadás, a beváltott utalvány csökkenti.
+- NVIDIA GPU az Ollamának a `home/docker-compose.gpu.yml` kiegészítéssel, a WSL-es beállítást a `scripts/setup-wsl-gpu.sh` végzi.
 - Windowsos fejlesztés WSL2-es Ubuntuban: a `scripts/setup-wsl.sh` telepíti a Docker Engine-t, a Compose-t és a `jq`-t, a README leírja a menetét.
 
 ### Módosítva
 
+- A modell betöltve tartása az `OLLAMA_KEEP_ALIVE` változóval állítható; alapból 0 marad, GPU-val 10 perc.
 - A dbt éjszaka helyett óránként fut, így a döntés egy órán belül a riportokban is látszik.
 - A dokumentumok kiadása megjelenik a gold táblákban.
 
