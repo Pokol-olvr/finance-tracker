@@ -60,6 +60,9 @@ cpu=$(paste <(echo "$cpu_before") <(echo "$cpu_after") | awk '{
     percent: (.[0][1] | tonumber),
     cores: (.[1:] | map(.[1] | tonumber))}')
 
+# WSL-ben az nvidia-smi a /usr/lib/wsl/lib alatt van, ami a systemd timer PATH-jában nincs benne.
+[[ -d /usr/lib/wsl/lib ]] && PATH=$PATH:/usr/lib/wsl/lib
+
 # GPU csak ott van, ahol az nvidia-smi fut; a pillanatnyi kép, a 15 másodperc közötti csúcs elveszhet.
 gpu=null
 if command -v nvidia-smi >/dev/null &&
