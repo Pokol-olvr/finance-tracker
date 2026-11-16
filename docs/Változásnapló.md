@@ -27,6 +27,7 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 ### Módosítva
 
 - A modell betöltve tartása az `OLLAMA_KEEP_ALIVE` változóval állítható; alapból 0 marad, GPU-val 10 perc.
+- GPU-val a modell egy CPU-szálat kap, így a kiolvasás alatt a CPU nem pörög.
 - A dbt éjszaka helyett óránként fut, így a döntés egy órán belül a riportokban is látszik.
 - A dokumentumok kiadása megjelenik a gold táblákban.
 

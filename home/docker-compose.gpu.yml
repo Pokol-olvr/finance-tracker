@@ -12,6 +12,9 @@ services:
               capabilities: [gpu]
 
   # GPU-n a modell bent marad: az újratöltés blokkonként CPU-n pörög, a futás csak pár másodperc.
+  # Egy CPU-szál elég: a 10 szál a GPU-ra várva is pörgött, 17 blokkon 536% helyett 97% CPU
+  # mellett ugyanaz a szöveg jött ki, 34 helyett 37 másodperc alatt.
   worker:
     environment:
       OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-10m}
+      OLLAMA_NUM_THREAD: ${OLLAMA_NUM_THREAD:-1}

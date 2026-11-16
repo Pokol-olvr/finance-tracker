@@ -44,7 +44,7 @@ A `scripts/setup-wsl.sh` systemd-t vár, ezt a `/etc/wsl.conf` `[boot]` részéb
 
 A Docker konténerei rootként futnak, ezért a `home/data` törléséhez `sudo rm -rf home/data` kell a `podman unshare` helyett.
 
-NVIDIA GPU-val a kiolvasás a GPU-n fut. A `scripts/setup-wsl-gpu.sh` telepíti az NVIDIA container toolkitet, a `home/.env`-ben pedig a `COMPOSE_FILE=docker-compose.yml:docker-compose.gpu.yml` kapcsolja be. Ilyenkor a modell 10 percig betöltve marad (`OLLAMA_KEEP_ALIVE`), mert a blokkonkénti újratöltés CPU-n tovább tart, mint maga a kiolvasás. Egy RTX 5070-en 17 blokk 94 másodperc alatt olvasódott ki újratöltéssel.
+NVIDIA GPU-val a kiolvasás a GPU-n fut. A `scripts/setup-wsl-gpu.sh` telepíti az NVIDIA container toolkitet, a `home/.env`-ben pedig a `COMPOSE_FILE=docker-compose.yml:docker-compose.gpu.yml` kapcsolja be. Ilyenkor a modell 10 percig betöltve marad (`OLLAMA_KEEP_ALIVE`), mert a blokkonkénti újratöltés CPU-n tovább tart, mint maga a kiolvasás. A modell egy CPU-szálat kap (`OLLAMA_NUM_THREAD`), mert több szál a GPU-ra várva is pörög. Egy RTX 5070-en 17 blokk 94 másodperc alatt olvasódott ki újratöltéssel.
 
 ## Felépítés
 
