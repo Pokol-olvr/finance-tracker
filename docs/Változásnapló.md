@@ -19,6 +19,7 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 - FIN-206 Riportfelület Streamlitben a `reports/` mappában: Áttekintés és Kiadások, lefúrással az Ellenőrzés képernyőig, közös menüvel a webappal.
 - FIN-501 Szabályok oldal a `/rules` címen: tétel- és boltszabályok, amelyek a régi dokumentumokra is érvényesek.
 - FIN-409 Betétdíj oldal a `/deposit` címen: a várható DRS-betétdíj, kézi állítás és nullázás; a betétdíj nem kiadás, a beváltott utalvány csökkenti.
+- Windowsos fejlesztés WSL2-es Ubuntuban: a `scripts/setup-wsl.sh` telepíti a Docker Engine-t, a Compose-t és a `jq`-t, a README leírja a menetét.
 
 ### Módosítva
 
