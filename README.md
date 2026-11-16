@@ -210,7 +210,12 @@ A riport kizárólag a goldot olvassa, és csak olvasható kapcsolattal. A Strea
 
 ## Állapot képernyő
 
-A `http://127.0.0.1:8000/status` oldal kilenc kártyán mutatja a stack részeit: Feltöltés, Worker, Ollama, Garage, Postgres, Riportok, dbt, Mentés és Gép. NVIDIA GPU-s gépen tizedikként a GPU is megjelenik a kihasználtsággal, a videomemóriával, a hőmérséklettel és a fogyasztással. Az Ollama kártya mutatja, hogy a modell a GPU-n vagy a CPU-n fut, mennyi CPU-t használ, és mennyi ideig tartott az utolsó olvasás, token/s sebességgel. A GPU-adat 15 másodpercenkénti pillanatkép, ezért egy 2–3 másodperces olvasás csúcsa kimaradhat belőle. Fölöttük látszik az összkép és az aktuális feldolgozási lépés az eltelt idővel, alattuk a legutóbbi feldolgozások. Az oldal 5 másodpercenként frissül, az adatai a `/status.json` címen is elérhetők.
+A `http://127.0.0.1:8000/status` oldal tíz kártyán mutatja a stack részeit: Feltöltés, Worker, Ollama, Garage, Postgres, Riportok, dbt, Mentés, Gép és Erőforrások.
+
+- **Ollama:** a modell mérete és kvantálása, hogy GPU-n vagy CPU-n fut és mennyi memóriát foglal, a kontextus, mikor rakódik ki, a szál- és bent tartási beállítás, a konténer CPU-használata, az utolsó olvasás ideje token/s sebességgel és betöltés, kép, szöveg bontásban, valamint az utolsó 20 olvasás átlaga. Az átlag a bronzból töltődik vissza, ezért a worker újraindítása után sem üres.
+- **Erőforrások:** a CPU minden szála külön oszlopban, a RAM és a swap, NVIDIA GPU-s gépen a GPU kihasználtsága, videomemóriája, hőmérséklete és fogyasztása.
+
+Az erőforrás-adat 15 másodpercenkénti pillanatkép, a CPU egy másodperces mintából számol, ezért egy 2–3 másodperces olvasás csúcsa kimaradhat belőle. Fölöttük látszik az összkép és az aktuális feldolgozási lépés az eltelt idővel, alattuk a legutóbbi feldolgozások. Az oldal 5 másodpercenként frissül, az adatai a `/status.json` címen is elérhetők.
 
 | Felirat | Jelentés |
 | --- | --- |

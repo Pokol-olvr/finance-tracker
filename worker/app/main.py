@@ -173,6 +173,13 @@ def main() -> None:
         settings.ollama_num_thread,
         settings.ollama_keep_alive,
     )
+    try:
+        with psycopg.connect(settings.database_url, autocommit=True) as conn:
+            reader.history.extend(
+                bronze.recent_read_stats(conn, settings.ollama_model, reader.history.maxlen)
+            )
+    except psycopg.Error as error:
+        log.warning("A korábbi olvasások ideje nem tölthető be: %s", error)
     reporter = StatusReporter(
         settings.inbox_url,
         settings.worker_token,

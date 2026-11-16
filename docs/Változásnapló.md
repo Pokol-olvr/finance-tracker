@@ -28,7 +28,8 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 
 - A modell betöltve tartása az `OLLAMA_KEEP_ALIVE` változóval állítható; alapból 0 marad, GPU-val 10 perc.
 - GPU-val a modell egy CPU-szálat kap, így a kiolvasás alatt a CPU nem pörög.
-- Az állapot képernyő GPU-kártyát kap, ha a gépen NVIDIA GPU van, az Ollama kártya pedig a processzort, a CPU-használatot és az utolsó olvasás idejét és sebességét mutatja.
+- Az állapot képernyő Erőforrások csempét kap: szálankénti CPU, RAM, swap, és ha van, NVIDIA GPU. Az Ollama kártya a modell méretét, a GPU-n vagy CPU-n futást, a beállításokat, a CPU-használatot, az utolsó olvasás bontását és az utolsó 20 olvasás átlagát mutatja.
+- A kiolvasás időadatai (betöltés, kép, szöveg, token/s) a `bronze.extraction` payloadjába is bekerülnek.
 - A dbt éjszaka helyett óránként fut, így a döntés egy órán belül a riportokban is látszik.
 - A dokumentumok kiadása megjelenik a gold táblákban.
 

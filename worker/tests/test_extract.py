@@ -83,7 +83,16 @@ def test_read_sends_settings_and_keeps_the_text():
     assert "format" not in sent[0]
     assert sent[0]["keep_alive"] == "0"
     assert sent[0]["stream"] is False
-    assert result == {"ocr_text": "TESZT\n7 626 Ft", "done_reason": "stop", "seconds": 17.0}
+    assert result == {
+        "ocr_text": "TESZT\n7 626 Ft",
+        "done_reason": "stop",
+        "seconds": 17.0,
+        "load_seconds": 0.0,
+        "image_seconds": 0.0,
+        "text_seconds": 0.0,
+        "tokens": 0,
+        "tokens_per_second": None,
+    }
 
 
 def test_unreadable_image_does_not_reach_the_model():
@@ -142,6 +151,8 @@ def test_read_keeps_time_and_speed_of_the_last_run():
             json={
                 "message": {"content": "NYUGTA"},
                 "total_duration": 2_200_000_000,
+                "load_duration": 30_000_000,
+                "prompt_eval_duration": 160_000_000,
                 "eval_count": 642,
                 "eval_duration": 2_000_000_000,
             },
@@ -150,7 +161,9 @@ def test_read_keeps_time_and_speed_of_the_last_run():
     reader = reader_with(handler)
     assert reader.last_stats is None
 
-    reader.read_image(b"kep", no_report)
+    result = reader.read_image(b"kep", no_report)
 
     assert reader.last_stats["seconds"] == 2.2
     assert reader.last_stats["tokens_per_second"] == 321.0
+    assert (result["load_seconds"], result["image_seconds"], result["text_seconds"]) == (0.0, 0.2, 2.0)
+    assert result["tokens"] == 642

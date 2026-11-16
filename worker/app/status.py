@@ -16,6 +16,18 @@ HEARTBEAT_FILE = Path("/tmp/worker-heartbeat")
 REPORT_SECONDS = 15
 
 
+def summary_of(history: list[dict]) -> dict | None:
+    """Az utolsó olvasások átlaga; a token/s csak azokra, ahol mérve van."""
+    if not history:
+        return None
+    speeds = [row["tokens_per_second"] for row in history if row.get("tokens_per_second")]
+    return {
+        "count": len(history),
+        "average_seconds": round(sum(row["seconds"] for row in history) / len(history), 1),
+        "average_tokens_per_second": round(sum(speeds) / len(speeds), 1) if speeds else None,
+    }
+
+
 class StatusReporter:
     def __init__(
         self,
@@ -56,6 +68,10 @@ class StatusReporter:
             "model_loaded": False,
             "model_memory_bytes": 0,
             "model_vram_bytes": 0,
+            "model_parameters": None,
+            "model_quantization": None,
+            "model_context": None,
+            "model_expires_at": None,
         }
         try:
             downloaded = self.ollama.get("/api/tags")
@@ -71,17 +87,26 @@ class StatusReporter:
             if model["name"] == wanted:
                 state["model_downloaded"] = True
                 state["model_version"] = model["digest"]
+                details = model.get("details") or {}
+                state["model_parameters"] = details.get("parameter_size")
+                state["model_quantization"] = details.get("quantization_level")
         for model in running.json()["models"]:
             if model["name"] == wanted:
                 state["model_loaded"] = True
                 state["model_memory_bytes"] = model["size"]
                 state["model_vram_bytes"] = model.get("size_vram", 0)
+                state["model_context"] = model.get("context_length")
+                state["model_expires_at"] = model.get("expires_at")
         return state
 
     def send(self) -> None:
         name, started = self.current
         report = {"step": name, "step_started_at": started.isoformat()} | self.ollama_state()
-        report["last_read"] = getattr(self.reader, "last_stats", None)
+        history = list(getattr(self.reader, "history", []))
+        report["last_read"] = history[-1] if history else None
+        report["recent_reads"] = summary_of(history)
+        report["num_thread"] = getattr(self.reader, "num_thread", None)
+        report["keep_alive"] = getattr(self.reader, "keep_alive", None)
         self.client.post("/inbox/status/worker", json=report).raise_for_status()
 
     def report_once(self) -> None:

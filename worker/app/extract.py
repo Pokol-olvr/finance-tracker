@@ -1,6 +1,7 @@
 """A blokk kiolvasása a helyi modellel. A nyers kimenet a bronzba kerül, a sémát a FIN-402 hozza."""
 
 import base64
+from collections import deque
 from collections.abc import Callable
 from datetime import UTC, datetime
 from io import BytesIO
@@ -43,13 +44,25 @@ def prepare_image(content: bytes) -> bytes:
     return to_jpeg(upright)
 
 
+# Az állapot képernyő átlaga ennyi olvasásra számol.
+HISTORY_SIZE = 20
+
+
+def seconds_of(result: dict, key: str) -> float:
+    return round((result.get(key) or 0) / 1e9, 1)
+
+
 def run_stats(result: dict) -> dict:
-    """Az Ollama válaszának időadatai: a teljes idő és a szöveg generálásának sebessége."""
+    """Az Ollama válaszának időadatai: betöltés, a kép feldolgozása, a szöveg generálása."""
     tokens = result.get("eval_count") or 0
     nanoseconds = result.get("eval_duration") or 0
     return {
         "finished_at": datetime.now(UTC).isoformat(),
-        "seconds": round(result.get("total_duration", 0) / 1e9, 1),
+        "seconds": seconds_of(result, "total_duration"),
+        "load_seconds": seconds_of(result, "load_duration"),
+        "image_seconds": seconds_of(result, "prompt_eval_duration"),
+        "text_seconds": seconds_of(result, "eval_duration"),
+        "tokens": tokens,
         "tokens_per_second": round(tokens / (nanoseconds / 1e9), 1) if nanoseconds else None,
     }
 
@@ -59,9 +72,13 @@ class ReceiptReader:
         self.name = model
         self.num_thread = num_thread
         self.keep_alive = keep_alive
-        # Az utolsó modellfutás ideje és sebessége az állapot képernyőnek.
-        self.last_stats: dict | None = None
+        # Az utolsó modellfutások ideje és sebessége az állapot képernyőnek.
+        self.history: deque[dict] = deque(maxlen=HISTORY_SIZE)
         self.client = httpx.Client(base_url=base_url, timeout=httpx.Timeout(600, connect=5))
+
+    @property
+    def last_stats(self) -> dict | None:
+        return self.history[-1] if self.history else None
 
     def version(self) -> str:
         """A modell azonosítója, így minden kiolvasásról tudni, melyik modellváltozat adta."""
@@ -105,9 +122,16 @@ class ReceiptReader:
         )
         response.raise_for_status()
         result = response.json()
-        self.last_stats = run_stats(result)
+        stats = run_stats(result)
+        self.history.append(stats)
+        # Az időadatok a bronzba is bekerülnek, így újraindítás után is van mihez mérni.
         return {
             "ocr_text": result["message"]["content"],
             "done_reason": result.get("done_reason"),
-            "seconds": round(result.get("total_duration", 0) / 1e9, 1),
+            "seconds": stats["seconds"],
+            "load_seconds": stats["load_seconds"],
+            "image_seconds": stats["image_seconds"],
+            "text_seconds": stats["text_seconds"],
+            "tokens": stats["tokens"],
+            "tokens_per_second": stats["tokens_per_second"],
         }

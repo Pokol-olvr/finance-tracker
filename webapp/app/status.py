@@ -122,22 +122,35 @@ def ollama_card(host: dict | None, worker: dict | None) -> dict:
     if not worker["model_downloaded"]:
         return card("ollama", "Ollama", ERROR, "A modell nincs letöltve")
     loaded = worker["model_loaded"]
+    size = " · ".join(
+        part for part in (worker.get("model_parameters"), worker.get("model_quantization")) if part
+    )
     facts = [
-        fact("Modell", worker["model_name"]),
+        fact("Modell", worker["model_name"] + (f" ({size})" if size else "")),
         fact("Azonosító", (worker["model_version"] or "")[:12]),
-        fact("Betöltve", "igen" if loaded else "nem"),
     ]
     if loaded:
-        facts.append(fact("Memória", format_gigabytes(worker["model_memory_bytes"])))
-        facts.append(fact("Processzor", processor_share(worker)))
+        facts.append(
+            fact(
+                "Fut",
+                f"{processor_share(worker)} · {format_gigabytes(worker['model_memory_bytes'])}",
+            )
+        )
+        if worker.get("model_context"):
+            facts.append(fact("Kontextus", format_number(worker["model_context"]) + " token"))
+        facts.append(time_fact("Kirakódik", worker.get("model_expires_at")))
+    else:
+        facts.append(fact("Betöltve", "nem"))
+    settings = [
+        f"{worker['num_thread']} CPU-szál" if worker.get("num_thread") else None,
+        f"bent tartás {worker['keep_alive']}" if worker.get("keep_alive") else None,
+    ]
+    if any(settings):
+        facts.append(fact("Beállítás", " · ".join(part for part in settings if part)))
     cpu = (host or {}).get("ollama_cpu_percent")
     if cpu is not None:
         facts.append(fact("CPU-használat", f"{round(cpu)}%"))
-    last = worker.get("last_read")
-    if last:
-        speed = last.get("tokens_per_second")
-        value = format_decimal(last["seconds"], "s")
-        facts.append(fact("Utolsó olvasás", value + (f" · {round(speed)} token/s" if speed else "")))
+    facts.extend(read_facts(worker))
     # GPU-n a modell a futások között is betöltve marad, ezért a betöltés még nem munka.
     if worker["step"] == "read_text":
         return card("ollama", "Ollama", BUSY, "A modell fut", facts)
@@ -146,26 +159,109 @@ def ollama_card(host: dict | None, worker: dict | None) -> dict:
     return card("ollama", "Ollama", state, summary, facts)
 
 
-def gpu_card(host: dict | None) -> dict | None:
-    """Csak ott jelenik meg, ahol a gépen NVIDIA GPU van; a jelentés 15 másodpercenkénti pillanatkép."""
-    gpu = (host or {}).get("gpu")
-    if gpu is None:
-        return None
-    usage = gpu.get("utilization_percent")
-    facts = [
-        fact("Kihasználtság", "nincs adat" if usage is None else f"{round(usage)}%"),
-        fact(
-            "Videomemória",
-            f"{format_gigabytes(gpu['memory_used_bytes'])} / "
-            f"{format_gigabytes(gpu['memory_total_bytes'])}",
-        ),
+def read_facts(worker: dict) -> list[dict]:
+    """Az utolsó olvasás bontása és az utolsó olvasások átlaga."""
+    facts = []
+    last = worker.get("last_read")
+    if last:
+        speed = last.get("tokens_per_second")
+        value = format_decimal(last["seconds"], "s")
+        facts.append(fact("Utolsó olvasás", value + (f" · {round(speed)} token/s" if speed else "")))
+        parts = [
+            ("betöltés", last.get("load_seconds")),
+            ("kép", last.get("image_seconds")),
+            ("szöveg", last.get("text_seconds")),
+        ]
+        if all(seconds is not None for _, seconds in parts):
+            facts.append(
+                fact("Bontás", " · ".join(f"{name} {format_decimal(sec, 's')}" for name, sec in parts))
+            )
+        facts.append(time_fact("Utolsó olvasás ideje", last["finished_at"]))
+    recent = worker.get("recent_reads")
+    if recent:
+        speed = recent.get("average_tokens_per_second")
+        value = format_decimal(recent["average_seconds"], "s")
+        facts.append(
+            fact(
+                f"Átlag ({recent['count']} olvasás)",
+                value + (f" · {round(speed)} token/s" if speed else ""),
+            )
+        )
+    return facts
+
+
+def meter(label: str, percent: float | None, detail: str | None = None) -> dict:
+    return {"label": label, "percent": None if percent is None else round(percent, 1), "detail": detail}
+
+
+def share(used: int, total: int) -> float | None:
+    return used / total * 100 if total else None
+
+
+def resources_card(host: dict | None) -> dict:
+    """A gép erőforrásai sávokkal: magonkénti CPU, memória, és ha van, GPU.
+
+    A jelentés 15 másodpercenkénti pillanatkép, a CPU egy másodperces mintából számol.
+    """
+    if host is None:
+        return card("resources", "Erőforrások", STALE, NO_DATA) | {"wide": True}
+    groups = []
+    cpu = host.get("cpu")
+    if cpu:
+        groups.append(
+            {
+                "title": "CPU",
+                "summary": " · ".join(
+                    part
+                    for part in (f"{round(cpu['percent'])}%", f"{len(cpu['cores'])} szál", cpu.get("model"))
+                    if part
+                ),
+                "meters": [meter(f"#{index}", value) for index, value in enumerate(cpu["cores"])],
+                "cores": True,
+            }
+        )
+    used_memory = host["memory_total_bytes"] - host["memory_available_bytes"]
+    memory = [
+        meter(
+            "RAM",
+            share(used_memory, host["memory_total_bytes"]),
+            f"{format_gigabytes(used_memory)} / {format_gigabytes(host['memory_total_bytes'])}",
+        )
     ]
-    if gpu.get("temperature_c") is not None:
-        facts.append(fact("Hőmérséklet", f"{round(gpu['temperature_c'])} °C"))
-    if gpu.get("power_w") is not None:
-        facts.append(fact("Fogyasztás", f"{round(gpu['power_w'])} W"))
-    state = BUSY if usage else OK
-    return card("gpu", "GPU", state, gpu["name"], facts)
+    if host.get("swap_total_bytes"):
+        memory.append(
+            meter(
+                "Swap",
+                share(host["swap_used_bytes"] or 0, host["swap_total_bytes"]),
+                f"{format_gigabytes(host['swap_used_bytes'] or 0)} / "
+                f"{format_gigabytes(host['swap_total_bytes'])}",
+            )
+        )
+    groups.append({"title": "Memória", "summary": "", "meters": memory, "cores": False})
+    gpu = host.get("gpu")
+    if gpu:
+        extra = [
+            f"{round(gpu['temperature_c'])} °C" if gpu.get("temperature_c") is not None else None,
+            f"{round(gpu['power_w'])} W" if gpu.get("power_w") is not None else None,
+        ]
+        groups.append(
+            {
+                "title": "GPU",
+                "summary": " · ".join(part for part in (gpu["name"], *extra) if part),
+                "meters": [
+                    meter("Kihasználtság", gpu.get("utilization_percent")),
+                    meter(
+                        "Videomemória",
+                        share(gpu["memory_used_bytes"], gpu["memory_total_bytes"]),
+                        f"{format_gigabytes(gpu['memory_used_bytes'])} / "
+                        f"{format_gigabytes(gpu['memory_total_bytes'])}",
+                    ),
+                ],
+                "cores": False,
+            }
+        )
+    summary = f"Terhelés {host['load']:.2f}".replace(".", ",")
+    return card("resources", "Erőforrások", OK, summary) | {"wide": True, "groups": groups}
 
 
 def garage_card(host: dict | None) -> dict:
@@ -276,15 +372,14 @@ def build(
         upload_card(host, queue),
         worker_card(host, worker),
         ollama_card(host, worker),
-        gpu_card(host),
         garage_card(host),
         postgres_card(host),
         reports_card(host, reports_url),
         job_card(host, "dbt", "dbt"),
         job_card(host, "backup", "Mentés"),
         machine_card(host),
+        resources_card(host),
     ]
-    cards = [item for item in cards if item is not None]
     processing = processing_state(worker, queue, now)
     ages = [age_seconds(reports.get(source), now) for source in ("host", "worker")]
     known_ages = [age for age in ages if age is not None]

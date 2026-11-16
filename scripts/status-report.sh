@@ -45,6 +45,21 @@ jobs=$(
 )
 read -r disk_free disk_total < <(df -B1 --output=avail,size "$data_dir" | tail -1)
 
+# Magonkénti CPU-terhelés egy másodperces mintából; a /proc/stat a gép indulása óta számol.
+cpu_sample() { grep '^cpu' /proc/stat; }
+cpu_before=$(cpu_sample)
+sleep 1
+cpu_after=$(cpu_sample)
+cpu_model=$(sed -n 's/^model name[[:space:]]*:[[:space:]]*//p' /proc/cpuinfo | head -1)
+cpu=$(paste <(echo "$cpu_before") <(echo "$cpu_after") | awk '{
+    n = NF / 2; total = 0; idle = ($(n + 5) + $(n + 6)) - ($5 + $6)
+    for (i = 2; i <= n; i++) total += $(n + i) - $i
+    printf "%s %.1f" "\n", $1, (total > 0 ? (1 - idle / total) * 100 : 0)
+  }' | jq -Rcn --arg model "$cpu_model" '[inputs | split(" ")] | {
+    model: (if $model == "" then null else $model end),
+    percent: (.[0][1] | tonumber),
+    cores: (.[1:] | map(.[1] | tonumber))}')
+
 # GPU csak ott van, ahol az nvidia-smi fut; a pillanatnyi kép, a 15 másodperc közötti csúcs elveszhet.
 gpu=null
 if command -v nvidia-smi >/dev/null &&
@@ -77,13 +92,19 @@ report=$(jq -cn \
   --argjson disk_total_bytes "$disk_total" \
   --argjson memory_available_bytes "$(memory_bytes MemAvailable)" \
   --argjson memory_total_bytes "$(memory_bytes MemTotal)" \
-  --argjson load "$load"   --argjson gpu "$gpu"   --arg ollama_cpu "$ollama_cpu" \
+  --argjson load "$load" \
+  --argjson gpu "$gpu" \
+  --arg ollama_cpu "$ollama_cpu" \
+  --argjson cpu "$cpu" \
+  --argjson swap_total_bytes "$(memory_bytes SwapTotal)" \
+  --argjson swap_free_bytes "$(memory_bytes SwapFree)" \
   '{services: $services, row_counts: $row_counts, jobs: $jobs,
     garage_objects: (if $garage_objects == "" then null else ($garage_objects | tonumber) end),
     garage_size: (if $garage_size == "" then null else $garage_size end),
     disk_free_bytes: $disk_free_bytes, disk_total_bytes: $disk_total_bytes,
     memory_available_bytes: $memory_available_bytes, memory_total_bytes: $memory_total_bytes,
-    load: $load, gpu: $gpu,
+    load: $load, gpu: $gpu, cpu: $cpu,
+    swap_total_bytes: $swap_total_bytes, swap_used_bytes: ($swap_total_bytes - $swap_free_bytes),
     ollama_cpu_percent: ($ollama_cpu | tonumber? // null)}')
 
 # A token a curl bemenetén megy, így nem látszik a folyamatlistában.

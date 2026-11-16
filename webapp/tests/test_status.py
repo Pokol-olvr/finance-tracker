@@ -81,7 +81,7 @@ def with_job(name: str, **changes) -> dict:
     return host
 
 
-def test_all_nine_cards_are_present():
+def test_all_ten_cards_are_present():
     result = build()
 
     assert [item["title"] for item in result["cards"]] == [
@@ -94,6 +94,7 @@ def test_all_nine_cards_are_present():
         "dbt",
         "Mentés",
         "Gép",
+        "Erőforrások",
     ]
     assert {item["state"] for item in result["cards"]} == {"ok"}
 
@@ -179,7 +180,7 @@ def test_processing_shows_step_elapsed_time_and_queue():
     assert card(result, "worker")["summary"] == "Szöveges olvasat"
     ollama = card(result, "ollama")
     assert ollama["state"] == "busy"
-    assert {"label": "Memória", "value": "5,0 GB"} in ollama["facts"]
+    assert {"label": "Fut", "value": "CPU · 5,0 GB"} in ollama["facts"]
 
 
 def test_open_item_without_processing_is_waiting():
@@ -242,39 +243,99 @@ LOADED_ON_GPU = WORKER_REPORT | {
     "model_loaded": True,
     "model_memory_bytes": 2_000_000_000,
     "model_vram_bytes": 2_000_000_000,
-    "last_read": {"finished_at": "2026-12-01T11:59:00+00:00", "seconds": 2.2, "tokens_per_second": 321.2},
+    "last_read": {
+        "finished_at": "2026-12-01T11:59:00+00:00",
+        "seconds": 2.2,
+        "load_seconds": 0.0,
+        "image_seconds": 0.2,
+        "text_seconds": 2.0,
+        "tokens": 642,
+        "tokens_per_second": 321.2,
+    },
 }
 
 
-def test_gpu_card_appears_only_with_a_gpu():
-    assert all(item["key"] != "gpu" for item in build()["cards"])
-
-    gpu = card(build(host=HOST_REPORT | {"gpu": GPU}), "gpu")
-
-    assert (gpu["title"], gpu["state"], gpu["summary"]) == ("GPU", "busy", "NVIDIA GeForce RTX 5070")
-    assert gpu["facts"] == [
-        {"label": "Kihasználtság", "value": "74%"},
-        {"label": "Videomemória", "value": "4,7 GB / 12,8 GB"},
-        {"label": "Hőmérséklet", "value": "51 °C"},
-        {"label": "Fogyasztás", "value": "120 W"},
-    ]
+CPU = {"model": "Kitalált CPU 8 mag", "percent": 23.4, "cores": [10.0, 55.5, 70.0, 99.0]}
 
 
-def test_idle_gpu_is_ok_and_does_not_change_the_overall_state():
-    result = build(host=HOST_REPORT | {"gpu": GPU | {"utilization_percent": 0}})
+def resources(result: dict) -> dict:
+    return {group["title"]: group for group in card(result, "resources")["groups"]}
 
-    assert card(result, "gpu")["state"] == "ok"
+
+def test_resources_show_every_core_memory_and_gpu():
+    host = HOST_REPORT | {
+        "cpu": CPU,
+        "gpu": GPU,
+        "swap_total_bytes": 4_000_000_000,
+        "swap_used_bytes": 1_000_000_000,
+    }
+
+    result = build(host=host)
+
+    tile = card(result, "resources")
+    assert (tile["title"], tile["wide"], tile["summary"]) == ("Erőforrások", True, "Terhelés 0,50")
+    groups = resources(result)
+    assert list(groups) == ["CPU", "Memória", "GPU"]
+    assert groups["CPU"]["summary"] == "23% · 4 szál · Kitalált CPU 8 mag"
+    assert [item["percent"] for item in groups["CPU"]["meters"]] == [10.0, 55.5, 70.0, 99.0]
+    assert groups["CPU"]["meters"][3]["label"] == "#3"
+    ram, swap = groups["Memória"]["meters"]
+    assert (ram["percent"], ram["detail"]) == (37.5, "12,0 GB / 32,0 GB")
+    assert (swap["percent"], swap["detail"]) == (25.0, "1,0 GB / 4,0 GB")
+    assert groups["GPU"]["summary"] == "NVIDIA GeForce RTX 5070 · 51 °C · 120 W"
+    usage, vram = groups["GPU"]["meters"]
+    assert usage["percent"] == 74
+    assert vram["detail"] == "4,7 GB / 12,8 GB"
+
+
+def test_resources_without_gpu_or_cpu_sample_show_memory_only():
+    assert list(resources(build())) == ["Memória"]
+
+
+def test_resources_without_report_are_stale():
+    reports = {"worker": report(WORKER_REPORT)}
+    result = status.build(reports, {}, [], "http://127.0.0.1:8501", NOW)
+
+    assert card(result, "resources")["state"] == "stale"
+
+
+def test_gpu_never_changes_the_overall_state():
+    result = build(host=HOST_REPORT | {"gpu": GPU | {"utilization_percent": 100}})
+
     assert result["overall"]["state"] == "ok"
 
 
-def test_ollama_card_shows_processor_cpu_and_last_read():
-    result = build(host=HOST_REPORT | {"ollama_cpu_percent": 97.3}, worker=LOADED_ON_GPU)
+def test_ollama_card_tells_where_and_how_the_model_runs():
+    worker = LOADED_ON_GPU | {
+        "model_parameters": "891.14M",
+        "model_quantization": "F16",
+        "model_context": 4096,
+        "model_expires_at": "2026-12-01T12:09:00+00:00",
+        "num_thread": 1,
+        "keep_alive": "10m",
+        "recent_reads": {"count": 17, "average_seconds": 2.4, "average_tokens_per_second": 315.6},
+    }
+    host = HOST_REPORT | {"ollama_cpu_percent": 97.3}
 
-    ollama = card(result, "ollama")
+    ollama = card(build(host=host, worker=worker), "ollama")
+
     assert (ollama["state"], ollama["summary"]) == ("ok", "A modell betöltve")
-    assert {"label": "Processzor", "value": "GPU"} in ollama["facts"]
-    assert {"label": "CPU-használat", "value": "97%"} in ollama["facts"]
-    assert {"label": "Utolsó olvasás", "value": "2,2 s · 321 token/s"} in ollama["facts"]
+    facts = {item["label"]: item.get("value", item.get("time")) for item in ollama["facts"]}
+    assert facts["Modell"] == "glm-ocr (891.14M · F16)"
+    assert facts["Fut"] == "GPU · 2,0 GB"
+    assert facts["Kontextus"] == "4 096 token"
+    assert facts["Kirakódik"] == "2026-12-01T12:09:00+00:00"
+    assert facts["Beállítás"] == "1 CPU-szál · bent tartás 10m"
+    assert facts["CPU-használat"] == "97%"
+    assert facts["Utolsó olvasás"] == "2,2 s · 321 token/s"
+    assert facts["Bontás"] == "betöltés 0,0 s · kép 0,2 s · szöveg 2,0 s"
+    assert facts["Átlag (17 olvasás)"] == "2,4 s · 316 token/s"
+
+
+def test_reading_model_is_busy():
+    worker = LOADED_ON_GPU | {"step": "read_text", "step_started_at": "2026-12-01T11:59:58+00:00"}
+
+    assert card(build(worker=worker), "ollama")["state"] == "busy"
 
 
 @pytest.mark.parametrize(
@@ -282,8 +343,9 @@ def test_ollama_card_shows_processor_cpu_and_last_read():
 )
 def test_processor_follows_the_share_in_video_memory(vram, shown):
     worker = LOADED_ON_GPU | {"model_vram_bytes": vram}
+    facts = card(build(worker=worker), "ollama")["facts"]
 
-    assert {"label": "Processzor", "value": shown} in card(build(worker=worker), "ollama")["facts"]
+    assert {"label": "Fut", "value": f"{shown} · 2,0 GB"} in facts
 
 
 def test_reports_without_gpu_fields_are_still_accepted(client):
@@ -297,7 +359,8 @@ def test_gpu_report_reaches_the_status_data(client):
     client.post("/inbox/status/worker", json=LOADED_ON_GPU, headers=HEADERS)
 
     data = client.get("/status.json").json()
-    assert next(item for item in data["cards"] if item["key"] == "gpu")["summary"] == GPU["name"]
+    tile = next(item for item in data["cards"] if item["key"] == "resources")
+    assert tile["groups"][-1]["title"] == "GPU"
 
 
 def test_reports_card_links_to_the_reports():
