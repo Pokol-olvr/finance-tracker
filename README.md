@@ -44,7 +44,7 @@ A `scripts/setup-wsl.sh` systemd-t vár, ezt a `/etc/wsl.conf` `[boot]` részéb
 
 A Docker konténerei rootként futnak, ezért a `home/data` törléséhez `sudo rm -rf home/data` kell a `podman unshare` helyett.
 
-NVIDIA GPU-val a kiolvasás a GPU-n fut. A `scripts/setup-wsl-gpu.sh` telepíti az NVIDIA container toolkitet, a `home/.env`-ben pedig a `COMPOSE_FILE=docker-compose.yml:docker-compose.gpu.yml` kapcsolja be. Ilyenkor a modell 10 percig betöltve marad (`OLLAMA_KEEP_ALIVE`), mert a blokkonkénti újratöltés CPU-n tovább tart, mint maga a kiolvasás. A modell egy CPU-szálat kap (`OLLAMA_NUM_THREAD`), mert több szál a GPU-ra várva is pörög. Egy RTX 5070-en 17 blokk 94 másodperc alatt olvasódott ki újratöltéssel.
+NVIDIA GPU-val a kiolvasás a GPU-n fut. A `scripts/setup-wsl-gpu.sh` telepíti az NVIDIA container toolkitet, a `home/.env`-ben pedig a `COMPOSE_FILE=docker-compose.yml:docker-compose.gpu.yml` kapcsolja be. Ilyenkor a modell 10 percig betöltve marad (`OLLAMA_KEEP_ALIVE`), mert a blokkonkénti újratöltés CPU-n tovább tart, mint maga a kiolvasás. A modell egy CPU-szálat kap (`OLLAMA_NUM_THREAD`), mert több szál a GPU-ra várva is pörög: 17 blokkon 1, 2, 4 és 10 szállal is 36–40 másodperc volt a modellidő, a CPU-használat viszont 97% és 536% között változott. Egy RTX 5070-en 17 blokk 94 másodperc alatt olvasódott ki újratöltéssel.
 
 ## Felépítés
 
@@ -210,7 +210,7 @@ A riport kizárólag a goldot olvassa, és csak olvasható kapcsolattal. A Strea
 
 ## Állapot képernyő
 
-A `http://127.0.0.1:8000/status` oldal kilenc kártyán mutatja a stack részeit: Feltöltés, Worker, Ollama, Garage, Postgres, Riportok, dbt, Mentés és Gép. Fölöttük látszik az összkép és az aktuális feldolgozási lépés az eltelt idővel, alattuk a legutóbbi feldolgozások. Az oldal 5 másodpercenként frissül, az adatai a `/status.json` címen is elérhetők.
+A `http://127.0.0.1:8000/status` oldal kilenc kártyán mutatja a stack részeit: Feltöltés, Worker, Ollama, Garage, Postgres, Riportok, dbt, Mentés és Gép. NVIDIA GPU-s gépen tizedikként a GPU is megjelenik a kihasználtsággal, a videomemóriával, a hőmérséklettel és a fogyasztással. Az Ollama kártya mutatja, hogy a modell a GPU-n vagy a CPU-n fut, mennyi CPU-t használ, és mennyi ideig tartott az utolsó olvasás, token/s sebességgel. A GPU-adat 15 másodpercenkénti pillanatkép, ezért egy 2–3 másodperces olvasás csúcsa kimaradhat belőle. Fölöttük látszik az összkép és az aktuális feldolgozási lépés az eltelt idővel, alattuk a legutóbbi feldolgozások. Az oldal 5 másodpercenként frissül, az adatai a `/status.json` címen is elérhetők.
 
 | Felirat | Jelentés |
 | --- | --- |

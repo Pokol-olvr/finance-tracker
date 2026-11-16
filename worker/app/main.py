@@ -174,7 +174,11 @@ def main() -> None:
         settings.ollama_keep_alive,
     )
     reporter = StatusReporter(
-        settings.inbox_url, settings.worker_token, settings.ollama_url, settings.ollama_model
+        settings.inbox_url,
+        settings.worker_token,
+        settings.ollama_url,
+        settings.ollama_model,
+        reader=reader,
     )
     reporter.start()
 

@@ -25,6 +25,7 @@ class StatusReporter:
         model: str,
         transport: httpx.BaseTransport | None = None,
         heartbeat_file: Path = HEARTBEAT_FILE,
+        reader: object | None = None,
     ):
         self.client = httpx.Client(
             base_url=inbox_url,
@@ -35,6 +36,8 @@ class StatusReporter:
         self.ollama = httpx.Client(base_url=ollama_url, timeout=5, transport=transport)
         self.model = model
         self.heartbeat_file = heartbeat_file
+        # A ReceiptReader, amelynek az utolsó futását jelentjük; tesztben elmaradhat.
+        self.reader = reader
         self.current = ("idle", datetime.now(UTC))
         self.changed = threading.Event()
 
@@ -52,6 +55,7 @@ class StatusReporter:
             "model_downloaded": False,
             "model_loaded": False,
             "model_memory_bytes": 0,
+            "model_vram_bytes": 0,
         }
         try:
             downloaded = self.ollama.get("/api/tags")
@@ -71,11 +75,13 @@ class StatusReporter:
             if model["name"] == wanted:
                 state["model_loaded"] = True
                 state["model_memory_bytes"] = model["size"]
+                state["model_vram_bytes"] = model.get("size_vram", 0)
         return state
 
     def send(self) -> None:
         name, started = self.current
         report = {"step": name, "step_started_at": started.isoformat()} | self.ollama_state()
+        report["last_read"] = getattr(self.reader, "last_stats", None)
         self.client.post("/inbox/status/worker", json=report).raise_for_status()
 
     def report_once(self) -> None:

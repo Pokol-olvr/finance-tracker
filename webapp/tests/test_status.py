@@ -230,6 +230,76 @@ def test_postgres_card_sums_layers():
     ]
 
 
+GPU = {
+    "name": "NVIDIA GeForce RTX 5070",
+    "utilization_percent": 74,
+    "memory_used_bytes": 4_700_000_000,
+    "memory_total_bytes": 12_800_000_000,
+    "temperature_c": 51,
+    "power_w": 120.4,
+}
+LOADED_ON_GPU = WORKER_REPORT | {
+    "model_loaded": True,
+    "model_memory_bytes": 2_000_000_000,
+    "model_vram_bytes": 2_000_000_000,
+    "last_read": {"finished_at": "2026-12-01T11:59:00+00:00", "seconds": 2.2, "tokens_per_second": 321.2},
+}
+
+
+def test_gpu_card_appears_only_with_a_gpu():
+    assert all(item["key"] != "gpu" for item in build()["cards"])
+
+    gpu = card(build(host=HOST_REPORT | {"gpu": GPU}), "gpu")
+
+    assert (gpu["title"], gpu["state"], gpu["summary"]) == ("GPU", "busy", "NVIDIA GeForce RTX 5070")
+    assert gpu["facts"] == [
+        {"label": "Kihasználtság", "value": "74%"},
+        {"label": "Videomemória", "value": "4,7 GB / 12,8 GB"},
+        {"label": "Hőmérséklet", "value": "51 °C"},
+        {"label": "Fogyasztás", "value": "120 W"},
+    ]
+
+
+def test_idle_gpu_is_ok_and_does_not_change_the_overall_state():
+    result = build(host=HOST_REPORT | {"gpu": GPU | {"utilization_percent": 0}})
+
+    assert card(result, "gpu")["state"] == "ok"
+    assert result["overall"]["state"] == "ok"
+
+
+def test_ollama_card_shows_processor_cpu_and_last_read():
+    result = build(host=HOST_REPORT | {"ollama_cpu_percent": 97.3}, worker=LOADED_ON_GPU)
+
+    ollama = card(result, "ollama")
+    assert (ollama["state"], ollama["summary"]) == ("ok", "A modell betöltve")
+    assert {"label": "Processzor", "value": "GPU"} in ollama["facts"]
+    assert {"label": "CPU-használat", "value": "97%"} in ollama["facts"]
+    assert {"label": "Utolsó olvasás", "value": "2,2 s · 321 token/s"} in ollama["facts"]
+
+
+@pytest.mark.parametrize(
+    ("vram", "shown"), [(0, "CPU"), (1_000_000_000, "50% GPU"), (2_000_000_000, "GPU")]
+)
+def test_processor_follows_the_share_in_video_memory(vram, shown):
+    worker = LOADED_ON_GPU | {"model_vram_bytes": vram}
+
+    assert {"label": "Processzor", "value": shown} in card(build(worker=worker), "ollama")["facts"]
+
+
+def test_reports_without_gpu_fields_are_still_accepted(client):
+    response = client.post("/inbox/status/host", json=HOST_REPORT, headers=HEADERS)
+
+    assert response.status_code == 204
+
+
+def test_gpu_report_reaches_the_status_data(client):
+    client.post("/inbox/status/host", json=HOST_REPORT | {"gpu": GPU}, headers=HEADERS)
+    client.post("/inbox/status/worker", json=LOADED_ON_GPU, headers=HEADERS)
+
+    data = client.get("/status.json").json()
+    assert next(item for item in data["cards"] if item["key"] == "gpu")["summary"] == GPU["name"]
+
+
 def test_reports_card_links_to_the_reports():
     assert card(build(), "reports")["link"]["url"] == "http://127.0.0.1:8501"
 

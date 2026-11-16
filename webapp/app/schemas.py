@@ -110,6 +110,21 @@ class JobReport(BaseModel):
     next_run: datetime | None = None
 
 
+class GpuReport(BaseModel):
+    name: str
+    utilization_percent: float | None = None
+    memory_used_bytes: int
+    memory_total_bytes: int
+    temperature_c: float | None = None
+    power_w: float | None = None
+
+
+class LastRead(BaseModel):
+    finished_at: datetime
+    seconds: float
+    tokens_per_second: float | None = None
+
+
 class HostReport(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -123,6 +138,8 @@ class HostReport(BaseModel):
     memory_available_bytes: int
     memory_total_bytes: int
     load: float
+    gpu: GpuReport | None = None
+    ollama_cpu_percent: float | None = None
 
 
 class WorkerReport(BaseModel):
@@ -136,6 +153,8 @@ class WorkerReport(BaseModel):
     model_downloaded: bool
     model_loaded: bool
     model_memory_bytes: int
+    model_vram_bytes: int = 0
+    last_read: LastRead | None = None
 
 
 class CloseResult(BaseModel):

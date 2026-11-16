@@ -2,6 +2,7 @@
 
 import base64
 from collections.abc import Callable
+from datetime import UTC, datetime
 from io import BytesIO
 
 import httpx
@@ -42,11 +43,24 @@ def prepare_image(content: bytes) -> bytes:
     return to_jpeg(upright)
 
 
+def run_stats(result: dict) -> dict:
+    """Az Ollama válaszának időadatai: a teljes idő és a szöveg generálásának sebessége."""
+    tokens = result.get("eval_count") or 0
+    nanoseconds = result.get("eval_duration") or 0
+    return {
+        "finished_at": datetime.now(UTC).isoformat(),
+        "seconds": round(result.get("total_duration", 0) / 1e9, 1),
+        "tokens_per_second": round(tokens / (nanoseconds / 1e9), 1) if nanoseconds else None,
+    }
+
+
 class ReceiptReader:
     def __init__(self, base_url: str, model: str, num_thread: int, keep_alive: str = "0"):
         self.name = model
         self.num_thread = num_thread
         self.keep_alive = keep_alive
+        # Az utolsó modellfutás ideje és sebessége az állapot képernyőnek.
+        self.last_stats: dict | None = None
         self.client = httpx.Client(base_url=base_url, timeout=httpx.Timeout(600, connect=5))
 
     def version(self) -> str:
@@ -91,6 +105,7 @@ class ReceiptReader:
         )
         response.raise_for_status()
         result = response.json()
+        self.last_stats = run_stats(result)
         return {
             "ocr_text": result["message"]["content"],
             "done_reason": result.get("done_reason"),

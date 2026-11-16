@@ -133,3 +133,24 @@ def test_inbox_client_sends_token():
         "authorization": "Bearer titok",
         "url": "http://webapp:8000/inbox/items?status=new",
     }
+
+
+def test_read_keeps_time_and_speed_of_the_last_run():
+    def handler(_request):
+        return httpx.Response(
+            200,
+            json={
+                "message": {"content": "NYUGTA"},
+                "total_duration": 2_200_000_000,
+                "eval_count": 642,
+                "eval_duration": 2_000_000_000,
+            },
+        )
+
+    reader = reader_with(handler)
+    assert reader.last_stats is None
+
+    reader.read_image(b"kep", no_report)
+
+    assert reader.last_stats["seconds"] == 2.2
+    assert reader.last_stats["tokens_per_second"] == 321.0

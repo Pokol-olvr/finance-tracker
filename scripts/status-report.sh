@@ -44,6 +44,27 @@ jobs=$(
   job_report backup finance-backup
 )
 read -r disk_free disk_total < <(df -B1 --output=avail,size "$data_dir" | tail -1)
+
+# GPU csak ott van, ahol az nvidia-smi fut; a pillanatnyi kép, a 15 másodperc közötti csúcs elveszhet.
+gpu=null
+if command -v nvidia-smi >/dev/null &&
+  line=$(nvidia-smi --query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu,power.draw     --format=csv,noheader,nounits 2>/dev/null | head -1) && [[ -n $line ]]; then
+  gpu=$(jq -cn --arg line "$line" '$line | split(", ") | map(gsub("^ +| +$"; "")) | {
+    name: .[0],
+    utilization_percent: (.[1] | tonumber? // null),
+    memory_used_bytes: ((.[2] | tonumber? // 0) * 1048576 | floor),
+    memory_total_bytes: ((.[3] | tonumber? // 0) * 1048576 | floor),
+    temperature_c: (.[4] | tonumber? // null),
+    power_w: (.[5] | tonumber? // null)}')
+fi
+
+# Az Ollama konténer CPU-használata, 100% egy teljes mag; a Docker és a Podman is így adja.
+engine=${COMPOSE%% *}
+ollama_id=$(compose ps -q ollama 2>/dev/null) || ollama_id=
+ollama_cpu=
+if [[ -n $ollama_id ]]; then
+  ollama_cpu=$($engine stats --no-stream --format '{{.CPUPerc}}' "$ollama_id" 2>/dev/null | tr -d '% ') || ollama_cpu=
+fi
 read -r load _ </proc/loadavg
 
 report=$(jq -cn \
@@ -56,13 +77,14 @@ report=$(jq -cn \
   --argjson disk_total_bytes "$disk_total" \
   --argjson memory_available_bytes "$(memory_bytes MemAvailable)" \
   --argjson memory_total_bytes "$(memory_bytes MemTotal)" \
-  --argjson load "$load" \
+  --argjson load "$load"   --argjson gpu "$gpu"   --arg ollama_cpu "$ollama_cpu" \
   '{services: $services, row_counts: $row_counts, jobs: $jobs,
     garage_objects: (if $garage_objects == "" then null else ($garage_objects | tonumber) end),
     garage_size: (if $garage_size == "" then null else $garage_size end),
     disk_free_bytes: $disk_free_bytes, disk_total_bytes: $disk_total_bytes,
     memory_available_bytes: $memory_available_bytes, memory_total_bytes: $memory_total_bytes,
-    load: $load}')
+    load: $load, gpu: $gpu,
+    ollama_cpu_percent: ($ollama_cpu | tonumber? // null)}')
 
 # A token a curl bemenetén megy, így nem látszik a folyamatlistában.
 printf 'Authorization: Bearer %s\n' "$WORKER_API_TOKEN" |

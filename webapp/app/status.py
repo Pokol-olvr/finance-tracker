@@ -49,6 +49,20 @@ def format_gigabytes(value: int) -> str:
     return f"{value / 1e9:.1f} GB".replace(".", ",")
 
 
+def format_decimal(value: float, unit: str) -> str:
+    return f"{value:.1f}".replace(".", ",") + f" {unit}"
+
+
+def processor_share(worker: dict) -> str:
+    """Az Ollama `ollama ps` PROCESSOR oszlopa: mennyi van a modellből a GPU memóriájában."""
+    size, vram = worker["model_memory_bytes"], worker.get("model_vram_bytes", 0)
+    if not size or not vram:
+        return "CPU"
+    if vram >= size:
+        return "GPU"
+    return f"{round(vram / size * 100)}% GPU"
+
+
 def card(key: str, title: str, state: str, summary: str, facts: list | None = None) -> dict:
     return {"key": key, "title": title, "state": state, "summary": summary, "facts": facts or []}
 
@@ -115,8 +129,43 @@ def ollama_card(host: dict | None, worker: dict | None) -> dict:
     ]
     if loaded:
         facts.append(fact("Memória", format_gigabytes(worker["model_memory_bytes"])))
+        facts.append(fact("Processzor", processor_share(worker)))
+    cpu = (host or {}).get("ollama_cpu_percent")
+    if cpu is not None:
+        facts.append(fact("CPU-használat", f"{round(cpu)}%"))
+    last = worker.get("last_read")
+    if last:
+        speed = last.get("tokens_per_second")
+        value = format_decimal(last["seconds"], "s")
+        facts.append(fact("Utolsó olvasás", value + (f" · {round(speed)} token/s" if speed else "")))
+    # GPU-n a modell a futások között is betöltve marad, ezért a betöltés még nem munka.
+    if worker["step"] == "read_text":
         return card("ollama", "Ollama", BUSY, "A modell fut", facts)
+    if loaded:
+        return card("ollama", "Ollama", state, "A modell betöltve", facts)
     return card("ollama", "Ollama", state, summary, facts)
+
+
+def gpu_card(host: dict | None) -> dict | None:
+    """Csak ott jelenik meg, ahol a gépen NVIDIA GPU van; a jelentés 15 másodpercenkénti pillanatkép."""
+    gpu = (host or {}).get("gpu")
+    if gpu is None:
+        return None
+    usage = gpu.get("utilization_percent")
+    facts = [
+        fact("Kihasználtság", "nincs adat" if usage is None else f"{round(usage)}%"),
+        fact(
+            "Videomemória",
+            f"{format_gigabytes(gpu['memory_used_bytes'])} / "
+            f"{format_gigabytes(gpu['memory_total_bytes'])}",
+        ),
+    ]
+    if gpu.get("temperature_c") is not None:
+        facts.append(fact("Hőmérséklet", f"{round(gpu['temperature_c'])} °C"))
+    if gpu.get("power_w") is not None:
+        facts.append(fact("Fogyasztás", f"{round(gpu['power_w'])} W"))
+    state = BUSY if usage else OK
+    return card("gpu", "GPU", state, gpu["name"], facts)
 
 
 def garage_card(host: dict | None) -> dict:
@@ -227,6 +276,7 @@ def build(
         upload_card(host, queue),
         worker_card(host, worker),
         ollama_card(host, worker),
+        gpu_card(host),
         garage_card(host),
         postgres_card(host),
         reports_card(host, reports_url),
@@ -234,6 +284,7 @@ def build(
         job_card(host, "backup", "Mentés"),
         machine_card(host),
     ]
+    cards = [item for item in cards if item is not None]
     processing = processing_state(worker, queue, now)
     ages = [age_seconds(reports.get(source), now) for source in ("host", "worker")]
     known_ages = [age for age in ages if age is not None]
