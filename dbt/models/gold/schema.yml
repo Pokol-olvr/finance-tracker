@@ -8,6 +8,21 @@ models:
         data_tests: [not_null]
       - name: payer
         data_tests: [not_null]
+  - name: product_prices
+    description: Termékenként, boltonként és hónaponként a súlyozott egységár alapegységben.
+    columns:
+      - name: month
+        data_tests: [not_null]
+      - name: product
+        data_tests: [not_null]
+      - name: base_unit
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [kg, l, db]
+      - name: unit_price
+        data_tests: [not_null]
   - name: expense_documents
     description: A kiadásba számított dokumentumok a Kiadások riporthoz.
     columns:

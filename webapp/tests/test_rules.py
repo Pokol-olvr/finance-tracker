@@ -35,6 +35,24 @@ def store_rule(**changes) -> dict:
     } | changes
 
 
+def product_rule(**changes) -> dict:
+    return {
+        "rule_type": "product",
+        "pattern": "CSIPERKE",
+        "target": "élelmiszer/gomba/csiperke",
+        "created_by": "person_a",
+    } | changes
+
+
+def pack_rule(**changes) -> dict:
+    return {
+        "rule_type": "pack",
+        "pattern": "BARNA CSIPERKE 500",
+        "target": "500G",
+        "created_by": "person_a",
+    } | changes
+
+
 def events(client, headers) -> list[dict]:
     return client.get("/inbox/events", headers=headers).json()["events"]
 
@@ -67,11 +85,37 @@ def test_page_offers_the_categories(client):
         category_rule(created_by="idegen"),
         store_rule(pattern="nem adószám"),
         store_rule(target=""),
+        product_rule(target="gomba/csiperke"),
+        product_rule(target="ismeretlen/gomba/csiperke"),
+        product_rule(target="élelmiszer//csiperke"),
+        product_rule(target="élelmiszer/gomba/csiperke/barna"),
+        pack_rule(target="nagy"),
+        pack_rule(target="500"),
+        pack_rule(target="4X"),
     ],
 )
 def test_invalid_rule_is_rejected(client, headers, rule):
     assert client.post("/rules", json=rule).status_code == 422
     assert events(client, headers) == []
+
+
+def test_product_path_is_normalised_and_offered_again(client, headers):
+    rule = product_rule(target=" Élelmiszer / Gomba /  Csiperke ")
+    assert client.post("/rules", json=rule).status_code == 201
+    assert client.post("/rules", json=product_rule(pattern="5990000000001")).status_code == 201
+
+    data = client.get("/rules.json").json()
+    assert data["products"] == ["élelmiszer/gomba/csiperke"]
+    assert events(client, headers)[0]["data"]["target_value"] == "élelmiszer/gomba/csiperke"
+
+
+@pytest.mark.parametrize(
+    ("target", "stored"),
+    [("500g", "500G"), ("1,5 l", "1,5L"), ("4 x 120g", "4X120G"), ("6*1,5L", "6X1,5L"), ("10db", "10DB")],
+)
+def test_pack_rule_is_stored_in_one_form(client, target, stored):
+    assert client.post("/rules", json=pack_rule(target=target)).status_code == 201
+    assert client.get("/rules.json").json()["rules"][0]["target"] == stored
 
 
 def test_store_rule_needs_a_tax_number(client):
