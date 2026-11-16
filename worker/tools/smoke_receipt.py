@@ -47,7 +47,12 @@ def draw_receipt() -> bytes:
 
 def main() -> int:
     settings = get_settings()
-    reader = ReceiptReader(settings.ollama_url, settings.ollama_model, settings.ollama_num_thread)
+    reader = ReceiptReader(
+        settings.ollama_url,
+        settings.ollama_model,
+        settings.ollama_num_thread,
+        settings.ollama_keep_alive,
+    )
     print(f"Modell: {reader.name} ({reader.version()})")
 
     started = time.monotonic()

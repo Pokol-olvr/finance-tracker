@@ -43,9 +43,10 @@ def prepare_image(content: bytes) -> bytes:
 
 
 class ReceiptReader:
-    def __init__(self, base_url: str, model: str, num_thread: int):
+    def __init__(self, base_url: str, model: str, num_thread: int, keep_alive: str = "0"):
         self.name = model
         self.num_thread = num_thread
+        self.keep_alive = keep_alive
         self.client = httpx.Client(base_url=base_url, timeout=httpx.Timeout(600, connect=5))
 
     def version(self) -> str:
@@ -73,7 +74,7 @@ class ReceiptReader:
             json={
                 "model": self.name,
                 "stream": False,
-                "keep_alive": "0",
+                "keep_alive": self.keep_alive,
                 "options": {
                     "temperature": 0,
                     "num_thread": self.num_thread,
