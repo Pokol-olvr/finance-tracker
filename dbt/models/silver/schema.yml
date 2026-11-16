@@ -38,7 +38,7 @@ models:
       - name: payer
         data_tests: [not_null]
   - name: receipt_items
-    description: A beszámítható dokumentumok tételei, kiszereléssel és kategóriával.
+    description: A beszámítható dokumentumok tételei, kiszereléssel, termékkel, kategóriával és egységárral.
     columns:
       - name: group_id
         data_tests:
@@ -57,6 +57,11 @@ models:
                 values: [item, deposit, discount, voucher]
       - name: value
         data_tests: [not_null]
+      - name: base_unit
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [kg, l, db]
   - name: document_payments
     description: Fizetési sorok; a `deposit_voucher` a beváltott DRS-utalvány.
     columns:
@@ -71,7 +76,7 @@ models:
         data_tests: [unique, not_null]
 
   - name: rules
-    description: A bekapcsolt kategória- és boltszabályok.
+    description: A bekapcsolt kategória-, termék-, kiszerelés- és boltszabályok.
     columns:
       - name: rule_id
         data_tests: [unique, not_null]
@@ -249,6 +254,30 @@ unit_tests:
         - {line_no: 1, category: háztartás}
         - {line_no: 2, category: élelmiszer}
         - {line_no: 3, category: besorolatlan}
+
+  - name: receipt_items_termek_es_egysegar
+    model: receipt_items
+    given:
+      - input: ref('rules')
+        rows:
+          - {rule_id: 40000000-0000-0000-0000-000000000001, rule_type: product, pattern: CSIPERKE, target: élelmiszer/gomba/csiperke, created_at: 2026-10-01 10:00:00+00}
+          - {rule_id: 40000000-0000-0000-0000-000000000002, rule_type: product, pattern: TEJ, target: élelmiszer/tejtermék/tej, created_at: 2026-10-01 10:00:00+00}
+          - {rule_id: 40000000-0000-0000-0000-000000000003, rule_type: product, pattern: "5990000000001", target: élelmiszer/tejtermék/joghurt, created_at: 2026-10-02 10:00:00+00}
+          - {rule_id: 40000000-0000-0000-0000-000000000004, rule_type: category, pattern: CSIPERKE, target: háztartás, created_at: 2026-10-01 10:00:00+00}
+          - {rule_id: 40000000-0000-0000-0000-000000000005, rule_type: pack, pattern: BARNA CSIPERKE 500, target: 500g, created_at: 2026-10-01 10:00:00+00}
+      - input: ref('documents')
+        format: sql
+        rows: |
+          select '00000000-0000-0000-0000-000000000001'::uuid as group_id, true as counted, array['élelmiszer', 'háztartás']::text[] as tags, '[{"name": "XXL CSIPERKE", "value": 899, "kind": "item"}, {"name": "SB BARNA CSIPERKE 500", "value": 450, "kind": "item"}, {"name": "CSIPERKE GOMBA KG", "value": 400, "kind": "item", "quantity": 0.5, "unit": "KG", "unit_price": 800}, {"name": "AKCIÓ", "value": -100, "kind": "discount"}, {"name": "MAGYAR ESL DOB.TEJ 2.8X1L", "value": 778, "kind": "item", "quantity": 2, "unit": "DB", "unit_price": 389}, {"name": "ACTIVIA MEGGY 4X120G", "value": 650, "kind": "item", "ean": "5990000000001"}, {"name": "ISMERETLEN", "value": 100, "kind": "item"}]'::jsonb as items
+    expect:
+      rows:
+        - {line_no: 1, product_family: gomba, product: csiperke, category: élelmiszer, base_unit: db, base_quantity: 1, base_unit_price: "899.00"}
+        - {line_no: 2, product_family: gomba, product: csiperke, category: élelmiszer, base_unit: kg, base_quantity: "0.500", base_unit_price: "900.00"}
+        - {line_no: 3, product_family: gomba, product: csiperke, category: élelmiszer, base_unit: kg, base_quantity: 0.5, base_unit_price: "600.00"}
+        - {line_no: 4, product_family: gomba, product: csiperke, category: élelmiszer, base_unit: null, base_quantity: null, base_unit_price: null}
+        - {line_no: 5, product_family: tejtermék, product: tej, category: élelmiszer, base_unit: l, base_quantity: 2, base_unit_price: "389.00"}
+        - {line_no: 6, product_family: tejtermék, product: joghurt, category: élelmiszer, base_unit: kg, base_quantity: "0.480", base_unit_price: "1354.17"}
+        - {line_no: 7, product_family: null, product: null, category: besorolatlan, base_unit: db, base_quantity: 1, base_unit_price: "100.00"}
 
   - name: stores_boltszabaly
     model: stores

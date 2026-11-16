@@ -3,7 +3,7 @@ projekt: Pénzügyi nyomkövető
 sprint: S5
 kezdes: 2026-12-28
 vege: 2027-01-10
-story_pont: 31
+story_pont: 36
 tags: [penzugy, sprint]
 ---
 
@@ -13,18 +13,19 @@ Vissza: [[Fejlesztési terv]]
 
 ## Sprint cél
 
-**A rendben lévő és az eldöntött blokk vagy számla tételenként a silverbe kerül, a kiadások kategóriákra bomlanak, a DRS-betétdíj pedig külön, várható pénzként látszik. A riportok Streamlitben futnak, a Metabase kikerül.** A sprint 2026-12-28 és 2027-01-10 között tart, 31 story ponttal.
+**A rendben lévő és az eldöntött blokk vagy számla tételenként a silverbe kerül, a kiadások kategóriákra bomlanak, a DRS-betétdíj pedig külön, várható pénzként látszik. A riportok Streamlitben futnak, a Metabase kikerül.** A sprint 2026-12-28 és 2027-01-10 között tart, 36 story ponttal.
 
 | Kulcs | Jegy | SP | Függ tőle |
 | --- | --- | --- | --- |
 | FIN-406 | Silver tétel szint | 8 | FIN-405, FIN-412 |
 | FIN-206 | Streamlit riportfelület, a Metabase kivezetése | 8 | FIN-406 |
 | FIN-501 | Címke- és boltszabályok | 5 | FIN-406 |
+| FIN-507 | Termékcsaládok és egységár | 5 | FIN-501 |
 | FIN-409 | DRS-betétdíj külön vezetése | 5 | FIN-406 |
 | FIN-407 | Mérés 20–30 saját blokkon | 2 | FIN-406, FIN-410 |
 | FIN-403 | PaddleOCR második olvasat, feltételes | 3 | FIN-410 |
 
-Javasolt sorrend: FIN-406, FIN-206, FIN-501, FIN-409, FIN-407. A FIN-406 kerül előre, mert a többi a tételekre épül. A FIN-206 megelőzi a szabályokat és a betétdíjat, hogy ezek már az új riportokban jelenjenek meg. A FIN-403 csak akkor indul, ha a FIN-410 mérése ezt kéri, különben a sprint 28 SP-vel zárul.
+Javasolt sorrend: FIN-406, FIN-206, FIN-501, FIN-507, FIN-409, FIN-407. A FIN-406 kerül előre, mert a többi a tételekre épül. A FIN-206 megelőzi a szabályokat és a betétdíjat, hogy ezek már az új riportokban jelenjenek meg. A FIN-403 csak akkor indul, ha a FIN-410 mérése ezt kéri, különben a sprint 33 SP-vel zárul.
 
 **Előfeltétel:** a Sprint 4 nyitott pontjai ide nem számítanak, de a FIN-407 és a FIN-403 csak utánuk kezdhető: a FIN-410 mérése, valamint a FIN-412 és a FIN-312 saját dokumentumos pontjai.
 
@@ -35,6 +36,7 @@ Javasolt sorrend: FIN-406, FIN-206, FIN-501, FIN-409, FIN-407. A FIN-406 kerül 
 - **FIN-501:** 3 helyett 5 SP. A Szabályok oldal, a bronz tárolás és a worker szinkronja is a része.
 - **FIN-409:** 3 helyett 5 SP. A Betétdíj oldal, a bronz tárolás, a worker szinkronja és a riportkártya is a része.
 - **FIN-206:** új jegy, a Metabase helyett Streamlit ([[0014-streamlit-a-metabase-helyett|ADR 0014]]).
+- **FIN-507:** új jegy a sprint közben: a kategória egy szintje nem mutatja, ugyanazon termék hogyan drágul ([[0015-termekcsaladok-es-egysegar|ADR 0015]]).
 
 **Adat:** a tesztadatok kitaláltak. A dbt egységtesztek és a seedek nem tartalmazhatnak valódi nevet vagy összeget, a szabályok ezért a bronzban élnek, nem a repóban.
 
@@ -180,6 +182,30 @@ create table bronze.rule_event (
 ```
 
 A bronz csak bővül, ezért a kikapcsolás új sor ugyanazzal a `rule_id` értékkel. Szabályonként a legutóbbi sor érvényes. A tételről közvetlen szabálykészítés a FIN-502-höz tartozik.
+
+## FIN-507 Termékcsaládok és egységár · 5 SP
+
+**Story:** felhasználóként a tételeket termékcsaládokba és termékekbe akarom sorolni, hogy lássam, ugyanaz a termék kiszereléstől függetlenül hogyan drágul.
+
+**Részfeladatok**
+
+- [x] Migráció: a `bronze.rule_event` `product` és `pack` típust is fogad 📅 2027-01-10
+- [x] Szabályok oldal: termékszabály kategóriával, termékcsaláddal és termékkel, kiszerelésszabály 📅 2027-01-10
+- [x] Blokkfeldolgozó: a `Cikkszám:` sor EAN-ként a tételhez kerül, a `PARSER_VERSION` 7 📅 2027-01-10
+- [x] `silver.receipt_items`: termék, termékcsalád, csomagszám, alapegység és egységár 📅 2027-01-10
+- [x] `gold.product_prices`: havi súlyozott egységár termékenként és boltonként 📅 2027-01-10
+- [x] Kitalált adatú dbt egységtesztek 📅 2027-01-10
+- [ ] Árnapló nézet a riportokban 📅 2027-01-10
+
+**Elfogadási feltételek**
+
+- [x] A `CSIPERKE` termékszabály után az „XXL CSIPERKE”, a „SB BARNA CSIPERKE 500” és a mérlegelt csiperke ugyanaz a termék
+- [x] A termékből jön a kategória, és erősebb a tételszabálynál
+- [x] Az EAN-re illeszkedő szabály erősebb a névmintánál
+- [x] A `4X120G` négy 120 grammos csomag, a `2.8X1L` egy liter
+- [x] A tétel alatti kedvezmény csökkenti az egységárat
+- [x] Hibás termékút és kiszerelés nem menthető
+- [x] A blokkokat nem kell újra feltölteni: a worker a tárolt szövegeket dolgozza fel újra
 
 ## FIN-409 DRS-betétdíj külön vezetése · 5 SP
 

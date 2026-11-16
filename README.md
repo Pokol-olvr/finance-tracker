@@ -183,9 +183,13 @@ A worker tesztjei a `scripts/test-worker.sh` paranccsal futnak, valódi Garage-d
 A `http://127.0.0.1:8000/rules` oldalon vehetők fel a szabályok:
 
 - **Tételszabály:** ha a tétel neve tartalmazza a mintát, a tétel megkapja a kategóriát. Az egyeztetés ékezet nélkül történik. Több találatnál a hosszabb minta nyer, egyezésnél a régebbi szabály.
+- **Termékszabály:** ha a tétel neve tartalmazza a mintát, vagy a mintája a tétel EAN-je, a tétel megkapja a terméket, például `élelmiszer/gomba/csiperke`. A kategória a termékből jön, és a termékszabály erősebb a tételszabálynál. Több találatnál az EAN nyer, utána a hosszabb minta.
+- **Kiszerelésszabály:** a kiszerelés nélküli névhez ad kiszerelést, például `SB BARNA CSIPERKE 500` → `500G`.
 - **Boltszabály:** az adószámhoz egységes boltnév tartozik.
 
 A szabály a régi dokumentumokra is érvényes, a kikapcsolt szabály a bronzban megmarad. Szabály nélkül az egy címkés blokk tétele a címkét kapja, a több címkésé `besorolatlan` lesz.
+
+A silver minden tételhez alapegységet és egységárat számol: Ft/kg, Ft/l vagy Ft/db. A mérlegelt tételnél a mért mennyiség az alap, különben a darabszám és a névben vagy a szabályban álló kiszerelés, például `4X120G`. A tétel alatti kedvezmény csökkenti az egységárat. A `gold.product_prices` termékenként, boltonként és hónaponként adja a súlyozott egységárat. Az indoklás: [ADR 0015](docs/adr/0015-termekcsaladok-es-egysegar.md).
 
 A `http://127.0.0.1:8000/deposit` oldal a várható DRS-betétdíjat mutatja. A blokkon fizetett betétdíj növeli, a beváltott utalvány csökkenti, egyik sem kiadás. Az összeg kézzel állítható és nullázható, a kézi művelet a következő dbt-futás után látszik. A negatív összeg azt jelzi, hogy régebbi vásárlás betétdíja nincs a rendszerben, ilyenkor egy kézi állítás adja a nyitó egyenleget. A nullázás a napra vonatkozik: az aznap vagy előtte kelt blokkok betétdíja elvész.
 

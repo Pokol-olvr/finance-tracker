@@ -8,7 +8,7 @@ tags: [penzugy, projekt]
 
 # Fejlesztési terv
 
-8 epic, 10 kéthetes sprint, kb. 221 story pont. Minden story egy feladat: a 📅 dátum a sprint vége, a címkék az epicet és a sprintet jelölik. A [Tasks](https://publish.obsidian.md/tasks/) bővítménnyel szűrhető, pl. `tags include #sprint/S1`.
+8 epic, 10 kéthetes sprint, kb. 226 story pont. Minden story egy feladat: a 📅 dátum a sprint vége, a címkék az epicet és a sprintet jelölik. A [Tasks](https://publish.obsidian.md/tasks/) bővítménnyel szűrhető, pl. `tags include #sprint/S1`.
 
 Részletes sprintterv: [[Sprint 1]] · [[Sprint 2]] · [[Sprint 3]] · [[Sprint 4]] · Kapcsolódó: [[Üzleti koncepció]] · [[Technikai terv]] · [[Release folyamat]] · [[Változásnapló]]
 
@@ -149,7 +149,7 @@ Kész, ha: a blokkból tétel szintű silver lesz, kivételnél ellenőrzéssel.
 - [ ] FIN-413 Döntés újranyitása, az elvetett fájl újrafeltöltése és előtöltött javítás · 5 SP #E4 #sprint/S4 📅 2026-12-27
     - Elfogadás: az elvetett dokumentum visszahozható, újrafeltöltéskor is újranyílik, és a javítás a szövegből kinyert sorokkal indul
 
-## FIN-E5 Címkézés és tanulás (S5, S7, 23 SP)
+## FIN-E5 Címkézés és tanulás (S5, S7, 28 SP)
 
 Kész, ha: a címkék előre kitöltve jönnek, a pontosság mérve van.
 
@@ -165,6 +165,8 @@ Kész, ha: a címkék előre kitöltve jönnek, a pontosság mérve van.
     - Elfogadás: a javítási arány boltonként és mezőnként látszik
 - [ ] FIN-506 Tesztkészlet félrerakása a jóváhagyott blokkokból · 2 SP #E5 #sprint/S7 📅 2027-02-07
     - Elfogadás: a tesztkészlet blokkjai nem kerülnek tanításba
+- [ ] FIN-507 Termékcsaládok és egységár: kategória, termékcsalád, termék, Ft/kg, Ft/l vagy Ft/db · 5 SP #E5 #sprint/S5 📅 2027-01-10
+    - Elfogadás: a termékszabályra illeszkedő tétel kiszereléstől függetlenül ugyanazt a terméket és összevethető egységárat kap, a régi blokkokon is
 
 ## FIN-E6 Teljes pénzügyi kép (S8, 21 SP)
 

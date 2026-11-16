@@ -65,6 +65,8 @@
       <div class="fields">
         <label>Mire vonatkozik?
           <select id="rule-type">
+            <option value="product">Tétel terméke</option>
+            <option value="pack">Tétel kiszerelése</option>
             <option value="category">Tétel kategóriája</option>
             <option value="store">Bolt neve</option>
           </select>
@@ -75,6 +77,13 @@
         <label id="target-label"><span id="target-title">Akkor ez a kategória</span>
           <select id="category"></select>
           <input id="store-name" maxlength="100" hidden autocomplete="off">
+          <input id="pack" maxlength="20" hidden autocomplete="off" placeholder="pl. 500G, 1,5L, 4X120G">
+        </label>
+        <label id="family-label" hidden>Termékcsalád
+          <input id="family" maxlength="40" list="families" autocomplete="off" placeholder="pl. gomba">
+        </label>
+        <label id="product-label" hidden>Termék
+          <input id="product" maxlength="40" list="products" autocomplete="off" placeholder="pl. csiperke">
         </label>
         <label>Ki veszi fel?
           <select id="person">{{members}}</select>
@@ -89,6 +98,8 @@
       <tbody></tbody>
     </table></div>
     <p id="empty" class="muted">Még nincs szabály.</p>
+    <datalist id="families"></datalist>
+    <datalist id="products"></datalist>
   </main>
   <script>
     function element(tag, className, text) {
@@ -121,21 +132,69 @@
     person.addEventListener("change", () => rememberPerson(person.value));
     const message = document.getElementById("message");
 
-    const TYPES = { category: "Tétel kategóriája", store: "Bolt neve" };
+    const TYPES = {
+      product: "Tétel terméke",
+      pack: "Tétel kiszerelése",
+      category: "Tétel kategóriája",
+      store: "Bolt neve",
+    };
+    const PROBLEMS = {
+      product: "Adj meg legalább 2 karakteres mintát, termékcsaládot és terméket.",
+      pack: "Adj meg mintát és kiszerelést, pl. 500G, 1,5L, 10DB vagy 4X120G.",
+      category: "Adj meg legalább 2 karakteres mintát.",
+      store: "Adj meg érvényes adószámot és nevet.",
+    };
     const type = document.getElementById("rule-type");
     const pattern = document.getElementById("pattern");
     const category = document.getElementById("category");
     const storeName = document.getElementById("store-name");
+    const pack = document.getElementById("pack");
+    const family = document.getElementById("family");
+    const product = document.getElementById("product");
+    // Termékenként a teljes út, hogy a meglévő termék kiválasztása kitöltse a családot is.
+    let knownProducts = [];
 
     function updateForm() {
-      const isStore = type.value === "store";
-      document.getElementById("pattern-title").textContent =
-        isStore ? "A bolt adószáma" : "Ha a tétel neve ezt tartalmazza";
-      pattern.placeholder = isStore ? "12345678-2-41" : "pl. mosógél";
-      document.getElementById("target-title").textContent =
-        isStore ? "Ez legyen a neve" : "Akkor ez a kategória";
-      category.hidden = isStore;
-      storeName.hidden = !isStore;
+      const kind = type.value;
+      document.getElementById("pattern-title").textContent = {
+        store: "A bolt adószáma",
+        product: "Ha a tétel neve ezt tartalmazza, vagy ez az EAN-je",
+      }[kind] || "Ha a tétel neve ezt tartalmazza";
+      pattern.placeholder = {
+        store: "12345678-2-41", product: "pl. csiperke", pack: "pl. barna csiperke 500",
+      }[kind] || "pl. mosógél";
+      document.getElementById("target-title").textContent = {
+        store: "Ez legyen a neve", pack: "Akkor ez a kiszerelése",
+      }[kind] || "Akkor ez a kategória";
+      category.hidden = kind === "store" || kind === "pack";
+      storeName.hidden = kind !== "store";
+      pack.hidden = kind !== "pack";
+      document.getElementById("family-label").hidden = kind !== "product";
+      document.getElementById("product-label").hidden = kind !== "product";
+    }
+
+    function fillOptions(list, values) {
+      list.replaceChildren(...values.map((value) => {
+        const option = element("option");
+        option.value = value;
+        return option;
+      }));
+    }
+
+    product.addEventListener("change", () => {
+      const known = knownProducts.find((path) => path.split("/")[2] === product.value.trim().toLowerCase());
+      if (known) {
+        const [knownCategory, knownFamily] = known.split("/");
+        category.value = knownCategory;
+        family.value = knownFamily;
+      }
+    });
+
+    function targetValue() {
+      if (type.value === "store") return storeName.value;
+      if (type.value === "pack") return pack.value;
+      if (type.value === "product") return `${category.value}/${family.value}/${product.value}`;
+      return category.value;
     }
 
     async function setActive(rule, active) {
@@ -153,7 +212,7 @@
       row.append(
         element("td", "", TYPES[rule.rule_type]),
         element("td", "", rule.pattern),
-        element("td", "", rule.target),
+        element("td", "", rule.rule_type === "product" ? rule.target.replaceAll("/", " › ") : rule.target),
         element("td", "", rule.active ? "bekapcsolva" : "kikapcsolva"),
       );
       const cell = element("td");
@@ -176,6 +235,11 @@
             return option;
           }));
         }
+        knownProducts = data.products || [];
+        fillOptions(document.getElementById("families"),
+          [...new Set(knownProducts.map((path) => path.split("/")[1]))]);
+        fillOptions(document.getElementById("products"),
+          [...new Set(knownProducts.map((path) => path.split("/")[2]))]);
         const table = document.getElementById("rules");
         table.tBodies[0].replaceChildren(...data.rules.map(ruleRow));
         table.hidden = data.rules.length === 0;
@@ -187,7 +251,7 @@
 
     document.getElementById("new-rule").addEventListener("submit", async (event) => {
       event.preventDefault();
-      const target = type.value === "store" ? storeName.value : category.value;
+      const target = targetValue();
       const response = await fetch("/rules", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -196,13 +260,15 @@
         }),
       });
       if (!response.ok) {
-        message.textContent = type.value === "store"
-          ? "Adj meg érvényes adószámot és nevet." : "Adj meg legalább 2 karakteres mintát.";
+        message.textContent = PROBLEMS[type.value];
         return;
       }
       message.textContent = "";
       pattern.value = "";
       storeName.value = "";
+      pack.value = "";
+      family.value = "";
+      product.value = "";
       await load();
     });
 

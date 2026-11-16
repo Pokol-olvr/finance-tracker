@@ -14,6 +14,8 @@ CATEGORIES = frozenset({"élelmiszer", "háztartás", "lakbér", "közlekedés",
 SHARED_PAYER = "shared"
 MOCK_AUTHOR = "mock"
 TAX_NUMBER = re.compile(r"\d{8}-\d-\d{2}")
+# A dbt receipt_items modellje ugyanezt a formát olvassa ki.
+PACK = re.compile(r"(?:\d+\s*[x*]\s*)?\d+(?:[,.]\d+)?\s*(?:g|kg|ml|cl|dl|l|db)", re.IGNORECASE)
 # A worker készpénznél és számlánál is ennyit enged a kerekítés miatt.
 CORRECTION_SUM_LIMIT = 2
 
@@ -164,6 +166,8 @@ class CorrectedItem(BaseModel):
     quantity: float | None = None
     unit: str | None = Field(default=None, max_length=20)
     unit_price: float | None = None
+    # A vonalkód száma a javítás után is megmarad, mert a termékszabály erre is illeszkedhet.
+    ean: str | None = Field(default=None, pattern=r"^\d{8,14}$")
 
 
 class Correction(BaseModel):
@@ -180,9 +184,13 @@ class Correction(BaseModel):
 
 
 class NewRule(BaseModel):
-    """Tételszabály: a név részlete és a kategória. Boltszabály: az adószám és az egységes név."""
+    """Tételszabály: a név részlete és a kategória. Boltszabály: az adószám és az egységes név.
 
-    rule_type: Literal["category", "store"]
+    Termékszabály: a név részlete vagy az EAN, és a `kategória/termékcsalád/termék` út.
+    Kiszerelésszabály: a név részlete és a kiszerelés, pl. `500G` vagy `4X120G` (ADR 0015).
+    """
+
+    rule_type: Literal["category", "store", "product", "pack"]
     pattern: str = Field(min_length=2, max_length=100)
     target: str = Field(min_length=1, max_length=100)
     created_by: str
@@ -200,6 +208,17 @@ class NewRule(BaseModel):
             raise ValueError("ismeretlen kategória")
         if self.rule_type == "store" and not TAX_NUMBER.fullmatch(self.pattern):
             raise ValueError("a boltszabály adószámra illeszkedik")
+        if self.rule_type == "product":
+            parts = [part.strip().lower() for part in self.target.split("/")]
+            if len(parts) != 3 or not all(parts) or any(len(part) > 40 for part in parts):
+                raise ValueError("a termék útja kategória/termékcsalád/termék")
+            if parts[0] not in CATEGORIES:
+                raise ValueError("ismeretlen kategória")
+            self.target = "/".join(parts)
+        if self.rule_type == "pack":
+            if not PACK.fullmatch(self.target):
+                raise ValueError("a kiszerelés pl. 500G, 1,5L, 10DB vagy 4X120G")
+            self.target = re.sub(r"\s+", "", self.target.upper()).replace("*", "X")
         return self
 
 
