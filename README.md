@@ -7,6 +7,7 @@ A jelenlegi állapot az otthoni stack: Postgres a bronz, silver és gold sémák
 ## Előfeltételek
 
 - Rootless Podman, a `scripts/setup-podman.sh` egyszeri beállításával (Fedora); a CI Dockert használ, az is működik
+- Windowson WSL2-es Ubuntu Docker Engine-nel, a `scripts/setup-wsl.sh` egyszeri beállításával (lásd [Windows és WSL](#windows-és-wsl))
 - `openssl`, `curl`, `jq`
 - 5 GB szabad memória a kiolvasás idejére
 - 3 GB szabad lemez a modellnek
@@ -24,6 +25,24 @@ podman compose -f home/docker-compose.yml up -d --build
 A riportok a `http://127.0.0.1:8501` címen érhetők el. A feltöltés, az Ellenőrzés, a szabályok és a betétdíj a `http://127.0.0.1:8000` címen van.
 
 A `scripts/init-env.sh` által generált `RESTIC_PASSWORD` értékét mentsd el a jelszókezelőbe, nélküle a mentés használhatatlan.
+
+### Windows és WSL
+
+Windowson a stack a WSL2-es Ubuntuban fut, Docker Engine-nel. A repót a WSL saját fájlrendszerébe kell klónozni, nem a `C:` meghajtóra: ott a Git CRLF sorvégekkel bontja ki a scripteket, és a bind mountok lassúak. A szerkesztéshez a VS Code WSL-bővítménye vagy a `\\wsl$` út használható.
+
+```sh
+git clone <repo-url> ~/repos/finance-tracker && cd ~/repos/finance-tracker
+scripts/setup-wsl.sh
+newgrp docker
+scripts/init-env.sh
+scripts/ollama-pull.sh
+docker compose -f home/docker-compose.yml up -d --build
+scripts/dbt.sh
+```
+
+A `scripts/setup-wsl.sh` systemd-t vár, ezt a `/etc/wsl.conf` `[boot]` részében a `systemd=true` kapcsolja be. A portok a WSL-ből a Windows `127.0.0.1` címére is kijönnek, így a böngésző a fenti címeken éri el őket. A timerek csak akkor futnak, ha a WSL fut: nyitott WSL-ablak nélkül a Windows egy idő után leállítja.
+
+A Docker konténerei rootként futnak, ezért a `home/data` törléséhez `sudo rm -rf home/data` kell a `podman unshare` helyett.
 
 ## Felépítés
 
