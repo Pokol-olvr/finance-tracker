@@ -136,20 +136,8 @@ def ollama_card(host: dict | None, worker: dict | None) -> dict:
                 f"{processor_share(worker)} · {format_gigabytes(worker['model_memory_bytes'])}",
             )
         )
-        if worker.get("model_context"):
-            facts.append(fact("Kontextus", format_number(worker["model_context"]) + " token"))
-        facts.append(time_fact("Kirakódik", worker.get("model_expires_at")))
     else:
         facts.append(fact("Betöltve", "nem"))
-    settings = [
-        f"{worker['num_thread']} CPU-szál" if worker.get("num_thread") else None,
-        f"bent tartás {worker['keep_alive']}" if worker.get("keep_alive") else None,
-    ]
-    if any(settings):
-        facts.append(fact("Beállítás", " · ".join(part for part in settings if part)))
-    cpu = (host or {}).get("ollama_cpu_percent")
-    if cpu is not None:
-        facts.append(fact("CPU-használat", f"{round(cpu)}%"))
     facts.extend(read_facts(worker))
     # GPU-n a modell a futások között is betöltve marad, ezért a betöltés még nem munka.
     if worker["step"] == "read_text":
@@ -160,23 +148,13 @@ def ollama_card(host: dict | None, worker: dict | None) -> dict:
 
 
 def read_facts(worker: dict) -> list[dict]:
-    """Az utolsó olvasás bontása és az utolsó olvasások átlaga."""
+    """Az utolsó olvasás és az utolsó olvasások átlaga, idővel és token/s sebességgel."""
     facts = []
     last = worker.get("last_read")
     if last:
         speed = last.get("tokens_per_second")
         value = format_decimal(last["seconds"], "s")
         facts.append(fact("Utolsó olvasás", value + (f" · {round(speed)} token/s" if speed else "")))
-        parts = [
-            ("betöltés", last.get("load_seconds")),
-            ("kép", last.get("image_seconds")),
-            ("szöveg", last.get("text_seconds")),
-        ]
-        if all(seconds is not None for _, seconds in parts):
-            facts.append(
-                fact("Bontás", " · ".join(f"{name} {format_decimal(sec, 's')}" for name, sec in parts))
-            )
-        facts.append(time_fact("Utolsó olvasás ideje", last["finished_at"]))
     recent = worker.get("recent_reads")
     if recent:
         speed = recent.get("average_tokens_per_second")

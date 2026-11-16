@@ -305,12 +305,11 @@ def test_gpu_never_changes_the_overall_state():
     assert result["overall"]["state"] == "ok"
 
 
-def test_ollama_card_tells_where_and_how_the_model_runs():
+def test_ollama_card_shows_only_the_essentials():
     worker = LOADED_ON_GPU | {
         "model_parameters": "891.14M",
         "model_quantization": "F16",
         "model_context": 4096,
-        "model_expires_at": "2026-12-01T12:09:00+00:00",
         "num_thread": 1,
         "keep_alive": "10m",
         "recent_reads": {"count": 17, "average_seconds": 2.4, "average_tokens_per_second": 315.6},
@@ -320,16 +319,13 @@ def test_ollama_card_tells_where_and_how_the_model_runs():
     ollama = card(build(host=host, worker=worker), "ollama")
 
     assert (ollama["state"], ollama["summary"]) == ("ok", "A modell betöltve")
-    facts = {item["label"]: item.get("value", item.get("time")) for item in ollama["facts"]}
-    assert facts["Modell"] == "glm-ocr (891.14M · F16)"
-    assert facts["Fut"] == "GPU · 2,0 GB"
-    assert facts["Kontextus"] == "4 096 token"
-    assert facts["Kirakódik"] == "2026-12-01T12:09:00+00:00"
-    assert facts["Beállítás"] == "1 CPU-szál · bent tartás 10m"
-    assert facts["CPU-használat"] == "97%"
-    assert facts["Utolsó olvasás"] == "2,2 s · 321 token/s"
-    assert facts["Bontás"] == "betöltés 0,0 s · kép 0,2 s · szöveg 2,0 s"
-    assert facts["Átlag (17 olvasás)"] == "2,4 s · 316 token/s"
+    assert ollama["facts"] == [
+        {"label": "Modell", "value": "glm-ocr (891.14M · F16)"},
+        {"label": "Azonosító", "value": "89d735dd9c07"},
+        {"label": "Fut", "value": "GPU · 2,0 GB"},
+        {"label": "Utolsó olvasás", "value": "2,2 s · 321 token/s"},
+        {"label": "Átlag (17 olvasás)", "value": "2,4 s · 316 token/s"},
+    ]
 
 
 def test_reading_model_is_busy():
