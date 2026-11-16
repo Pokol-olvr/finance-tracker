@@ -1,0 +1,17 @@
+# NVIDIA GPU az Ollamának. Bekapcsolás a .env-ben:
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.gpu.yml
+# Előfeltétel: NVIDIA container toolkit, WSL-ben a scripts/setup-wsl-gpu.sh telepíti.
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # GPU-n a modell bent marad: az újratöltés blokkonként CPU-n pörög, a futás csak pár másodperc.
+  worker:
+    environment:
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-10m}

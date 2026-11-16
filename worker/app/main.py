@@ -167,7 +167,12 @@ def main() -> None:
     storage = Storage(
         settings.garage_endpoint, settings.garage_access_key, settings.garage_secret_key
     )
-    reader = ReceiptReader(settings.ollama_url, settings.ollama_model, settings.ollama_num_thread)
+    reader = ReceiptReader(
+        settings.ollama_url,
+        settings.ollama_model,
+        settings.ollama_num_thread,
+        settings.ollama_keep_alive,
+    )
     reporter = StatusReporter(
         settings.inbox_url, settings.worker_token, settings.ollama_url, settings.ollama_model
     )
