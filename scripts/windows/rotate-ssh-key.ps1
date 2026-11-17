@@ -8,9 +8,10 @@
 # A HostAlias a ~/.ssh/config egy bejegyzése, amely a KeyFile kulccsal lép be. A lépések:
 #   1. új kulcs (a jelmondatot az ssh-keygen kéri; a korlátozott felhasználónál üresen is hagyható),
 #   2. az új kulcs felkerül a távoli authorized_keys-be a régivel belépve,
-#   3. próba az új kulccsal; ha nem sikerül, a régi marad, és semmi nem változik helyben,
-#   4. a régi kulcs törlése a távoli gépről az új kulccsal belépve,
-#   5. helyben a régi fájl átnevezve (.regi-DÁTUM), az új a helyére kerül, az ssh-agent frissül.
+#   3. belépés csak az új kulccsal, és ugyanebben a kapcsolatban a régi kulcs törlése; ha az új
+#      kulccsal nem sikerül belépni, a régi marad, és helyben semmi nem változik,
+#   4. helyben a régi fájl átnevezve (.regi-DÁTUM), az új a helyére kerül, az ssh-agent frissül.
+# Az új kulcs jelmondatát háromszor kéri: kétszer generáláskor, egyszer a 3. lépésben.
 
 param(
     [Parameter(Mandatory)][string]$HostAlias,
@@ -45,18 +46,14 @@ Write-Host '2. Az új kulcs felkerül a távoli gépre (a régi kulccsal)'
 $newPub | & $ssh $HostAlias 'umask 077; mkdir -p ~/.ssh; cat >> ~/.ssh/authorized_keys'
 if ($LASTEXITCODE -ne 0) { throw 'Az új kulcs nem került fel; helyben semmi nem változott.' }
 
-Write-Host '3. Próba az új kulccsal'
-& $ssh @onlyNew $target 'true'
-if ($LASTEXITCODE -ne 0) {
-    throw "Az új kulccsal nem sikerült belépni. A régi működik; az új sort a távoli authorized_keys végéről kézzel kell törölni."
-}
-
-Write-Host '4. A régi kulcs törlése a távoli gépről (az új kulccsal)'
+Write-Host '3. Belépés csak az új kulccsal, és a régi kulcs törlése a távoli gépről'
 # A régi kulcs a bemeneten megy át: a Windows PowerShell a parancssorból kiszedné az idézőjeleket.
 $oldPub | & $ssh @onlyNew $target 'grep -vxF -f - ~/.ssh/authorized_keys > ~/.ssh/authorized_keys.uj && mv ~/.ssh/authorized_keys.uj ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys'
-if ($LASTEXITCODE -ne 0) { throw 'A régi kulcs törlése nem sikerült; mindkét kulcs érvényes, a régit kézzel kell törölni.' }
+if ($LASTEXITCODE -ne 0) {
+    throw 'Az új kulccsal nem sikerült belépni, vagy a régi nem törlődött. A régi kulcs működik; a távoli authorized_keys végén az új sor kézzel törölhető.'
+}
 
-Write-Host '5. Csere helyben'
+Write-Host '4. Csere helyben'
 # Az agentet csak akkor érintjük, ha a régi kulcs benne volt; a hibája nem állíthatja meg a cserét.
 $ErrorActionPreference = 'Continue'
 $oldBody = ($oldPub -split ' ')[1]

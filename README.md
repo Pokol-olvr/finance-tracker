@@ -84,7 +84,7 @@ A Pi a háztartás DNS-szervere is (natív Pi-hole v6 és Unbound), ezért minde
 
 A harmadik lépés előtt mindkét felhasználó kulcsos belépését ki kell próbálni.
 
-**Kulcscsere:** az SSH-kulcsnak nincs lejárata, addig érvényes, amíg az `authorized_keys`-ben van. Évente egyszer, és azonnal, ha egy gép elveszik vagy gazdát cserél, a `scripts/windows/rotate-ssh-key.ps1` cseréli: új kulcs, felkerül a régivel, próba csak az újjal, a régi törlése a távoli gépről, végül csere helyben. Ha a próba nem sikerül, a régi kulcs érvényes marad. A rendszergazdai kulcson legyen jelmondat, a Windows `ssh-agent`-tel elég bejelentkezésenként egyszer beírni.
+**Kulcscsere:** az SSH-kulcsnak nincs lejárata, addig érvényes, amíg az `authorized_keys`-ben van. Évente egyszer, és azonnal, ha egy gép elveszik vagy gazdát cserél, a `scripts/windows/rotate-ssh-key.ps1` cseréli: új kulcs, felkerül a régivel, belépés csak az újjal és ugyanabban a kapcsolatban a régi törlése, végül csere helyben. Ha az új kulccsal nem sikerül belépni, a régi érvényes marad. Az új kulcs jelmondatát háromszor kéri: kétszer generáláskor, egyszer a cserénél. A rendszergazdai kulcson legyen jelmondat, a Windows `ssh-agent`-tel elég bejelentkezésenként egyszer beírni.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\windows\rotate-ssh-key.ps1 -HostAlias <gép-rövidítés> -KeyFile <kulcsfájl>
