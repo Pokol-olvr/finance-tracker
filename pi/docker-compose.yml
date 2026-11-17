@@ -15,7 +15,6 @@ services:
         condition: service_started
     environment:
       FINANCE_DOMAIN: ${FINANCE_DOMAIN:?a .env nincs kitöltve}
-      ACME_EMAIL: ${ACME_EMAIL:?}
       CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:?}
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro,z
