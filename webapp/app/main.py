@@ -18,7 +18,7 @@ from fastapi import (
     UploadFile,
     status,
 )
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app import inbox, reviews, store
@@ -50,8 +50,40 @@ app = FastAPI(title="Pénzügyi nyomkövető")
 bearer = HTTPBearer(auto_error=False)
 
 
+# Ezek belépés nélkül is elérhetők: a worker API saját tokent kér, a /health a Compose-é.
+PUBLIC_PREFIXES = ("/inbox/", "/health")
+
+
 def connect() -> psycopg.Connection:
-    return psycopg.connect(get_settings().database_url)
+    database_url = get_settings().database_url
+    if database_url is None:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE, "Itt nincs adatbázis, a bejegyzés az otthoni stacké."
+        )
+    return psycopg.connect(database_url)
+
+
+@app.middleware("http")
+async def signed_in_user(request: Request, call_next):
+    """Az Authelia mögött a belépett felhasználó a fejlécből jön; nélküle csak a nyilvános út él.
+
+    A webapp portja csak a Caddy felé látszik, a fejlécet így más nem állíthatja be.
+    """
+    request.state.user = None
+    header = get_settings().auth_header
+    if header and not request.url.path.startswith(PUBLIC_PREFIXES):
+        user = request.headers.get(header)
+        if user not in get_settings().members:
+            return JSONResponse({"detail": "Belépés szükséges."}, status.HTTP_401_UNAUTHORIZED)
+        request.state.user = user
+    return await call_next(request)
+
+
+def check_person(request: Request, person: str) -> None:
+    """Belépéssel a rögzítő mindig a belépett felhasználó, más nevében nem lehet menteni."""
+    user = request.state.user
+    if user is not None and person != user:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Csak a saját nevedben rögzíthetsz.")
 
 
 def require_worker(
@@ -67,13 +99,18 @@ worker_api = APIRouter(prefix="/inbox", dependencies=[Depends(require_worker)])
 
 @app.get("/health")
 def health() -> dict[str, str]:
+    if get_settings().database_url is None:
+        if not get_settings().inbox_dir.is_dir():
+            raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE)
+        return {"status": "ok"}
     with connect() as conn:
         conn.execute("select 1")
     return {"status": "ok"}
 
 
 @app.post("/entries", status_code=status.HTTP_201_CREATED)
-def create_entry(entry: ManualEntry, response: Response) -> dict[str, str]:
+def create_entry(entry: ManualEntry, response: Response, request: Request) -> dict[str, str]:
+    check_person(request, entry.entered_by)
     with connect() as conn:
         created = store.insert_entry(conn, entry)
     if not created:
@@ -81,22 +118,22 @@ def create_entry(entry: ManualEntry, response: Response) -> dict[str, str]:
     return {"id": str(entry.id), "status": "created" if created else "already_exists"}
 
 
-def member_options() -> str:
-    return "".join(
-        f'<option value="{escape(member)}">{escape(member)}</option>'
-        for member in sorted(get_settings().members)
-    )
+def member_options(request: Request) -> str:
+    """Belépéssel csak a belépett felhasználó választható."""
+    user = request.state.user
+    members = [user] if user else sorted(get_settings().members)
+    return "".join(f'<option value="{escape(member)}">{escape(member)}</option>' for member in members)
 
 
 @app.get("/", response_class=HTMLResponse)
-def upload_page() -> str:
+def upload_page(request: Request) -> str:
     tags = "".join(
         f'<label class="tag"><input type="checkbox" name="tags" value="{escape(category)}">'
         f"{escape(category)}</label>"
         for category in sorted(CATEGORIES)
     )
     page = (STATIC_DIR / "upload.html").read_text(encoding="utf-8")
-    return page.replace("{{members}}", member_options()).replace("{{tags}}", tags)
+    return page.replace("{{members}}", member_options(request)).replace("{{tags}}", tags)
 
 
 @app.get("/manifest.webmanifest")
@@ -138,9 +175,9 @@ def reports_link() -> RedirectResponse:
 
 
 @app.get("/rules", response_class=HTMLResponse)
-def rules_page() -> str:
+def rules_page(request: Request) -> str:
     page = (STATIC_DIR / "rules.html").read_text(encoding="utf-8")
-    return page.replace("{{members}}", member_options())
+    return page.replace("{{members}}", member_options(request))
 
 
 @app.get("/rules.json")
@@ -152,20 +189,22 @@ def rules_data() -> dict:
 
 
 @app.post("/rules", status_code=status.HTTP_201_CREATED)
-def create_rule(rule: NewRule) -> dict[str, str]:
+def create_rule(rule: NewRule, request: Request) -> dict[str, str]:
+    check_person(request, rule.created_by)
     return {"rule_id": inbox.add_rule(rule)["rule_id"]}
 
 
 @app.post("/rules/{rule_id}/active", status_code=status.HTTP_204_NO_CONTENT)
-def change_rule(rule_id: UUID, change: RuleChange) -> None:
+def change_rule(rule_id: UUID, change: RuleChange, request: Request) -> None:
+    check_person(request, change.created_by)
     if not inbox.set_rule_active(rule_id, change.active, change.created_by):
         raise HTTPException(status.HTTP_404_NOT_FOUND)
 
 
 @app.get("/deposit", response_class=HTMLResponse)
-def deposit_page() -> str:
+def deposit_page(request: Request) -> str:
     page = (STATIC_DIR / "deposit.html").read_text(encoding="utf-8")
-    return page.replace("{{members}}", member_options())
+    return page.replace("{{members}}", member_options(request))
 
 
 @app.get("/deposit.json")
@@ -180,7 +219,8 @@ def deposit_data() -> dict:
 
 
 @app.post("/deposit/changes", status_code=status.HTTP_201_CREATED)
-def create_deposit_change(change: DepositChange) -> dict[str, str]:
+def create_deposit_change(change: DepositChange, request: Request) -> dict[str, str]:
+    check_person(request, change.created_by)
     return {"id": inbox.add_deposit_change(change)}
 
 
@@ -190,9 +230,9 @@ def review_list_page() -> str:
 
 
 @app.get("/review/{group_id}", response_class=HTMLResponse)
-def review_page(group_id: UUID) -> str:
+def review_page(group_id: UUID, request: Request) -> str:
     page = (STATIC_DIR / "review_detail.html").read_text(encoding="utf-8")
-    return page.replace("{{members}}", member_options())
+    return page.replace("{{members}}", member_options(request))
 
 
 @app.get("/reviews.json")
@@ -224,7 +264,10 @@ def review_file(group_id: UUID, page_no: int) -> FileResponse:
 
 
 @app.post("/reviews/{group_id}/decision", status_code=status.HTTP_201_CREATED)
-def create_review_decision(group_id: UUID, decision: ReviewDecision) -> dict[str, str | None]:
+def create_review_decision(
+    group_id: UUID, decision: ReviewDecision, request: Request
+) -> dict[str, str | None]:
+    check_person(request, decision.decided_by)
     try:
         saved = inbox.decide(group_id, decision)
     except inbox.ReviewConflict as conflict:
@@ -235,9 +278,10 @@ def create_review_decision(group_id: UUID, decision: ReviewDecision) -> dict[str
 
 
 @app.post("/reviews/{group_id}/reopen", status_code=status.HTTP_201_CREATED)
-def reopen_review(group_id: UUID, request: ReviewReopen) -> dict[str, str]:
+def reopen_review(group_id: UUID, body: ReviewReopen, request: Request) -> dict[str, str]:
+    check_person(request, body.decided_by)
     try:
-        reopened = inbox.reopen(group_id, request.decided_by)
+        reopened = inbox.reopen(group_id, body.decided_by)
     except inbox.ReviewConflict as conflict:
         raise HTTPException(status.HTTP_409_CONFLICT, str(conflict)) from conflict
     if not reopened:
@@ -256,15 +300,19 @@ def read_upload(file: UploadFile) -> tuple[bytes, str, str]:
 
 
 @app.post("/uploads", status_code=status.HTTP_201_CREATED)
-def create_upload(file: UploadFile, form: Annotated[UploadForm, Form()]) -> dict[str, str]:
+def create_upload(
+    file: UploadFile, form: Annotated[UploadForm, Form()], request: Request
+) -> dict[str, str]:
+    check_person(request, form.uploaded_by)
     item = inbox.add(form, *read_upload(file))
     return {"id": item["id"], "sha256": item["sha256"]}
 
 
 @app.post("/uploads/group", status_code=status.HTTP_201_CREATED)
 def create_group_upload(
-    files: list[UploadFile], form: Annotated[UploadForm, Form()]
+    files: list[UploadFile], form: Annotated[UploadForm, Form()], request: Request
 ) -> dict[str, str]:
+    check_person(request, form.uploaded_by)
     if not MIN_GROUP_PAGES <= len(files) <= MAX_GROUP_PAGES:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,

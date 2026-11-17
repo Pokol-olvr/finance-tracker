@@ -56,10 +56,10 @@ Javasolt sorrend: FIN-301, FIN-302, FIN-303, FIN-308, FIN-307, FIN-309. A háló
 
 **Részfeladatok**
 
-- [ ] Caddy a `pi/` Compose-ban, a DNS-szolgáltató pluginjával 📅 2027-01-24
-- [ ] DNS-alapú ACME-ellenőrzés, mert az oldal kívülről nem látszik 📅 2027-01-24
+- [x] Caddy a `pi/` Compose-ban, a DNS-szolgáltató pluginjával 📅 2027-01-24
+- [x] DNS-alapú ACME-ellenőrzés, mert az oldal kívülről nem látszik 📅 2027-01-24
 - [ ] Belső DNS-rekord a Pi Tailscale-címére, vagy Tailscale MagicDNS 📅 2027-01-24
-- [ ] A DNS API-kulcs csak a Pi `.env`-jében, a lehető legszűkebb joggal 📅 2027-01-24
+- [x] A DNS API-kulcs csak a Pi `.env`-jében, a lehető legszűkebb joggal 📅 2027-01-24
 
 **Elfogadási feltételek**
 
@@ -73,11 +73,12 @@ Javasolt sorrend: FIN-301, FIN-302, FIN-303, FIN-308, FIN-307, FIN-309. A háló
 
 **Részfeladatok**
 
-- [ ] Authelia a `pi/` Compose-ban, fájlalapú felhasználókkal, a Caddy `forward_auth` mögött 📅 2027-01-24
+- [x] Authelia a `pi/` Compose-ban, fájlalapú felhasználókkal, a Caddy `forward_auth` mögött 📅 2027-01-24
 - [ ] Két felhasználó a `HOUSEHOLD_MEMBERS` kódjaival, TOTP-vel 📅 2027-01-24
-- [ ] A worker API (`/inbox/…`) Authelia nélkül, csak a `WORKER_API_TOKEN`-nel érhető el 📅 2027-01-24
-- [ ] A webapp a belépett felhasználót a fejlécből veszi, így a feltöltő nem választható szabadon 📅 2027-01-24
-- [ ] Munkamenet-idő és kizárás túl sok hibás próbálkozás után 📅 2027-01-24
+    - A `scripts/authelia-user.sh` kész, a felhasználókat a Pi-n kell felvenni.
+- [x] A worker API (`/inbox/…`) Authelia nélkül, csak a `WORKER_API_TOKEN`-nel érhető el 📅 2027-01-24
+- [x] A webapp a belépett felhasználót a fejlécből veszi, így a feltöltő nem választható szabadon 📅 2027-01-24
+- [x] Munkamenet-idő és kizárás túl sok hibás próbálkozás után 📅 2027-01-24
 
 **Elfogadási feltételek**
 
@@ -91,12 +92,13 @@ Javasolt sorrend: FIN-301, FIN-302, FIN-303, FIN-308, FIN-307, FIN-309. A háló
 
 **Részfeladatok**
 
-- [ ] `pi/docker-compose.yml`: webapp, Caddy, Authelia; az adat a Pi `DATA_DIR`-jében 📅 2027-01-24
+- [x] `pi/docker-compose.yml`: webapp, Caddy, Authelia; az adat a Pi `DATA_DIR`-jében 📅 2027-01-24
 - [ ] A webapp ARM-képe a Pi-n épül 📅 2027-01-24
-- [ ] Az otthoni worker `INBOX_URL`-je a Pi Tailscale-címére mutat, minden kapcsolatot az otthoni oldal nyit ([[0006-blokkbeolvasas-a-pi-elott|ADR 0006]]) 📅 2027-01-24
+- [x] Az otthoni worker `INBOX_URL`-je a Pi Tailscale-címére mutat, minden kapcsolatot az otthoni oldal nyit ([[0006-blokkbeolvasas-a-pi-elott|ADR 0006]]) 📅 2027-01-24
 - [ ] Az otthoni Compose-ból kikerül a webapp; az állapot képernyő a Pi-n marad, a jelentést az otthoni gép küldi ([[0008-allapot-kepernyo-a-webappban|ADR 0008]]) 📅 2027-01-24
 - [ ] A Pi postaládája a mentésbe nem kerül, csak átmeneti tároló 📅 2027-01-24
-- [ ] A README telepítési része a Pi-vel 📅 2027-01-24
+- [x] A README telepítési része a Pi-vel 📅 2027-01-24
+- [x] A webapp adatbázis nélkül is fut; a kézi bejegyzés API-ja a Pi-n 503, amíg a FIN-606 a kimenő sorra nem viszi 📅 2027-01-24
 
 **Elfogadási feltételek**
 

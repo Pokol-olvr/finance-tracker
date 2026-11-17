@@ -15,6 +15,22 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 
 ### Hozzáadva
 
+- A Pi postaláda Compose-fájlja (`pi/`): a webapp Caddy mögött HTTPS-sel a saját domainen, Cloudflare DNS-alapú tanúsítvánnyal, és Authelia kétfaktoros (TOTP) belépéssel, csak a Pi Tailscale-címén.
+- `scripts/setup-pi.sh`, `scripts/init-pi-env.sh` és `scripts/authelia-user.sh` a Pi beállításához; `scripts/windows/wsl-autostart.ps1` a WSL ablak nélküli futtatásához és a tükrözött hálózathoz.
+- A CI a Pi Compose-fájlját is ellenőrzi.
+
+### Módosítva
+
+- Belépéssel a feltöltő, a szabály és a döntés rögzítője mindig a belépett felhasználó; más nevében a webapp 403-mal elutasít.
+- A webapp adatbázis nélkül is fut: a `/health` ilyenkor a postaládát nézi, az `/entries` 503-at ad.
+- A worker postaládája az `INBOX_URL`-lel állítható, így a Pi-re mutathat.
+
+### Frissítési teendők
+
+- A Pi beállítása a README „Postaláda a Pi-n” része szerint; az otthoni `home/.env`-ben új, nem kötelező változó az `INBOX_URL`.
+
+### Hozzáadva
+
 - FIN-406 Silver tétel szint: `documents`, `receipt_items`, `document_payments`, `stores`; a kiadásba csak a rendben lévő, jóváhagyott vagy javított dokumentum számít, a kiszerelés a tételnévből jön.
 - FIN-206 Riportfelület Streamlitben a `reports/` mappában: Áttekintés és Kiadások, lefúrással az Ellenőrzés képernyőig, közös menüvel a webappal.
 - FIN-501 Szabályok oldal a `/rules` címen: tétel- és boltszabályok, amelyek a régi dokumentumokra is érvényesek.

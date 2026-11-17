@@ -1,0 +1,32 @@
+# A tanúsítvány DNS-alapú ellenőrzéssel jön, mert a domain csak a tailneten érhető el.
+{
+	email {$ACME_EMAIL}
+	acme_dns cloudflare {$CLOUDFLARE_API_TOKEN}
+}
+
+{$FINANCE_DOMAIN} {
+	# A worker API saját tokent kér, a /health a Compose-é: ezekhez nem kell belépés.
+	@open path /inbox/* /health
+	handle @open {
+		reverse_proxy webapp:8000
+	}
+
+	handle {
+		forward_auth authelia:9091 {
+			uri /api/authz/forward-auth
+			copy_headers Remote-User Remote-Groups Remote-Email Remote-Name
+		}
+		reverse_proxy webapp:8000
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy same-origin
+	}
+}
+
+# A belépési oldal a domain alatt, így a munkamenet-süti mindkettőre érvényes.
+auth.{$FINANCE_DOMAIN} {
+	reverse_proxy authelia:9091
+}

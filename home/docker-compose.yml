@@ -148,7 +148,8 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://app_writer:${APP_WRITER_PASSWORD:?}@postgres:5432/finance
-      INBOX_URL: http://webapp:8000
+      # A Pi-re költözés után a Pi címe, pl. https://penzugy.example.hu (FIN-308).
+      INBOX_URL: ${INBOX_URL:-http://webapp:8000}
       WORKER_API_TOKEN: ${WORKER_API_TOKEN:?}
       WORKER_POLL_SECONDS: ${WORKER_POLL_SECONDS:-60}
       GARAGE_ENDPOINT: http://garage:3900
