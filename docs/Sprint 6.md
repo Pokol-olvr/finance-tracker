@@ -95,7 +95,8 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 - [x] A Pi-hole v6 webszervere (`webserver.port`) csak a helyi hálózati címen figyel, így a Tailscale-cím 80-as és 443-as portja a Caddyé 📅 2027-01-24
 - [x] Az Unbound a `127.0.0.1:5335`-ön marad, a Pi-hole továbbra is ezt kérdezi 📅 2027-01-24
 - [x] Belső DNS-rekordok a Pi-hole-ban: a pénzügyi név, az `auth.` aldomainje és a Vaultwarden neve a Pi Tailscale-címére 📅 2027-01-24
-- [ ] Tailscale split DNS: a domain a Pi Tailscale-címén lévő Pi-hole-hoz megy, minden más a telefon saját DNS-éhez 📅 2027-01-24
+- [x] Tailscale split DNS: a domain a Pi Tailscale-címén lévő Pi-hole-hoz megy 📅 2027-01-24
+- [x] Globális névszerver a tailneten is a Pi-hole, „Override DNS servers” bekapcsolva, így a reklámszűrés otthonon kívül is működik 📅 2027-01-24
 - [x] A Cloudflare-ben nincs rekord a belső címre; a Cloudflare csak a tanúsítvány DNS-ellenőrzéséhez kell 📅 2027-01-24
 - [x] A Pi maga nem a Tailscale DNS-ét használja (`--accept-dns=false`), így a `tailscaled` kiesése nem viszi el a névfeloldását 📅 2027-01-24
 - [ ] A `127.0.0.1` kifejezett névszerverként a NetworkManagerben, egyeztetett időpontban, mert az újracsatlakozás rövid kiesés 📅 2027-01-24
@@ -107,6 +108,7 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 - [ ] A domain a tailneten a Pi Tailscale-címére oldódik fel, a nyilvános DNS-ben nincs rá rekord
     - 2026-11-17: a Pi-hole a három nevet a Pi Tailscale-címére oldja fel, a nyilvános DNS-ben nincs rekord; a tailneten a split DNS után ellenőrizendő.
 - [ ] Leállított Pi-hole mellett a telefonok a tailneten is elérik az internetet
+    - Változás 2026-11-17: tudatos döntés, hogy a tailnet globális DNS-e a Pi-hole, a reklámszűrés miatt. A Pi kiesésekor a tailnetes eszközökön nincs névfeloldás; ilyenkor a Tailscale kikapcsolása visszaadja az internetet. A feltétel ezért nem teljesül, és nem is cél.
 
 ## FIN-302 Caddy HTTPS a saját domainen · 2 SP
 
@@ -241,6 +243,7 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 - [x] A postaláda egy Raspberry Pi 4, Raspberry Pi OS 64 bittel; a webapp képe arm64-re épül.
 - [x] A HTTPS a saját domainen, Cloudflare DNS-sel; a Caddy a Cloudflare-pluginnal, csak DNS-szerkesztési joggal rendelkező tokennel kéri a tanúsítványt.
 - [x] A Pi-n natív Pi-hole v6 és Unbound fut, ez a háztartás DNS-e; a domain belső rekordjai ide kerülnek, a tailneten split DNS-sel.
+- [x] A tailnet globális DNS-e is a Pi-hole (Override DNS servers), hogy a reklámszűrés otthonon kívül is működjön; a Pi kiesése így a tailnetes eszközök DNS-ét is viszi (2026-11-17).
 - [x] A Vaultwarden is a Pi-re kerül, és a Pi megerősítése (korlátozott felhasználó, fail2ban) ebbe a sprintbe tartozik.
 - [x] Tailscale marad, nem Headscale, mert így nincs kívülről elérhető vezérlőszerver ([[0003-tailscale-a-wireguard-helyett|ADR 0003]]).
 
