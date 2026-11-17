@@ -4,7 +4,7 @@
 # A Pi maga nem a Tailscale DNS-ét használja, hogy a tailscaled kiesése ne vigye el a névfeloldását.
 #
 #   sudo scripts/pi/pihole-tailnet.sh <a Pi helyi címe> <név> [név...]
-#   pl. sudo scripts/pi/pihole-tailnet.sh 192.168.0.2 penzugy.example.hu auth.penzugy.example.hu vault.example.hu
+#   pl. sudo scripts/pi/pihole-tailnet.sh 192.168.1.10 penzugy.example.hu auth.penzugy.example.hu vault.example.hu
 #
 # A meglévő helyi rekordok megmaradnak; a régi értékeket a kimenet elején kiírja. Visszavonás:
 #   sudo pihole-FTL --config webserver.port '<régi érték>'
