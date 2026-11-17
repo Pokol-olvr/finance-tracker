@@ -13,6 +13,17 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 
 ## Kiadatlan
 
+### Javítva
+
+- A számlafeldolgozó a mértékegység nélküli, áfakulccsal kezdődő tételsorokat is olvassa; az ingyenes választás nem lesz tétel, és a neve nem ragad a következő tételre.
+- A számlán a nap-hónap-év dátum és a szállítási idő is teljesítési dátum.
+- Olvasható címke nélkül az áfasorok bruttója a végösszeg; a „Fizetendő összeg” megelőzi egy részösszeg „Fizetendő” sorát.
+- Ha a javaslat sorai messze vannak a végösszegtől, a javítás űrlapja egy sorral indul a végösszeggel.
+
+### Frissítési teendők
+
+- A worker induláskor a `PARSER_VERSION` 11 miatt minden tárolt szöveget újra feldolgoz, modell nélkül.
+
 ## v0.5.0 · 2026-11-17
 
 ### Hozzáadva
@@ -60,6 +71,8 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 - A kiolvasás időadatai (betöltés, kép, szöveg, token/s) a `bronze.extraction` payloadjába is bekerülnek.
 - A dbt éjszaka helyett óránként fut, így a döntés egy órán belül a riportokban is látszik.
 - A dokumentumok kiadása megjelenik a gold táblákban.
+- A számlafeldolgozó felismeri az áfakulccsal kezdődő, mértékegység nélküli táblázatot, a nap-hónap-év dátumot és az áfasorból a végösszeget, ha annak nincs olvasható címkéje. Az ingyenes választások nem lesznek tételek.
+- Ha a javaslat sorai messze vannak a végösszegtől, a javítás űrlapja egy sorral indul a végösszeggel.
 
 ### Eltávolítva
 

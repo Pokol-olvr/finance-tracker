@@ -1,0 +1,13 @@
+Példa Bútor Kft.
+1111 Budapest, Példa utca 1. - Adószám 11223344-2-13,
+Vevő: Vásárló Neve
+1111 Budapest, Vevő utca 2
+Számla kelte: 2026.10.20
+Teljesítés dátuma: 2026.10.20
+Rendelés dátuma: 18.10.2026
+Cikkszám Megnevezés Mennyiség ME Egységár Nettó Áfa % ÁFA érték Bruttó
+1000001 Példa szék tölgy 2 DB 16.000 32.000 27 % 8.640,00 40.640
+1000002 Kiszállítás 1 DB 0 0 27 % 0,00 0
+Áfa %: HUF 32.000 27 % 8.640 40.640
+TOTAL: HUF 32.000 8.640 40.640
+A számla kiállítása a rendelés alapján történt.

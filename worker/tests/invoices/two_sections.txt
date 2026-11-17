@@ -1,0 +1,18 @@
+Elektronikus számla
+Számla sorszáma: 900000000001
+Szállító neve: Példa Energia Zrt.
+Adószám: 11223344-2-13
+Fizetendő összeg: 4.000 Ft Ügyfél neve: Vásárló Neve
+Fizetési határidő: 2026.11.05
+Vevő (fizető) neve: Vásárló Neve
+Teljesítés kelte: 2026.10.20
+Számla kelte: 2026.10.21
+Tétel Elszámolt időszak Mennyiség Nettó egységár ÁFA Bruttó érték
+Elszámolás előző időszak -300 -300
+Fizetendő elszámolás -300 -300
+Aktuális díj 2026.09.01-2026.09.30 120 kWh 30,0000 Ft/kWh 3.600 27 4.300
+Fizetendő részösszeg 4.300 4.300
+Nettó számlaérték összesen 3.150
+Bruttó számlaérték összesen 4.000
+Fizetendő összeg összesen 4.000
+Számla összesen 3.150 850 4.000
