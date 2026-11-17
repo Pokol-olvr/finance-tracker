@@ -28,7 +28,7 @@ Javasolt sorrend: FIN-301, FIN-302, FIN-303, FIN-308, FIN-307, FIN-309. A háló
 
 **Előfeltétel:** a `v0.5.0` kiadva és az otthoni stackre telepítve. A Sprint 4 nyitott, saját számlás pontjai (FIN-412, FIN-312) a FIN-307 első valódi számlájával lezárhatók.
 
-**Változás a tervhez képest:** az otthoni stack 2026-11-16 óta Windowson, WSL2-ben is fut, RTX 5070 GPU-val. A Technikai terv a laptopot nevezi meg otthoni gépnek; hogy melyik gépen fusson tartósan, a tervezésen dől el (lásd lent).
+**Változás a tervhez képest:** az otthoni stack 2026-11-17-től a Windowsos gépen fut, WSL2-ben, RTX 5070 GPU-val; a laptop fejlesztői gép marad. A WSL nyitott ablak nélkül leáll, ezért a FIN-301 része a WSL indítása a Windows indulásakor és a tükrözött hálózat.
 
 **Adat:** a Pi és az e-mail beállításai, a domain, a címek és a titkok csak a `.env`-ekbe kerülnek, a repóba nem. A tesztekhez kitalált levelek és címek kellenek.
 
@@ -40,7 +40,8 @@ Javasolt sorrend: FIN-301, FIN-302, FIN-303, FIN-308, FIN-307, FIN-309. A háló
 
 - [ ] Tailscale a Pi-n, a két telefonon és az otthoni gépen, egy tailnetben 📅 2027-01-24
 - [ ] ACL: a telefonok csak a Pi webappját érik el, az otthoni gép a Pi-t és a saját szolgáltatásait 📅 2027-01-24
-- [ ] WSL-es otthoni gépnél: a Tailscale a Windows-oldalon fut, a WSL portjai a Tailscale-címen is látszanak; ha nem, a `BIND_ADDRESS` a megoldás 📅 2027-01-24
+- [ ] WSL-es otthoni gépnél: a Tailscale a Windows-oldalon fut; a WSL tükrözött hálózattal (`networkingMode=mirrored`) a Tailscale-címen is látszik, a riportok a `BIND_ADDRESS`-szel 📅 2027-01-24
+- [ ] A WSL a Windows indulásakor elindul, és ablak nélkül is fut, így a worker és a timerek bejelentkezés nélkül is dolgoznak 📅 2027-01-24
 - [ ] A Pi-n nincs nyitott bejövő port a routeren 📅 2027-01-24
 
 **Elfogadási feltételek**
@@ -151,13 +152,14 @@ Javasolt sorrend: FIN-301, FIN-302, FIN-303, FIN-308, FIN-307, FIN-309. A háló
 
 **A tervezésen eldöntendő**
 
-- [ ] Melyik gépen fut tartósan az otthoni stack: a Fedorás laptopon vagy a Windowsos gépen, WSL-ben, GPU-val? A WSL nyitott ablak nélkül egy idő után leáll, ezért a Windowsos gépen ezt külön kell megoldani 📅 2027-01-11
-- [ ] A Pi típusa és rendszere; a webapp képe ARM-ra épül 📅 2027-01-11
-- [ ] A domain és a DNS-szolgáltató, amelynek van API-ja a Caddy DNS-ellenőrzéséhez 📅 2027-01-11
 - [ ] A levelezőszolgáltató és a `szamla@` postafiók; támogatja-e az IMAP-ot és az alkalmazásjelszót 📅 2027-01-11
-- [ ] Tailscale vagy Headscale: a Headscale-hez a vezérlőszervernek kívülről elérhetőnek kell lennie 📅 2027-01-11
 
 **Eldöntve a tervezés előtt**
+
+- [x] Az otthoni stack, a feldolgozó, a Windowsos gépen fut WSL2-ben, GPU-val (2026-11-17).
+- [x] A postaláda egy Raspberry Pi 4, Raspberry Pi OS 64 bittel; a webapp képe arm64-re épül.
+- [x] A HTTPS a saját domainen, Cloudflare DNS-sel; a Caddy a Cloudflare-pluginnal, csak DNS-szerkesztési joggal rendelkező tokennel kéri a tanúsítványt.
+- [x] Tailscale marad, nem Headscale, mert így nincs kívülről elérhető vezérlőszerver ([[0003-tailscale-a-wireguard-helyett|ADR 0003]]).
 
 - [x] Minden kapcsolatot az otthoni oldal nyit, a Pi-re és az otthoni hálózatba nem kell bejövő port ([[0006-blokkbeolvasas-a-pi-elott|ADR 0006]]).
 - [x] A Tailscale marad a WireGuard helyett ([[0003-tailscale-a-wireguard-helyett|ADR 0003]]).
