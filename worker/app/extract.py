@@ -22,8 +22,12 @@ PROMPT = "Text Recognition:"
 MAX_SIDE = 1400
 # Egy 30 tételes blokk kb. 750 token, 500-nál a JSON csonka maradt.
 NUM_PREDICT = 2000
-# A 2000 px-es fotó kb. 3 800 képtoken; a 4096-os alapkontextusban a szöveg a blokk közepén megszakadt.
+# A 2000 px-es kép legfeljebb kb. 4 100 képtoken (2000 × 2000-en mérve), a szöveg legfeljebb 2 000:
+# a 8192 erre elég. A 4096-os alapkontextusban a fotó szövege a blokk közepén megszakadt.
 NUM_CTX = 8192
+# Csonka olvasásnál ugyanaz a kép nagyobb kontextussal és szöveghatárral megy újra, így sem nagyobb
+# kép, sem nagyon hosszú blokk nem marad csendben csonka. A modell felső határa 131 072 token.
+ATTEMPTS = ((NUM_CTX, NUM_PREDICT), (16384, 4000), (32768, 8000))
 # A kontextus fogyott el: a szöveg csonka, más beállítással újra kell olvasni.
 TRUNCATED = "length"
 
@@ -112,19 +116,18 @@ class ReceiptReader:
             return {"error": f"A kép nem olvasható: {error}"}
         return self.read_image(image, report)
 
-    def read_image(self, image: bytes, report: Callable[[str], None]) -> dict:
-        report("read_text")
+    def chat(self, image: bytes, num_ctx: int, num_predict: int, keep_alive: str) -> dict:
         response = self.client.post(
             "/api/chat",
             json={
                 "model": self.name,
                 "stream": False,
-                "keep_alive": self.keep_alive,
+                "keep_alive": keep_alive,
                 "options": {
                     "temperature": 0,
                     "num_thread": self.num_thread,
-                    "num_predict": NUM_PREDICT,
-                    "num_ctx": NUM_CTX,
+                    "num_predict": num_predict,
+                    "num_ctx": num_ctx,
                 },
                 "messages": [
                     {
@@ -136,7 +139,16 @@ class ReceiptReader:
             },
         )
         response.raise_for_status()
-        result = response.json()
+        return response.json()
+
+    def read_image(self, image: bytes, report: Callable[[str], None]) -> dict:
+        report("read_text")
+        for attempt, (num_ctx, num_predict) in enumerate(ATTEMPTS, 1):
+            # A nagyobb kontextusú modell az újrapróbálás után kirakódik, hogy ne foglalja a GPU-t.
+            keep_alive = self.keep_alive if attempt == 1 else "0"
+            result = self.chat(image, num_ctx, num_predict, keep_alive)
+            if result.get("done_reason") != TRUNCATED:
+                break
         stats = run_stats(result)
         self.history.append(stats)
         # Az időadatok a bronzba is bekerülnek, így újraindítás után is van mihez mérni.
@@ -150,4 +162,8 @@ class ReceiptReader:
             "tokens": stats["tokens"],
             "tokens_per_second": stats["tokens_per_second"],
             "max_side": self.max_side,
+            # A képtoken és a kontextus mutatja, mennyire közel van az olvasás a határhoz.
+            "prompt_tokens": result.get("prompt_eval_count"),
+            "num_ctx": num_ctx,
+            "attempts": attempt,
         }

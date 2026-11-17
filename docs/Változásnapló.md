@@ -35,6 +35,7 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 - A visszaváltó automata utalványa nem kiadás, ezért nem kér döntést.
 - A modell kontextusa 8192 token (`PROMPT_VERSION` 3); a 4096-os alapértéknél a 2000 px-es fotó olvasása a blokk közepén megszakadt.
 - A régebbi beállítással csonkán maradt olvasást a worker induláskor újraolvassa, a blokkot nem kell újra feltölteni.
+- A csonka olvasás azonnal újrapróbálódik 16 384, majd 32 768 tokenes kontextussal; a bronz a képtokent, a kontextust és a próbálkozások számát is tárolja.
 - Az állapot képernyő Erőforrások csempét kap: szálankénti CPU, RAM, swap, és ha van, NVIDIA GPU. Az Ollama kártya a modell méretét, a GPU-n vagy CPU-n futást, az utolsó olvasást és az utolsó 20 olvasás átlagát mutatja.
 - A kiolvasás időadatai (betöltés, kép, szöveg, token/s) a `bronze.extraction` payloadjába is bekerülnek.
 - A dbt éjszaka helyett óránként fut, így a döntés egy órán belül a riportokban is látszik.

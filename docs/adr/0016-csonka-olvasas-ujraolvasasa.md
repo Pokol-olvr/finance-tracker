@@ -10,7 +10,8 @@ Az ADR 0012 szerint nincs újraolvasás, mert ugyanarra a fájlra ugyanaz a beá
 
 ## Döntés
 
-- **Kontextus:** a kérés `num_ctx` értéke 8192, a `PROMPT_VERSION` 3.
+- **Kontextus:** a kérés `num_ctx` értéke 8192, a `PROMPT_VERSION` 3. A 2000 px-es kép legfeljebb 4 112 képtoken, ehhez jön legfeljebb 2 000 token szöveg.
+- **Azonnali újrapróbálás:** ha az olvasás így is csonka, ugyanaz a kép 16 384, majd 32 768 tokennel és kétszeres szöveghatárral megy újra. Ez fedi a nagyobb `OLLAMA_MAX_SIDE`-ot és a nagyon hosszú blokkot is.
 - **Újraolvasás:** a worker induláskor újraolvassa azt a dokumentumot, amelynek a legutóbbi olvasása `length` miatt szakadt meg, és régebbi `PROMPT_VERSION`-nel készült. A fájlt a Garage-ból veszi, az új olvasás új sor a bronzban, a régi megmarad.
 - **Feldolgozás:** a feldolgozás a legutóbbi olvasást veszi, ezért a `PARSER_VERSION` emelésével a csoport újra feldolgozódik.
 

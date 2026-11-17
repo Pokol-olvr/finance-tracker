@@ -98,6 +98,9 @@ def test_read_sends_settings_and_keeps_the_text():
         "tokens": 0,
         "tokens_per_second": None,
         "max_side": MAX_SIDE,
+        "prompt_tokens": None,
+        "num_ctx": 8192,
+        "attempts": 1,
     }
 
 
@@ -190,3 +193,46 @@ def test_larger_image_side_is_used_and_recorded():
         2000,
     )
 
+
+def test_truncated_reading_is_retried_with_a_larger_context():
+    sent = []
+
+    def handler(request):
+        body = json.loads(request.content)
+        sent.append((body["options"]["num_ctx"], body["options"]["num_predict"], body["keep_alive"]))
+        done = "length" if len(sent) < 3 else "stop"
+        return httpx.Response(
+            200,
+            json={"message": {"content": f"OLVASAT {len(sent)}"}, "done_reason": done, "prompt_eval_count": 4112},
+        )
+
+    reader = ReceiptReader("http://ollama:11434", "glm-ocr", 1, "10m", 2000)
+    reader.client = httpx.Client(base_url="http://ollama:11434", transport=httpx.MockTransport(handler))
+
+    result = reader.read_image(b"kep", no_report)
+
+    assert sent == [(8192, 2000, "10m"), (16384, 4000, "0"), (32768, 8000, "0")]
+    assert (result["ocr_text"], result["done_reason"]) == ("OLVASAT 3", "stop")
+    assert (result["prompt_tokens"], result["num_ctx"], result["attempts"]) == (4112, 32768, 3)
+
+
+def test_complete_reading_is_not_retried():
+    sent = []
+
+    def handler(request):
+        sent.append(request)
+        return httpx.Response(200, json={"message": {"content": "NYUGTA"}, "done_reason": "stop"})
+
+    result = reader_with(handler).read_image(b"kep", no_report)
+
+    assert len(sent) == 1
+    assert (result["num_ctx"], result["attempts"]) == (8192, 1)
+
+
+def test_last_attempt_stays_truncated_and_is_kept():
+    def handler(_request):
+        return httpx.Response(200, json={"message": {"content": "CSONKA"}, "done_reason": "length"})
+
+    result = reader_with(handler).read_image(b"kep", no_report)
+
+    assert (result["done_reason"], result["attempts"], result["num_ctx"]) == ("length", 3, 32768)
