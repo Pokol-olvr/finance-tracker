@@ -1,4 +1,4 @@
-# A feldolgozó Windowsos gépen: a WSL bejelentkezéskor ablak nélkül elindul és futva marad, így a
+﻿# A feldolgozó Windowsos gépen: a WSL bejelentkezéskor ablak nélkül elindul és futva marad, így a
 # worker, a timerek és a riportok nyitott terminál nélkül is dolgoznak. A tükrözött hálózattal a WSL
 # portjai a Windows Tailscale-címén is látszanak (FIN-301).
 #

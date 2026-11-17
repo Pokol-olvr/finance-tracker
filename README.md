@@ -82,7 +82,15 @@ A Pi a háztartás DNS-szervere is (natív Pi-hole v6 és Unbound), ezért minde
 | `harden-4-ufw.sh <helyi hálózat>` | Tűzfal: a helyi hálózatról DNS, NTP, SSH, a Pi-hole felülete, mDNS és a Beszel; a tailnetről DNS, SSH és a Caddy; minden más tiltva. Élesítéskor 5 perces önvisszavonó időzítő indul | `ufw disable` |
 | `harden-4-finalize.sh` | Ellenőrzés után leállítja az időzítőt | – |
 
-A harmadik lépés előtt mindkét felhasználó kulcsos belépését ki kell próbálni. A tűzfal a Docker által közzétett portokra nem vonatkozik, ezért a `pi/` Compose minden portot csak a Tailscale-címre köt.
+A harmadik lépés előtt mindkét felhasználó kulcsos belépését ki kell próbálni.
+
+**Kulcscsere:** az SSH-kulcsnak nincs lejárata, addig érvényes, amíg az `authorized_keys`-ben van. Évente egyszer, és azonnal, ha egy gép elveszik vagy gazdát cserél, a `scripts/windows/rotate-ssh-key.ps1` cseréli: új kulcs, felkerül a régivel, próba csak az újjal, a régi törlése a távoli gépről, végül csere helyben. Ha a próba nem sikerül, a régi kulcs érvényes marad. A rendszergazdai kulcson legyen jelmondat, a Windows `ssh-agent`-tel elég bejelentkezésenként egyszer beírni.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\windows\rotate-ssh-key.ps1 -HostAlias <gép-rövidítés> -KeyFile <kulcsfájl>
+```
+
+A Windows PowerShell 5.1 a BOM nélküli UTF-8 fájl ékezeteit félreolvassa, ezért a `scripts/windows/` scriptjei BOM-mal vannak mentve. A tűzfal a Docker által közzétett portokra nem vonatkozik, ezért a `pi/` Compose minden portot csak a Tailscale-címre köt.
 
 Belépéssel a feltöltő és a döntést hozó mindig a belépett felhasználó: a webapp az Authelia `Remote-User` fejlécét veszi, és más nevében nem ment. A worker API (`/inbox/…`) és a `/health` belépés nélkül, a worker tokenjével érhető el.
 
