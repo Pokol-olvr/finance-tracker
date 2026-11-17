@@ -3,7 +3,7 @@ projekt: Pénzügyi nyomkövető
 sprint: S6
 kezdes: 2027-01-11
 vege: 2027-01-24
-story_pont: 16
+story_pont: 24
 tags: [penzugy, sprint]
 ---
 
@@ -13,22 +13,27 @@ Vissza: [[Fejlesztési terv]]
 
 ## Sprint cél
 
-**A webapp a Pi-re költözik, telefonról is elérhető, de csak a Tailscale-hálózatról, HTTPS-sel és kétfaktoros belépéssel. A továbbított e-mailes számla magától a bronzba kerül. A sprint végén a `finance` adatbázis üresen újraépül, és indul az éles használat.** A sprint 2027-01-11 és 2027-01-24 között tart, 16 story ponttal.
+**A webapp a Pi-re költözik, telefonról is elérhető, de csak a Tailscale-hálózatról, HTTPS-sel és kétfaktoros belépéssel. A Pi megerősítve, a Pi-hole és az Unbound mellett fut, és a Vaultwarden is rákerül. A továbbított e-mailes számla magától a bronzba kerül. A sprint végén a `finance` adatbázis üresen újraépül, és indul az éles használat.** A sprint 2027-01-11 és 2027-01-24 között tart, 24 story ponttal.
 
 | Kulcs | Jegy | SP | Függ tőle |
 | --- | --- | --- | --- |
+| FIN-313 | A Pi megerősítése | 3 | – |
 | FIN-301 | Tailscale a Pi-n, a telefonokon és az otthoni gépen | 2 | – |
-| FIN-302 | Caddy HTTPS a saját domainen | 2 | FIN-301 |
+| FIN-315 | Együttélés a Pi-hole-lal és az Unbounddal | 2 | FIN-301 |
+| FIN-302 | Caddy HTTPS a saját domainen | 2 | FIN-301, FIN-315 |
 | FIN-303 | Authelia TOTP 2FA két felhasználóval | 3 | FIN-302 |
 | FIN-308 | Webapp és postaláda költözése a Pi-re | 3 | FIN-301, FIN-302, FIN-303 |
+| FIN-314 | Vaultwarden a Pi-n | 3 | FIN-302, FIN-313 |
 | FIN-307 | E-mailes számlafogadás | 5 | FIN-312 |
 | FIN-309 | A `finance` adatbázis üres újraépítése | 1 | FIN-308, FIN-307 |
 
-Javasolt sorrend: FIN-301, FIN-302, FIN-303, FIN-308, FIN-307, FIN-309. A hálózat, a tanúsítvány és a belépés egymásra épül, ezért elöl vannak, és a FIN-308 csak ezek után költözteti a webappot. A FIN-307 a workerben fut, ezért a Pi-től függetlenül is haladhat, ha a Pi-s rész elakad. A FIN-309 az utolsó, mert utána már csak valódi adat kerül a rendszerbe.
+Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314, FIN-307, FIN-309. A megerősítés az első, mert a Pi már DNS-szerverként szolgálja ki a háztartást, és minden új szolgáltatás erre épül. A hálózat, a portok, a tanúsítvány és a belépés egymásra épül, a FIN-308 csak ezek után költözteti a webappot. A Vaultwarden a webapp után jön, mert ugyanazt a Caddyt és tanúsítványt használja. A FIN-307 a workerben fut, ezért a Pi-től függetlenül is haladhat, ha a Pi-s rész elakad. A FIN-309 az utolsó, mert utána már csak valódi adat kerül a rendszerbe.
 
 **Előfeltétel:** a `v0.5.0` kiadva és az otthoni stackre telepítve. A Sprint 4 nyitott, saját számlás pontjai (FIN-412, FIN-312) a FIN-307 első valódi számlájával lezárhatók.
 
 **Változás a tervhez képest:** az otthoni stack 2026-11-17-től a Windowsos gépen fut, WSL2-ben, RTX 5070 GPU-val; a laptop fejlesztői gép marad. A WSL nyitott ablak nélkül leáll, ezért a FIN-301 része a WSL indítása a Windows indulásakor és a tükrözött hálózat.
+
+**A Pi jelenlegi szerepe:** natív Pi-hole v6 és Unbound fut rajta, ez a háztartás DNS-szervere. Ami ezt megszakítja, az az internetet is elveszi, ezért minden lépésnek van visszaútja, és a Pi-hole portjai nem változhatnak meg a helyi hálózaton.
 
 **Adat:** a Pi és az e-mail beállításai, a domain, a címek és a titkok csak a `.env`-ekbe kerülnek, a repóba nem. A tesztekhez kitalált levelek és címek kellenek.
 
@@ -50,6 +55,45 @@ Javasolt sorrend: FIN-301, FIN-302, FIN-303, FIN-308, FIN-307, FIN-309. A háló
 - [ ] Mobilnetről, Tailscale nélkül a Pi címe nem válaszol
 - [ ] Az otthoni gép a Pi-t a Tailscale-címén éri el
 
+## FIN-313 A Pi megerősítése · 3 SP
+
+**Story:** a Pi gazdájaként a lehető legkevesebb joggal akarok belépni a mindennapokban, és ki akarom zárni a próbálkozókat, hogy a DNS-szerver és a postaláda ne legyen könnyű célpont.
+
+**Részfeladatok**
+
+- [ ] SSH csak kulccsal: `PasswordAuthentication no`, `PermitRootLogin no`, `AllowUsers` a két felhasználóval 📅 2027-01-24
+- [ ] Korlátozott felhasználó: SSH-val beléphet, de nincs `sudo`, nincs a `docker` csoportban (a `docker` csoport rootjogot ad), és a beállítófájlokat nem írhatja 📅 2027-01-24
+- [ ] A rendszergazda-felhasználó külön, kulccsal; a `sudo` jelszót kér 📅 2027-01-24
+- [ ] fail2ban: `sshd` jail, 5 hibás próbálkozás 10 percen belül, 1 órás kitiltás; a Vaultwarden és az Authelia naplójára is jail 📅 2027-01-24
+- [ ] Tűzfal (`ufw`): 53 a helyi hálózatról és a tailnetről, 22 a helyi hálózatról és a tailnetről, 80 és 443 csak a tailnetről; minden más tiltva. Előtte konzolos visszaút, mert a Pi a DNS-szerver 📅 2027-01-24
+- [ ] `unattended-upgrades` a biztonsági frissítésekre, újraindítás nélkül 📅 2027-01-24
+- [ ] Script a beállításhoz, a README-ben a visszavonás lépéseivel 📅 2027-01-24
+
+**Elfogadási feltételek**
+
+- [ ] Jelszóval nem lehet SSH-val belépni, roottal sem
+- [ ] A korlátozott felhasználó belép, de `sudo` és `docker` parancsa elutasítva
+- [ ] Öt hibás SSH-próbálkozás után a cím ki van tiltva, és a `fail2ban-client status sshd` mutatja
+- [ ] A tűzfal bekapcsolása után a helyi hálózat DNS-e és az internet tovább működik
+
+## FIN-315 Együttélés a Pi-hole-lal és az Unbounddal · 2 SP
+
+**Story:** a háztartás internetéért felelősként azt akarom, hogy az új szolgáltatások ne zavarják a Pi-hole-t, és a saját domain csak a tailnetről legyen feloldható.
+
+**Részfeladatok**
+
+- [ ] A Pi-hole v6 webszervere (`webserver.port`) csak a helyi hálózati címen figyel, így a Tailscale-cím 80-as és 443-as portja a Caddyé 📅 2027-01-24
+- [ ] Az Unbound a `127.0.0.1:5335`-ön marad, a Pi-hole továbbra is ezt kérdezi 📅 2027-01-24
+- [ ] Belső DNS-rekordok a Pi-hole-ban: a domain, az `auth.` és a `vault.` aldomain a Pi Tailscale-címére 📅 2027-01-24
+- [ ] Tailscale split DNS: a domain a Pi Tailscale-címén lévő Pi-hole-hoz megy, minden más a telefon saját DNS-éhez 📅 2027-01-24
+- [ ] A Cloudflare-ben nincs rekord a belső címre; a Cloudflare csak a tanúsítvány DNS-ellenőrzéséhez kell 📅 2027-01-24
+
+**Elfogadási feltételek**
+
+- [ ] A Pi-hole felülete a helyi hálózatról a megszokott címen elérhető, a Caddy pedig a Tailscale-címen fut
+- [ ] A domain a tailneten a Pi Tailscale-címére oldódik fel, a nyilvános DNS-ben nincs rá rekord
+- [ ] Leállított Pi-hole mellett a telefonok a tailneten is elérik az internetet
+
 ## FIN-302 Caddy HTTPS a saját domainen · 2 SP
 
 **Story:** felhasználóként érvényes HTTPS-t akarok, hogy a böngésző ne figyelmeztessen, és a PWA a kamerát is elérje.
@@ -58,7 +102,7 @@ Javasolt sorrend: FIN-301, FIN-302, FIN-303, FIN-308, FIN-307, FIN-309. A háló
 
 - [x] Caddy a `pi/` Compose-ban, a DNS-szolgáltató pluginjával 📅 2027-01-24
 - [x] DNS-alapú ACME-ellenőrzés, mert az oldal kívülről nem látszik 📅 2027-01-24
-- [ ] Belső DNS-rekord a Pi Tailscale-címére, vagy Tailscale MagicDNS 📅 2027-01-24
+- [ ] Belső DNS-rekord a Pi Tailscale-címére a Pi-hole-ban (FIN-315) 📅 2027-01-24
 - [x] A DNS API-kulcs csak a Pi `.env`-jében, a lehető legszűkebb joggal 📅 2027-01-24
 
 **Elfogadási feltételek**
@@ -105,6 +149,26 @@ Javasolt sorrend: FIN-301, FIN-302, FIN-303, FIN-308, FIN-307, FIN-309. A háló
 - [ ] Telefonról feltölthető, a worker a Pi postaládájából húz
 - [ ] Kikapcsolt otthoni gépnél a feltöltés a Pi-n vár, bekapcsolás után feldolgozódik
 - [ ] Az Ellenőrzés, a Szabályok és a Betétdíj a Pi-n is működik
+
+## FIN-314 Vaultwarden a Pi-n · 3 SP
+
+**Story:** a háztartás tagjaként a jelszavainkat a saját Pi-nken akarom tartani, a tailnetről elérhetően, hogy ne kelljen felhős jelszókezelő.
+
+**Részfeladatok**
+
+- [ ] Vaultwarden a `pi/` Compose-ban, a `vault.` aldomainen a Caddy mögött; az Authelia nem áll elé, mert a Bitwarden-kliensek saját belépést használnak 📅 2027-01-24
+- [ ] `SIGNUPS_ALLOWED=false`, a két fiók meghívóval; az admin felület argon2-es tokennel, alapból kikapcsolva 📅 2027-01-24
+- [ ] Kötelező kétfaktoros belépés mindkét fióknak 📅 2027-01-24
+- [ ] Napi mentés: az otthoni gép húzza le a Vaultwarden adatát, és a restic-tárolóba teszi; a kapcsolatot itt is az otthoni oldal nyitja 📅 2027-01-24
+- [ ] Visszaállítási próba egy eldobható Vaultwardenbe 📅 2027-01-24
+- [ ] fail2ban jail a Vaultwarden hibás belépéseire (FIN-313) 📅 2027-01-24
+
+**Elfogadási feltételek**
+
+- [ ] A Bitwarden-kliens a telefonról és a gépről, a tailneten át szinkronizál
+- [ ] Idegen nem regisztrálhat, és az admin felület token nélkül nem nyílik meg
+- [ ] Egy napi mentésből a széf visszaállítható
+- [ ] A Vaultwarden adata a `finance` mentésétől külön pillanatképben van, és a FIN-309 nem törli
 
 ## FIN-307 E-mailes számlafogadás · 5 SP
 
@@ -161,6 +225,8 @@ Javasolt sorrend: FIN-301, FIN-302, FIN-303, FIN-308, FIN-307, FIN-309. A háló
 - [x] Az otthoni stack, a feldolgozó, a Windowsos gépen fut WSL2-ben, GPU-val (2026-11-17).
 - [x] A postaláda egy Raspberry Pi 4, Raspberry Pi OS 64 bittel; a webapp képe arm64-re épül.
 - [x] A HTTPS a saját domainen, Cloudflare DNS-sel; a Caddy a Cloudflare-pluginnal, csak DNS-szerkesztési joggal rendelkező tokennel kéri a tanúsítványt.
+- [x] A Pi-n natív Pi-hole v6 és Unbound fut, ez a háztartás DNS-e; a domain belső rekordjai ide kerülnek, a tailneten split DNS-sel.
+- [x] A Vaultwarden is a Pi-re kerül, és a Pi megerősítése (korlátozott felhasználó, fail2ban) ebbe a sprintbe tartozik.
 - [x] Tailscale marad, nem Headscale, mert így nincs kívülről elérhető vezérlőszerver ([[0003-tailscale-a-wireguard-helyett|ADR 0003]]).
 
 - [x] Minden kapcsolatot az otthoni oldal nyit, a Pi-re és az otthoni hálózatba nem kell bejövő port ([[0006-blokkbeolvasas-a-pi-elott|ADR 0006]]).
