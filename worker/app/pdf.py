@@ -108,6 +108,11 @@ class ScannedPdf:
             "tokens": sum(result.get("tokens") or 0 for result in results),
             "tokens_per_second": round(sum(speeds) / len(speeds), 1) if speeds else None,
             "max_side": self.model.max_side,
+            # A határhoz a legrosszabb lap számít.
+            **{
+                key: max((result.get(key) or 0 for result in results), default=0) or None
+                for key in ("prompt_tokens", "num_ctx", "attempts")
+            },
         }
 
 
