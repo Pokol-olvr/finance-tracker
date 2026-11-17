@@ -33,6 +33,8 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 - GPU-val a kép hosszabb oldala 2000 px (`OLLAMA_MAX_SIDE`), CPU-n marad 1400.
 - A vásárlás dátuma a lábléc utolsó dátuma, az akciós szövegek dátuma nem; a boltnév nem lehet a dokumentum címe.
 - A visszaváltó automata utalványa nem kiadás, ezért nem kér döntést.
+- A modell kontextusa 8192 token (`PROMPT_VERSION` 3); a 4096-os alapértéknél a 2000 px-es fotó olvasása a blokk közepén megszakadt.
+- A régebbi beállítással csonkán maradt olvasást a worker induláskor újraolvassa, a blokkot nem kell újra feltölteni.
 - Az állapot képernyő Erőforrások csempét kap: szálankénti CPU, RAM, swap, és ha van, NVIDIA GPU. Az Ollama kártya a modell méretét, a GPU-n vagy CPU-n futást, az utolsó olvasást és az utolsó 20 olvasás átlagát mutatja.
 - A kiolvasás időadatai (betöltés, kép, szöveg, token/s) a `bronze.extraction` payloadjába is bekerülnek.
 - A dbt éjszaka helyett óránként fut, így a döntés egy órán belül a riportokban is látszik.
@@ -47,7 +49,7 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 - `scripts/backup.sh`, majd `scripts/replace-metabase.sh`: friss jelszót állít be a `report_reader` szerepkörnek, és törli a Metabase adatbázisát. Ez nem visszafordítható, a korábbi `metabase.dump` a mentésben marad.
 - `podman compose -f home/docker-compose.yml up -d --build --remove-orphans`, majd `scripts/dbt.sh`.
 - `scripts/install-timers.sh`: ez állítja át a dbt-t óránkénti futásra.
-- A worker induláskor a `PARSER_VERSION` 9 miatt minden tárolt szöveget újra feldolgoz, modell nélkül; a blokkokat nem kell újra feltölteni. A 2000 px csak az új olvasásokra érvényes.
+- A worker induláskor a `PARSER_VERSION` 10 miatt minden tárolt szöveget újra feldolgoz, modell nélkül; a blokkokat nem kell újra feltölteni. A 2000 px csak az új olvasásokra érvényes.
 - A `home/.env` `MB_*` és `METABASE_*` sorai ezután törölhetők.
 
 ## v0.4.0 · 2026-11-01

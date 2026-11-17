@@ -18,9 +18,11 @@ on conflict (sha256) do nothing
 returning id
 """
 
+# A tényleges beszúrási idő: egy tranzakción belül is ez dönti el, melyik a legutóbbi olvasás.
 INSERT_EXTRACTION = """
-insert into bronze.extraction (document_id, model_name, model_version, prompt_version, payload)
-values (%s, %s, %s, %s, %s)
+insert into bronze.extraction
+  (document_id, model_name, model_version, prompt_version, payload, created_at)
+values (%s, %s, %s, %s, %s, clock_timestamp())
 """
 
 HAS_EXTRACTION = """
@@ -197,6 +199,28 @@ def recent_read_stats(conn: psycopg.Connection, model_name: str, limit: int) -> 
         }
         for created_at, payload in reversed(rows)
     ]
+
+
+TRUNCATED_DOCUMENTS = """
+select d.id, d.object_key, d.source_type
+from bronze.raw_document as d
+cross join lateral (
+  select e.payload, e.prompt_version
+  from bronze.extraction as e
+  where e.document_id = d.id
+  order by e.created_at desc
+  limit 1
+) as latest
+where latest.payload ->> 'done_reason' = %s and latest.prompt_version <> %s
+order by d.ingested_at
+"""
+
+
+def truncated_documents(conn: psycopg.Connection, reason: str, prompt_version: str) -> list[dict]:
+    """Azok a dokumentumok, amelyeknek a legutóbbi olvasása egy régebbi beállítással csonka maradt."""
+    with conn.cursor(row_factory=dict_row) as cursor:
+        cursor.execute(TRUNCATED_DOCUMENTS, (reason, prompt_version))
+        return cursor.fetchall()
 
 
 def group_of(conn: psycopg.Connection, document_id: UUID) -> UUID:

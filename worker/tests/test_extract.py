@@ -79,7 +79,12 @@ def test_read_sends_settings_and_keeps_the_text():
     assert steps == ["read_text"]
     assert len(sent) == 1
     assert sent[0]["messages"][0]["content"] == PROMPT
-    assert sent[0]["options"] == {"temperature": 0, "num_thread": 10, "num_predict": 2000}
+    assert sent[0]["options"] == {
+        "temperature": 0,
+        "num_thread": 10,
+        "num_predict": 2000,
+        "num_ctx": 8192,
+    }
     assert "format" not in sent[0]
     assert sent[0]["keep_alive"] == "0"
     assert sent[0]["stream"] is False

@@ -12,7 +12,8 @@ from pillow_heif import register_heif_opener
 
 register_heif_opener()
 
-PROMPT_VERSION = "2"
+# 3: a kontextus 8192 token, a 2-es 4096 tokenje a fotónál elfogyott.
+PROMPT_VERSION = "3"
 # A szerkezetet a feldolgozó adja a szövegből, mert a modell JSON-módban rosszul párosított.
 PROMPT = "Text Recognition:"
 # A hosszabb oldal felső határa: 1000 px kb. 40, 1400 px kb. 80, 2000 px kb. 190 másodperc CPU-n.
@@ -21,6 +22,10 @@ PROMPT = "Text Recognition:"
 MAX_SIDE = 1400
 # Egy 30 tételes blokk kb. 750 token, 500-nál a JSON csonka maradt.
 NUM_PREDICT = 2000
+# A 2000 px-es fotó kb. 3 800 képtoken; a 4096-os alapkontextusban a szöveg a blokk közepén megszakadt.
+NUM_CTX = 8192
+# A kontextus fogyott el: a szöveg csonka, más beállítással újra kell olvasni.
+TRUNCATED = "length"
 
 
 class ModelMissing(Exception):
@@ -119,6 +124,7 @@ class ReceiptReader:
                     "temperature": 0,
                     "num_thread": self.num_thread,
                     "num_predict": NUM_PREDICT,
+                    "num_ctx": NUM_CTX,
                 },
                 "messages": [
                     {
