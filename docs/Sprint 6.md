@@ -120,14 +120,16 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 
 - [x] Caddy a `pi/` Compose-ban, a DNS-szolgáltató pluginjával 📅 2027-01-24
 - [x] DNS-alapú ACME-ellenőrzés, mert az oldal kívülről nem látszik 📅 2027-01-24
-- [ ] Belső DNS-rekord a Pi Tailscale-címére a Pi-hole-ban (FIN-315) 📅 2027-01-24
+- [x] Belső DNS-rekord a Pi Tailscale-címére a Pi-hole-ban (FIN-315) 📅 2027-01-24
 - [x] A DNS API-kulcs csak a Pi `.env`-jében, a lehető legszűkebb joggal 📅 2027-01-24
 
 **Elfogadási feltételek**
 
-- [ ] Érvényes tanúsítvány, a böngésző nem figyelmeztet
+- [x] Érvényes tanúsítvány, a böngésző nem figyelmeztet
+    - 2026-11-18: Let's Encrypt-tanúsítvány a pénzügyi névre és az `auth.` aldomainre, 2027-02-15-ig; a Cloudflare-token csak a zónára szól, DNS Edit és Zone Read joggal, 2027-11-18-ig.
 - [ ] A tanúsítvány megújul emberi beavatkozás nélkül (a Caddy naplója mutatja)
 - [ ] HTTP-ről HTTPS-re irányít
+- [ ] A Cloudflare-token cseréje 2027-11-18 előtt, az SSH-kulcsok éves cseréjével együtt
 
 ## FIN-303 Authelia TOTP 2FA két felhasználóval · 3 SP
 
@@ -138,6 +140,7 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 - [x] Authelia a `pi/` Compose-ban, fájlalapú felhasználókkal, a Caddy `forward_auth` mögött 📅 2027-01-24
 - [ ] Két felhasználó a `HOUSEHOLD_MEMBERS` kódjaival, TOTP-vel 📅 2027-01-24
     - A `scripts/authelia-user.sh` kész, a felhasználókat a Pi-n kell felvenni.
+    - 2026-11-18: felhasználói fájl nélkül az Authelia egy példafelhasználót hozott létre; az Authelia leállítva, a fájl törölve, amíg a két valódi felhasználó nincs fent. Addig a domain 502-t ad, a worker API token nélkül 401-et.
 - [x] A worker API (`/inbox/…`) Authelia nélkül, csak a `WORKER_API_TOKEN`-nel érhető el 📅 2027-01-24
 - [x] A webapp a belépett felhasználót a fejlécből veszi, így a feltöltő nem választható szabadon 📅 2027-01-24
 - [x] Munkamenet-idő és kizárás túl sok hibás próbálkozás után 📅 2027-01-24
