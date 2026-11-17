@@ -79,6 +79,7 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 - [x] A korlátozott felhasználó belép, de `sudo` és `docker` parancsa elutasítva
 - [ ] Öt hibás SSH-próbálkozás után a cím ki van tiltva, és a `fail2ban-client status sshd` mutatja
     - A feldolgozó gép kivétel, a próba a telefonról vagy egy másik gépről kell.
+    - 2026-11-17: a laptop kulcs nélküli próbálkozásait a fail2ban nem számolta, mert a Debian 13 az `sshd-session` folyamatban naplóz. Az `aggressive` mód és a szélesebb `journalmatch` után a mai naplóból 28 sort talál; a tiltás próbája még hátravan.
 - [x] A tűzfal bekapcsolása után a helyi hálózat DNS-e és az internet tovább működik
 
 **Mérés 2026-11-17:** a tűzfal után a helyi hálózatról működött a DNS, az SSH mindkét felhasználóval, a Pi-hole felülete és a Beszel, a Tailscale közvetlen kapcsolatokkal ment; a tiltott 45876-os port nem válaszolt.

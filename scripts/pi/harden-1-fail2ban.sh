@@ -22,8 +22,12 @@ findtime = 10m
 maxretry = 5
 backend = systemd
 
+# A Debian 13 OpenSSH-ja a belépést az sshd-session folyamatban naplózza, a fail2ban 1.1 alap
+# szűrője viszont csak az sshd folyamatot figyeli; a kulcs nélküli próbát az aggressive mód számolja.
 [sshd]
 enabled = true
+mode = aggressive
+journalmatch = _SYSTEMD_UNIT=ssh.service
 JAIL
 systemctl enable fail2ban
 systemctl restart fail2ban
