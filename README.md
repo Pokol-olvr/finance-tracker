@@ -50,7 +50,7 @@ NVIDIA GPU-val a kiolvasás a GPU-n fut. A `scripts/setup-wsl-gpu.sh` telepíti 
 
 A webapp a Raspberry Pi 4-en fut, Caddy és Authelia mögött, csak a Tailscale-hálózatról elérhetően. A feldolgozó az otthoni gép marad: minden kapcsolatot ez nyit a Pi felé. A Pi-n nincs adatbázis, a kézi bejegyzés API-ja (`/entries`) ott 503-at ad, amíg a FIN-606 a kimenő soron át nem viszi.
 
-1. **A Pi-n** (64 bites Raspberry Pi OS): a repó klónozása, majd a Docker és a Tailscale telepítése a gyártók saját tárolójából. A script a végén kiírja a Pi Tailscale-címét.
+1. **A Pi-n** (64 bites Raspberry Pi OS): a repó klónozása, majd a Docker és a Tailscale telepítése a gyártók saját tárolójából, ha még nincs fent. A script a végén kiírja a Pi Tailscale-címét.
    ```sh
    scripts/setup-pi.sh
    ```
@@ -69,6 +69,20 @@ A webapp a Raspberry Pi 4-en fut, Caddy és Authelia mögött, csak a Tailscale-
    powershell -ExecutionPolicy Bypass -File scripts\windows\wsl-autostart.ps1
    ```
 7. **Telefonokon** a Tailscale alkalmazás, majd a `FINANCE_DOMAIN` megnyitása és hozzáadása a kezdőképernyőhöz.
+
+#### A Pi megerősítése
+
+A Pi a háztartás DNS-szervere is (natív Pi-hole v6 és Unbound), ezért minden lépésnek van visszaútja. A routeren nincs és nem is kell port forward: a Tailscale NAT mögül is kapcsolódik, az otthoni gép nyit minden kapcsolatot, a tanúsítvány DNS-alapú. A scriptek a `scripts/pi/` mappában vannak, sorrendben, rendszergazdaként futtatva:
+
+| Lépés | Mit csinál | Visszavonás |
+| --- | --- | --- |
+| `harden-1-fail2ban.sh <feldolgozó gép IP>` | fail2ban az SSH-ra: 10 percen belül 5 hiba után 1 óra tiltás; kivétel csak a Pi és a feldolgozó gép. Automatikus biztonsági frissítés, újraindítás nélkül | a script elején |
+| `harden-2-limited-user.sh <felhasználó> <rendszergazda> '<kulcs>'` | Korlátozott felhasználó saját kulccsal: belép és olvas, de nincs `sudo`, nincs `docker` csoport, nincs jelszó; a rendszergazda mappáját nem látja | `userdel -r` |
+| `harden-3-ssh.sh <rendszergazda> <korlátozott>` | SSH csak kulccsal, root nélkül, csak a két felhasználónak; a korlátozott nem építhet alagutat | a beállításfájl törlése |
+| `harden-4-ufw.sh <helyi hálózat>` | Tűzfal: a helyi hálózatról DNS, NTP, SSH, a Pi-hole felülete, mDNS és a Beszel; a tailnetről DNS, SSH és a Caddy; minden más tiltva. Élesítéskor 5 perces önvisszavonó időzítő indul | `ufw disable` |
+| `harden-4-finalize.sh` | Ellenőrzés után leállítja az időzítőt | – |
+
+A harmadik lépés előtt mindkét felhasználó kulcsos belépését ki kell próbálni. A tűzfal a Docker által közzétett portokra nem vonatkozik, ezért a `pi/` Compose minden portot csak a Tailscale-címre köt.
 
 Belépéssel a feltöltő és a döntést hozó mindig a belépett felhasználó: a webapp az Authelia `Remote-User` fejlécét veszi, és más nevében nem ment. A worker API (`/inbox/…`) és a `/health` belépés nélkül, a worker tokenjével érhető el.
 

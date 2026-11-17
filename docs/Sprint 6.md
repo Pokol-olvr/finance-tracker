@@ -31,9 +31,11 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 
 **Előfeltétel:** a `v0.5.0` kiadva és az otthoni stackre telepítve. A Sprint 4 nyitott, saját számlás pontjai (FIN-412, FIN-312) a FIN-307 első valódi számlájával lezárhatók.
 
-**Változás a tervhez képest:** az otthoni stack 2026-11-17-től a Windowsos gépen fut, WSL2-ben, RTX 5070 GPU-val; a laptop fejlesztői gép marad. A WSL nyitott ablak nélkül leáll, ezért a FIN-301 része a WSL indítása a Windows indulásakor és a tükrözött hálózat.
+**Változás a tervhez képest:** az otthoni stack 2026-11-17-től a Windowsos gépen fut, WSL2-ben, RTX 5070 GPU-val; a Fedorás laptopon a projekten már nem dolgozunk. A WSL nyitott ablak nélkül leáll, ezért a FIN-301 része a WSL indítása a Windows indulásakor és a tükrözött hálózat.
 
-**A Pi jelenlegi szerepe:** natív Pi-hole v6 és Unbound fut rajta, ez a háztartás DNS-szervere. Ami ezt megszakítja, az az internetet is elveszi, ezért minden lépésnek van visszaútja, és a Pi-hole portjai nem változhatnak meg a helyi hálózaton.
+**A Pi jelenlegi szerepe:** natív Pi-hole v6 és Unbound fut rajta, ez a háztartás DNS-szervere; a DHCP-t a router adja, a Pi-hole NTP-szervert is ad. Debian 13-as Raspberry Pi OS fut rajta, a Docker és a Tailscale már fent van, mellettük a Beszel monitorozás. Ami ezt megszakítja, az az internetet is elveszi, ezért minden lépésnek van visszaútja, és a Pi-hole portjai nem változhatnak meg a helyi hálózaton.
+
+**Port forward nincs és nem is lesz:** a Tailscale NAT mögül is kapcsolódik, minden kapcsolatot az otthoni gép nyit, a tanúsítvány DNS-alapú.
 
 **Adat:** a Pi és az e-mail beállításai, a domain, a címek és a titkok csak a `.env`-ekbe kerülnek, a repóba nem. A tesztekhez kitalált levelek és címek kellenek.
 
@@ -44,6 +46,7 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 **Részfeladatok**
 
 - [ ] Tailscale a Pi-n, a két telefonon és az otthoni gépen, egy tailnetben 📅 2027-01-24
+    - A Pi-n 2026-11-17-én már fut; a feldolgozó gépen telepítve van, de 10 napja nem fut.
 - [ ] ACL: a telefonok csak a Pi webappját érik el, az otthoni gép a Pi-t és a saját szolgáltatásait 📅 2027-01-24
 - [ ] WSL-es otthoni gépnél: a Tailscale a Windows-oldalon fut; a WSL tükrözött hálózattal (`networkingMode=mirrored`) a Tailscale-címen is látszik, a riportok a `BIND_ADDRESS`-szel 📅 2027-01-24
 - [ ] A WSL a Windows indulásakor elindul, és ablak nélkül is fut, így a worker és a timerek bejelentkezés nélkül is dolgoznak 📅 2027-01-24
@@ -61,20 +64,24 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 
 **Részfeladatok**
 
-- [ ] SSH csak kulccsal: `PasswordAuthentication no`, `PermitRootLogin no`, `AllowUsers` a két felhasználóval 📅 2027-01-24
-- [ ] Korlátozott felhasználó: SSH-val beléphet, de nincs `sudo`, nincs a `docker` csoportban (a `docker` csoport rootjogot ad), és a beállítófájlokat nem írhatja 📅 2027-01-24
-- [ ] A rendszergazda-felhasználó külön, kulccsal; a `sudo` jelszót kér 📅 2027-01-24
-- [ ] fail2ban: `sshd` jail, 5 hibás próbálkozás 10 percen belül, 1 órás kitiltás; a Vaultwarden és az Authelia naplójára is jail 📅 2027-01-24
-- [ ] Tűzfal (`ufw`): 53 a helyi hálózatról és a tailnetről, 22 a helyi hálózatról és a tailnetről, 80 és 443 csak a tailnetről; minden más tiltva. Előtte konzolos visszaút, mert a Pi a DNS-szerver 📅 2027-01-24
-- [ ] `unattended-upgrades` a biztonsági frissítésekre, újraindítás nélkül 📅 2027-01-24
-- [ ] Script a beállításhoz, a README-ben a visszavonás lépéseivel 📅 2027-01-24
+- [x] SSH csak kulccsal: `PasswordAuthentication no`, `PermitRootLogin no`, `AllowUsers` a két felhasználóval 📅 2027-01-24
+- [x] Korlátozott felhasználó: SSH-val beléphet, de nincs `sudo`, nincs a `docker` csoportban (a `docker` csoport rootjogot ad), és a beállítófájlokat nem írhatja 📅 2027-01-24
+- [x] A rendszergazda-felhasználó külön, kulccsal; a `sudo` jelszót kér 📅 2027-01-24
+- [x] fail2ban: `sshd` jail, 5 hibás próbálkozás 10 percen belül, 1 órás kitiltás 📅 2027-01-24
+- [ ] fail2ban jail a Vaultwarden és az Authelia naplójára (a FIN-314-gyel és a FIN-303-mal) 📅 2027-01-24
+- [x] Tűzfal (`ufw`): 53 a helyi hálózatról és a tailnetről, 22 a helyi hálózatról és a tailnetről, 80 és 443 a tailnetről és a Pi-hole felületéhez a helyi hálózatról; NTP, mDNS és a Beszel a helyi hálózatról; minden más tiltva. Konzolos visszaút helyett 5 perces önvisszavonó időzítő 📅 2027-01-24
+- [x] `unattended-upgrades` a biztonsági frissítésekre, újraindítás nélkül 📅 2027-01-24
+- [x] Script a beállításhoz, a README-ben a visszavonás lépéseivel (`scripts/pi/`) 📅 2027-01-24
 
 **Elfogadási feltételek**
 
-- [ ] Jelszóval nem lehet SSH-val belépni, roottal sem
-- [ ] A korlátozott felhasználó belép, de `sudo` és `docker` parancsa elutasítva
+- [x] Jelszóval nem lehet SSH-val belépni, roottal sem
+- [x] A korlátozott felhasználó belép, de `sudo` és `docker` parancsa elutasítva
 - [ ] Öt hibás SSH-próbálkozás után a cím ki van tiltva, és a `fail2ban-client status sshd` mutatja
-- [ ] A tűzfal bekapcsolása után a helyi hálózat DNS-e és az internet tovább működik
+    - A feldolgozó gép kivétel, a próba a telefonról vagy egy másik gépről kell.
+- [x] A tűzfal bekapcsolása után a helyi hálózat DNS-e és az internet tovább működik
+
+**Mérés 2026-11-17:** a tűzfal után a helyi hálózatról működött a DNS, az SSH mindkét felhasználóval, a Pi-hole felülete és a Beszel, a Tailscale közvetlen kapcsolatokkal ment; a tiltott 45876-os port nem válaszolt.
 
 ## FIN-315 Együttélés a Pi-hole-lal és az Unbounddal · 2 SP
 
@@ -215,6 +222,7 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 - [ ] Heti áttekintés, kb. 15 perc 📅 2027-01-18
 - [ ] Demó és retró, kb. 30 perc 📅 2027-01-24
 - [ ] Kiadás: `v0.6.0` a [[Release folyamat]] szerint 📅 2027-01-24
+- [ ] A Pi-hole frissítése (`pihole -up`): 2026-11-17-én a Core, a Web és az FTL is egy verzióval le van maradva; rövid DNS-kiesés, ezért egyeztetett időpontban 📅 2027-01-24
 
 **A tervezésen eldöntendő**
 
