@@ -46,17 +46,19 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 **Részfeladatok**
 
 - [ ] Tailscale a Pi-n, a két telefonon és az otthoni gépen, egy tailnetben 📅 2027-01-24
-    - A Pi-n 2026-11-17-én már fut; a feldolgozó gépen telepítve van, de 10 napja nem fut.
-- [ ] ACL: a telefonok csak a Pi webappját érik el, az otthoni gép a Pi-t és a saját szolgáltatásait 📅 2027-01-24
-- [ ] WSL-es otthoni gépnél: a Tailscale a Windows-oldalon fut; a WSL tükrözött hálózattal (`networkingMode=mirrored`) a Tailscale-címen is látszik, a riportok a `BIND_ADDRESS`-szel 📅 2027-01-24
-- [ ] A WSL a Windows indulásakor elindul, és ablak nélkül is fut, így a worker és a timerek bejelentkezés nélkül is dolgoznak 📅 2027-01-24
-- [ ] A Pi-n nincs nyitott bejövő port a routeren 📅 2027-01-24
+    - 2026-11-18: a Pi-n és a feldolgozó gépen fut, az egyik telefon a tailnetben van; a második telefon hátravan.
+- [ ] ACL: a telefonok csak a Pi webappját és az otthoni gép riportjait érik el, az otthoni gép a Pi-t 📅 2027-01-24
+- [x] WSL-es otthoni gépnél: a Tailscale a Windows-oldalon fut; a WSL tükrözött hálózattal (`networkingMode=mirrored`) a Tailscale-címen is látszik, a riportok a `home/docker-compose.tailnet.yml`-lel a `127.0.0.1` mellett a Tailscale-címen is 📅 2027-01-24
+- [x] A WSL bejelentkezéskor elindul, és ablak nélkül is fut (`scripts/windows/wsl-autostart.ps1`), így a worker és a timerek nyitott terminál nélkül is dolgoznak 📅 2027-01-24
+- [x] A Pi-n nincs nyitott bejövő port a routeren 📅 2027-01-24
+- [x] A tükrözött hálózatban a Windows saját Postgrese (5432) ütközött a stackével: a stacké a `POSTGRES_PORT=5433`-ra került 📅 2027-01-24
 
 **Elfogadási feltételek**
 
 - [ ] A webapp csak a Tailscale-hálózatról érhető el
 - [ ] Mobilnetről, Tailscale nélkül a Pi címe nem válaszol
-- [ ] Az otthoni gép a Pi-t a Tailscale-címén éri el
+- [x] Az otthoni gép a Pi-t a Tailscale-címén éri el
+- [x] A riportok a Pi-ről a tailneten elérhetők, a helyi hálózatról Tailscale nélkül nem (2026-11-18)
 
 ## FIN-313 A Pi megerősítése · 3 SP
 

@@ -42,6 +42,14 @@ scripts/dbt.sh
 
 A `scripts/setup-wsl.sh` systemd-t vár, ezt a `/etc/wsl.conf` `[boot]` részében a `systemd=true` kapcsolja be. A portok a WSL-ből a Windows `127.0.0.1` címére is kijönnek, így a böngésző a fenti címeken éri el őket. A timerek csak akkor futnak, ha a WSL fut: nyitott WSL-ablak nélkül a Windows egy idő után leállítja.
 
+A `scripts/windows/wsl-autostart.ps1` tükrözött hálózatot állít be: a WSL a Windows címeit használja, a Tailscale-címet is. Ilyenkor a `127.0.0.1` is közös a Windowsszal, ezért ha a Windowson saját Postgres fut, a stacké a `POSTGRES_PORT`-tal másik portra kerül (pl. 5433); a konténerek egymás között továbbra is az 5432-t használják. A tükrözött hálózatban a gép a saját Tailscale-címét nem éri el, ezért a riportok a `home/docker-compose.tailnet.yml` kiegészítéssel a `127.0.0.1` mellett a `TAILNET_ADDRESS`-en is figyelnek, a `BIND_ADDRESS` pedig üres marad:
+
+```sh
+COMPOSE_FILE=docker-compose.yml:docker-compose.gpu.yml:docker-compose.tailnet.yml
+TAILNET_ADDRESS=<a gép Tailscale-címe>
+POSTGRES_PORT=5433
+```
+
 A Docker konténerei rootként futnak, ezért a `home/data` törléséhez `sudo rm -rf home/data` kell a `podman unshare` helyett.
 
 NVIDIA GPU-val a kiolvasás a GPU-n fut. A `scripts/setup-wsl-gpu.sh` telepíti az NVIDIA container toolkitet, a `home/.env`-ben pedig a `COMPOSE_FILE=docker-compose.yml:docker-compose.gpu.yml` kapcsolja be. Ilyenkor a modell 10 percig betöltve marad (`OLLAMA_KEEP_ALIVE`), mert a blokkonkénti újratöltés CPU-n tovább tart, mint maga a kiolvasás. A kép hosszabb oldala 2000 pixel (`OLLAMA_MAX_SIDE`, CPU-n 1400), mert a saját blokkokon a számjegyhibát ez kijavította. A modell egy CPU-szálat kap (`OLLAMA_NUM_THREAD`), mert több szál a GPU-ra várva is pörög: 17 blokkon 1, 2, 4 és 10 szállal is 36–40 másodperc volt a modellidő, a CPU-használat viszont 97% és 536% között változott. Egy RTX 5070-en 17 blokk 94 másodperc alatt olvasódott ki újratöltéssel.

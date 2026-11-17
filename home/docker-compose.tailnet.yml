@@ -1,0 +1,8 @@
+# A riportok a helyi cím mellett a gép Tailscale-címén is, így a Pi Caddyje és a telefon is eléri.
+# Bekapcsolás a .env-ben: a COMPOSE_FILE végére :docker-compose.tailnet.yml, és TAILNET_ADDRESS.
+# Külön kiegészítés, mert tükrözött WSL-hálózatnál a gép a saját Tailscale-címét nem éri el:
+# a helyi 127.0.0.1 is kell. A Garage és a Postgres csak helyben látszik.
+services:
+  reports:
+    ports:
+      - ${TAILNET_ADDRESS:?a gép Tailscale-címe}:${REPORTS_PORT:-8501}:8501
