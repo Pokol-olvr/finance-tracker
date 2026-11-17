@@ -4,7 +4,7 @@ import os
 
 import streamlit as st
 
-from app.views import overview, spending
+from app.views import overview, prices, spending
 
 # A kártyák és a táblázatok így férnek el; a szépítés többi része a témában van.
 STYLE = """
@@ -20,6 +20,7 @@ page = st.navigation(
     [
         st.Page(overview.render, title="Áttekintés", url_path="attekintes", default=True),
         st.Page(spending.render, title="Kiadások", url_path="kiadasok"),
+        st.Page(prices.render, title="Árak", url_path="arak"),
     ],
     position="top",
 )

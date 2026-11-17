@@ -92,6 +92,7 @@ def test_read_sends_settings_and_keeps_the_text():
         "text_seconds": 0.0,
         "tokens": 0,
         "tokens_per_second": None,
+        "max_side": MAX_SIDE,
     }
 
 
@@ -167,3 +168,20 @@ def test_read_keeps_time_and_speed_of_the_last_run():
     assert reader.last_stats["tokens_per_second"] == 321.0
     assert (result["load_seconds"], result["image_seconds"], result["text_seconds"]) == (0.0, 0.2, 2.0)
     assert result["tokens"] == 642
+
+
+def test_larger_image_side_is_used_and_recorded():
+    def handler(_request):
+        return httpx.Response(200, json={"message": {"content": "NYUGTA"}})
+
+    reader = ReceiptReader("http://ollama:11434", "glm-ocr", 1, "10m", 2000)
+    reader.client = httpx.Client(base_url="http://ollama:11434", transport=httpx.MockTransport(handler))
+
+    result = reader.read(image_bytes(Image.new("RGB", (3000, 6000))), no_report)
+
+    assert result["max_side"] == 2000
+    assert Image.open(BytesIO(prepare_image(image_bytes(Image.new("RGB", (3000, 6000))), 2000))).size == (
+        1000,
+        2000,
+    )
+

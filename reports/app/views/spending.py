@@ -37,12 +37,20 @@ def item_table(frame: pd.DataFrame) -> None:
             ],
             "Típus": frame["kind"].map(fmt.KIND_LABELS),
             "Kategória": frame["category"].fillna("–"),
+            "Termék": frame["product"].fillna("–"),
             "Érték": frame["value"].map(fmt.money),
+            "Egységár": [
+                f"{fmt.money(price)}/{unit}" if unit and not pd.isna(price) else "–"
+                for price, unit in zip(frame["base_unit_price"], frame["base_unit"], strict=True)
+            ],
         }
     )
     st.dataframe(
         table, hide_index=True,
-        column_config={"Érték": st.column_config.TextColumn(alignment="right")},
+        column_config={
+            "Érték": st.column_config.TextColumn(alignment="right"),
+            "Egységár": st.column_config.TextColumn(alignment="right"),
+        },
     )
 
 

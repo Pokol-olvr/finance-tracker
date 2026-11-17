@@ -15,8 +15,9 @@ register_heif_opener()
 PROMPT_VERSION = "2"
 # A szerkezetet a feldolgozó adja a szövegből, mert a modell JSON-módban rosszul párosított.
 PROMPT = "Text Recognition:"
-# A hosszabb oldal felső határa: 1000 px kb. 40, 1400 px kb. 80, 2000 px kb. 190 másodperc CPU-n,
-# és a mintákon 1400 fölött nem javult a pontosság.
+# A hosszabb oldal felső határa: 1000 px kb. 40, 1400 px kb. 80, 2000 px kb. 190 másodperc CPU-n.
+# GPU-n a 2000 px 17 saját blokkon 1 `review` blokkot `ok`-ra javított, 24%-kal hosszabb modellidővel,
+# ezért ott az OLLAMA_MAX_SIDE 2000.
 MAX_SIDE = 1400
 # Egy 30 tételes blokk kb. 750 token, 500-nál a JSON csonka maradt.
 NUM_PREDICT = 2000
@@ -36,11 +37,11 @@ def to_jpeg(image: Image.Image) -> bytes:
     return output.getvalue()
 
 
-def prepare_image(content: bytes) -> bytes:
+def prepare_image(content: bytes, max_side: int = MAX_SIDE) -> bytes:
     """A modell bemenete: álló, kicsinyített JPEG. Az eredeti a Garage-ban változatlan marad."""
     with Image.open(BytesIO(content)) as image:
         upright = ImageOps.exif_transpose(image).convert("RGB")
-    upright.thumbnail((MAX_SIDE, MAX_SIDE))
+    upright.thumbnail((max_side, max_side))
     return to_jpeg(upright)
 
 
@@ -68,8 +69,16 @@ def run_stats(result: dict) -> dict:
 
 
 class ReceiptReader:
-    def __init__(self, base_url: str, model: str, num_thread: int, keep_alive: str = "0"):
+    def __init__(
+        self,
+        base_url: str,
+        model: str,
+        num_thread: int,
+        keep_alive: str = "0",
+        max_side: int = MAX_SIDE,
+    ):
         self.name = model
+        self.max_side = max_side
         self.num_thread = num_thread
         self.keep_alive = keep_alive
         # Az utolsó modellfutások ideje és sebessége az állapot képernyőnek.
@@ -93,7 +102,7 @@ class ReceiptReader:
     def read(self, content: bytes, report: Callable[[str], None]) -> dict:
         """A bronzba kerülő eredmény. A kapcsolati hiba kivétel, így a tétel nyitva marad."""
         try:
-            image = prepare_image(content)
+            image = prepare_image(content, self.max_side)
         except (OSError, ValueError, Image.DecompressionBombError) as error:
             return {"error": f"A kép nem olvasható: {error}"}
         return self.read_image(image, report)
@@ -134,4 +143,5 @@ class ReceiptReader:
             "text_seconds": stats["text_seconds"],
             "tokens": stats["tokens"],
             "tokens_per_second": stats["tokens_per_second"],
+            "max_side": self.max_side,
         }

@@ -271,3 +271,31 @@ def test_last_footer_date_is_the_purchase_date():
 
     assert (result["purchased_on"], result["purchased_at"]) == ("2026-12-07", "17:33")
 
+
+def test_card_brand_and_repont_voucher_are_payments():
+    result = parsed("card_brand_and_repont")
+
+    assert result["payments"] == [
+        {"method": "card", "amount": 498},
+        {"method": "deposit_voucher", "amount": 500},
+    ]
+    assert status_of(result, run_checks(result, None, False)) == "ok"
+
+
+def test_document_title_is_not_the_store_and_header_serial_is_the_receipt_number():
+    result = parsed("table_without_codes")
+
+    assert result["store_name"] == "TESZT BÜFÉ KFT."
+    assert result["receipt_number"] == "2026/TESZT/00001"
+
+
+def test_store_name_skips_the_receipt_title():
+    assert parsed("codes_read_as_d")["store_name"] == "TESZT ÉLELMISZER KFT."
+
+
+def test_payment_without_colon_is_read():
+    result = parsed("cash_without_colon")
+
+    assert result["payments"] == [{"method": "cash", "amount": 2000}]
+    assert status_of(result, run_checks(result, None, False)) == "ok"
+

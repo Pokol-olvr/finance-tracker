@@ -172,6 +172,7 @@ def main() -> None:
         settings.ollama_model,
         settings.ollama_num_thread,
         settings.ollama_keep_alive,
+        settings.ollama_max_side,
     )
     try:
         with psycopg.connect(settings.database_url, autocommit=True) as conn:

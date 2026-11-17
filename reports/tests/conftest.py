@@ -40,9 +40,31 @@ def gold(monkeypatch):
                 "name": ["KENYÉR 500G", "DRS GÖNGYÖLEG"],
                 "kind": ["item", "deposit"],
                 "category": ["élelmiszer", None],
+                "product": ["kenyér", None],
                 "quantity": [1.0, None],
                 "unit": ["DB", None],
                 "value": [599.0, 50.0],
+                "base_unit": ["kg", None],
+                "base_unit_price": [1198.0, None],
+            }
+        ),
+        "products": pd.DataFrame(
+            {
+                "category": ["élelmiszer"],
+                "product_family": ["gomba"],
+                "product": ["csiperke"],
+                "base_unit": ["kg"],
+            }
+        ),
+        "prices": pd.DataFrame(
+            {
+                "month": [date(2026, 9, 1), date(2026, 10, 1), date(2026, 10, 1)],
+                "store_name": ["Kitalált Bolt", "Kitalált Bolt", "Másik Bolt"],
+                "unit_price": [1000.0, 1200.0, 1100.0],
+                "min_unit_price": [1000.0, 1200.0, 1100.0],
+                "max_unit_price": [1000.0, 1200.0, 1100.0],
+                "quantity": [1.0, 1.0, 1.0],
+                "purchase_count": [2, 1, 1],
             }
         ),
         "pending": 0,
@@ -52,6 +74,8 @@ def gold(monkeypatch):
     monkeypatch.setattr(data, "categories", lambda month, payer: fake["categories"])
     monkeypatch.setattr(data, "pending_documents", lambda: fake["pending"])
     monkeypatch.setattr(data, "expected_deposit", lambda: 1250.0)
+    monkeypatch.setattr(data, "products", lambda: fake["products"])
+    monkeypatch.setattr(data, "product_prices", lambda product, base_unit: fake["prices"])
     monkeypatch.setattr(
         data, "documents",
         lambda payer: fake["documents"][

@@ -7,7 +7,7 @@ from difflib import get_close_matches
 from itertools import product
 
 # Ha a szabály változik, a worker a meglévő szövegeket is újra feldolgozza, modellfutás nélkül.
-PARSER_VERSION = "8"
+PARSER_VERSION = "9"
 
 MAX_AMBIGUOUS_LINES = 12
 MAX_OVERLAP_LINES = 15
@@ -27,6 +27,10 @@ QUANTITY_LINE = re.compile(
 VALUE_WITH_CODE = re.compile(
     rf"^(?P<name>.*?\S)\s+(?P<value>{AMOUNT})\s+(?P<code>[a-z]?\s?[A-E]\d{{2}}|[a-z]\d{{2}})$"
 )
+# A dokumentum címe nem boltnév: a bolt az első olyan sor, amely nem cím.
+DOCUMENT_TITLES = {"NYUGTA", "ERTEKESITESI JEGYZEK", "SZAMLA", "BLOKK", "NYUGTA SZAMLA"}
+# A jegyzék a sorszámot a fejlécben adja, pl. `Sorszám: 2026/BOLT/00001`.
+SERIAL_LABEL = "SORSZAM"
 # Táblázatos jegyzék áfakód nélkül: név, darab, egységár, érték; a szorzat dönti el a tagolást.
 TABLE_TOTAL_WORDS = ("OSSZ", "OSSZ.")
 # A cikkszám a vonalkód száma (EAN), a tétel fölött áll; a termékszabály erre is illeszkedhet.
@@ -35,6 +39,8 @@ TARE_LINE = re.compile(r"^\d+[,.]\d+\s*KG\s*-\s*\d+[,.]\d+\s*KG\b", re.IGNORECAS
 BARE_AMOUNT = re.compile(rf"^(?P<value>{AMOUNT})(?:\s*FT)?$", re.IGNORECASE)
 TRAILING_AMOUNT = re.compile(rf"^(?P<name>.*?\S)\s+(?P<value>{AMOUNT})$")
 LABELLED_LINE = re.compile(r"^(?P<label>[^:]+):\s*(?P<rest>.*)$")
+# Kettőspont nélkül is jöhet a fizetés: `KÉSZPÉNZ 4 900 Ft`.
+UNLABELLED_LINE = re.compile(r"^(?P<label>[^\d:]*[^\W\d_])\s+(?P<rest>-?\d.*)$")
 LABEL_AMOUNT = re.compile(rf"^(?P<value>{AMOUNT})(?:\s*(?:FT|HUF))?\b", re.IGNORECASE)
 DATE_TEXT = re.compile(r"\b(20\d{2})[.\-/ ]\s?(\d{2})[.\-/ ]\s?(\d{2})\b")
 TIME_TEXT = re.compile(r"\b(?:[01]\d|2[0-3]):[0-5]\d\b")
@@ -50,6 +56,11 @@ PAYMENT_LABELS = {
     "SZEP KARTYA": "szep",
     "UTALVANY": "voucher",
     "GONGYOLEG": DEPOSIT_VOUCHER,
+    # Egyes boltok a kártya márkáját írják, a REpont a visszaváltó automata utalványa.
+    "VISA": "card",
+    "MASTERCARD": "card",
+    "MAESTRO": "card",
+    "REPONT": DEPOSIT_VOUCHER,
 }
 CHANGE_LABEL = "VISSZAJARO"
 ROUNDING_LABEL = "KEREKITES"
@@ -332,7 +343,7 @@ def parse_footer(lines: list[str]) -> dict:
     vouchers: list[int] = []
     change = rounding = None
     for index, line in enumerate(lines):
-        match = LABELLED_LINE.match(line)
+        match = LABELLED_LINE.match(line) or UNLABELLED_LINE.match(line)
         if match is None:
             continue
         label = known_label(match["label"], [*PAYMENT_LABELS, CHANGE_LABEL, ROUNDING_LABEL])
@@ -438,13 +449,28 @@ def parse(text: str) -> dict:
             items, unmatched = shifted, shifted_unmatched
 
     tax_number = TAX_NUMBER.search(text)
+    header = lines[: min(end, first_item)]
+    store_name = next(
+        (line for line in header if match_key(line).strip("- ") not in DOCUMENT_TITLES),
+        None,
+    )
     footer = parse_footer(footer_lines)
+    if footer.get("receipt_number") is None:
+        labelled = (LABELLED_LINE.match(line) for line in lines[:end])
+        footer["receipt_number"] = next(
+            (
+                found["rest"].strip()
+                for found in labelled
+                if found and match_key(found["label"]) == SERIAL_LABEL and found["rest"].strip()
+            ),
+            None,
+        )
     if footer.get("purchased_on") is None:
         header = parse_footer(lines[:end])
         footer["purchased_on"] = header.get("purchased_on")
         footer["purchased_at"] = footer.get("purchased_at") or header.get("purchased_at")
     return {
-        "store_name": lines[0] if first_item > 0 and match_key(lines[0]) != "NYUGTA" else None,
+        "store_name": store_name if header else None,
         "tax_number": tax_number.group(0) if tax_number else None,
         "total": total,
         "items": items,

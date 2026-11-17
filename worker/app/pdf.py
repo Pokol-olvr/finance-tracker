@@ -52,13 +52,13 @@ def is_readable(text: str) -> bool:
     )
 
 
-def render_pages(content: bytes) -> list[bytes]:
+def render_pages(content: bytes, max_side: int = MAX_SIDE) -> list[bytes]:
     """A lapok a modell bemenetéhez illő méretben; a kis oldalméret így nem ront a felbontáson."""
     with pdfium.PdfDocument(content) as document:
         images = []
         for index in range(min(len(document), MAX_SCANNED_PAGES)):
             page = document[index]
-            scale = MAX_SIDE / max(page.get_size())
+            scale = max_side / max(page.get_size())
             images.append(to_jpeg(page.render(scale=scale).to_pil()))
         return images
 
@@ -91,14 +91,23 @@ class ScannedPdf:
 
     def read(self, content: bytes, report: Callable[[str], None]) -> dict:
         try:
-            pages = render_pages(content)
+            pages = render_pages(content, self.model.max_side)
         except pdfium.PdfiumError as error:
             return {"error": f"A PDF nem olvasható: {error}"}
         results = [self.model.read_image(page, report) for page in pages]
+        # Lapok összege; a token/s a lapok átlaga, mert a lapok külön modellfutások.
+        speeds = [result["tokens_per_second"] for result in results if result.get("tokens_per_second")]
+        totals = {
+            key: round(sum(result.get(key) or 0 for result in results), 1)
+            for key in ("seconds", "load_seconds", "image_seconds", "text_seconds")
+        }
         return {
             "ocr_text": "\n".join(result["ocr_text"] for result in results),
             "done_reason": results[-1].get("done_reason") if results else None,
-            "seconds": round(sum(result.get("seconds", 0) for result in results), 1),
+            **totals,
+            "tokens": sum(result.get("tokens") or 0 for result in results),
+            "tokens_per_second": round(sum(speeds) / len(speeds), 1) if speeds else None,
+            "max_side": self.model.max_side,
         }
 
 
