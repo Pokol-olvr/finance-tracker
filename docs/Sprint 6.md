@@ -90,16 +90,20 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 
 **Részfeladatok**
 
-- [ ] A Pi-hole v6 webszervere (`webserver.port`) csak a helyi hálózati címen figyel, így a Tailscale-cím 80-as és 443-as portja a Caddyé 📅 2027-01-24
-- [ ] Az Unbound a `127.0.0.1:5335`-ön marad, a Pi-hole továbbra is ezt kérdezi 📅 2027-01-24
-- [ ] Belső DNS-rekordok a Pi-hole-ban: a domain, az `auth.` és a `vault.` aldomain a Pi Tailscale-címére 📅 2027-01-24
+- [x] A Pi-hole v6 webszervere (`webserver.port`) csak a helyi hálózati címen figyel, így a Tailscale-cím 80-as és 443-as portja a Caddyé 📅 2027-01-24
+- [x] Az Unbound a `127.0.0.1:5335`-ön marad, a Pi-hole továbbra is ezt kérdezi 📅 2027-01-24
+- [x] Belső DNS-rekordok a Pi-hole-ban: a pénzügyi név, az `auth.` aldomainje és a Vaultwarden neve a Pi Tailscale-címére 📅 2027-01-24
 - [ ] Tailscale split DNS: a domain a Pi Tailscale-címén lévő Pi-hole-hoz megy, minden más a telefon saját DNS-éhez 📅 2027-01-24
-- [ ] A Cloudflare-ben nincs rekord a belső címre; a Cloudflare csak a tanúsítvány DNS-ellenőrzéséhez kell 📅 2027-01-24
+- [x] A Cloudflare-ben nincs rekord a belső címre; a Cloudflare csak a tanúsítvány DNS-ellenőrzéséhez kell 📅 2027-01-24
+- [x] A Pi maga nem a Tailscale DNS-ét használja (`--accept-dns=false`), így a `tailscaled` kiesése nem viszi el a névfeloldását 📅 2027-01-24
+- [ ] A `127.0.0.1` kifejezett névszerverként a NetworkManagerben, egyeztetett időpontban, mert az újracsatlakozás rövid kiesés 📅 2027-01-24
 
 **Elfogadási feltételek**
 
 - [ ] A Pi-hole felülete a helyi hálózatról a megszokott címen elérhető, a Caddy pedig a Tailscale-címen fut
+    - A felület 2026-11-17-én a helyi címen elérhető; a Caddy a FIN-302-vel indul.
 - [ ] A domain a tailneten a Pi Tailscale-címére oldódik fel, a nyilvános DNS-ben nincs rá rekord
+    - 2026-11-17: a Pi-hole a három nevet a Pi Tailscale-címére oldja fel, a nyilvános DNS-ben nincs rekord; a tailneten a split DNS után ellenőrizendő.
 - [ ] Leállított Pi-hole mellett a telefonok a tailneten is elérik az internetet
 
 ## FIN-302 Caddy HTTPS a saját domainen · 2 SP
