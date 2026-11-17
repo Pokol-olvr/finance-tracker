@@ -52,6 +52,34 @@
     .card dt { color: var(--muted); }
     .card dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
     .card a { display: inline-block; margin-top: 4px; font-size: 14px; }
+    .card.wide { grid-column: 1 / -1; }
+    .group { margin-top: 12px; }
+    .group h3 { display: flex; flex-wrap: wrap; gap: 4px 8px; margin: 0 0 6px; font-size: 14px; }
+    .group h3 span { color: var(--muted); font-weight: 400; }
+    .meter {
+      display: grid;
+      grid-template-columns: 110px 1fr 140px;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+    .meter + .meter { margin-top: 4px; }
+    .meter .value { text-align: right; color: var(--muted); }
+    .bar { height: 10px; background: var(--line); border-radius: 5px; overflow: hidden; }
+    .bar > span { display: block; height: 100%; background: var(--level); }
+    .low { --level: var(--accent); }
+    .mid { --level: var(--waiting); }
+    .high { --level: var(--error); }
+    .cores { display: grid; grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); gap: 8px 10px; }
+    .core { font-size: 12px; text-align: center; }
+    .core .bar { height: 36px; display: flex; align-items: flex-end; border-radius: 4px; }
+    .core .bar > span { width: 100%; }
+    .core .percent { font-weight: 600; }
+    .core .name { color: var(--muted); }
+    @media (max-width: 520px) {
+      .meter { grid-template-columns: 80px 1fr; }
+      .meter .value { grid-column: 1 / -1; text-align: left; }
+    }
     .ok { --state: var(--accent); }
     .busy { --state: var(--busy); }
     .waiting { --state: var(--waiting); }
@@ -133,6 +161,57 @@
       return node;
     }
 
+    function level(percent) {
+      if (percent === null || percent === undefined) return "low";
+      return percent >= 85 ? "high" : percent >= 60 ? "mid" : "low";
+    }
+
+    function bar(percent, vertical) {
+      const outer = element("div", `bar ${level(percent)}`);
+      const inner = element("span");
+      const shown = Math.max(0, Math.min(100, percent ?? 0));
+      inner.style[vertical ? "height" : "width"] = `${shown}%`;
+      outer.append(inner);
+      outer.setAttribute("role", "meter");
+      outer.setAttribute("aria-valuemin", "0");
+      outer.setAttribute("aria-valuemax", "100");
+      outer.setAttribute("aria-valuenow", String(Math.round(shown)));
+      return outer;
+    }
+
+    function percentText(percent) {
+      return percent === null || percent === undefined ? "–" : `${Math.round(percent)}%`;
+    }
+
+    function renderGroup(group) {
+      const box = element("section", "group");
+      const title = element("h3", "", group.title);
+      if (group.summary) title.append(element("span", "", group.summary));
+      box.append(title);
+      if (group.cores) {
+        const grid = element("div", "cores");
+        for (const item of group.meters) {
+          const cell = element("div", "core");
+          cell.title = `${item.label}. szál: ${percentText(item.percent)}`;
+          cell.append(
+            bar(item.percent, true),
+            element("div", "percent", percentText(item.percent)),
+            element("div", "name", item.label),
+          );
+          grid.append(cell);
+        }
+        box.append(grid);
+        return box;
+      }
+      for (const item of group.meters) {
+        const row = element("div", "meter");
+        const value = item.detail ? `${percentText(item.percent)} · ${item.detail}` : percentText(item.percent);
+        row.append(element("span", "", item.label), bar(item.percent, false), element("span", "value", value));
+        box.append(row);
+      }
+      return box;
+    }
+
     function renderCard(card) {
       const box = element("article", `card ${card.state}`);
       box.append(element("h2", "", card.title));
@@ -145,6 +224,8 @@
         }
         box.append(list);
       }
+      if (card.wide) box.classList.add("wide");
+      for (const group of card.groups || []) box.append(renderGroup(group));
       if (card.link) {
         const link = element("a", "", card.link.label);
         link.href = card.link.url;

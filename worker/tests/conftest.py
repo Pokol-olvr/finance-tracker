@@ -150,6 +150,7 @@ class FakeInbox:
 
 class FakeReader:
     name = "teszt-modell"
+    max_side = 1400
 
     def __init__(self, payload: dict | None = None, error: Exception | None = None):
         self.payload = payload or {"ocr_text": SAMPLE_TEXT, "seconds": 80.0}

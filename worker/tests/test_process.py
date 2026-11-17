@@ -5,7 +5,15 @@ from pathlib import Path
 
 import httpx
 import pytest
-from app.main import HashMismatch, group_items, object_key, process, run_once
+from app.extract import PROMPT_VERSION
+from app.main import (
+    HashMismatch,
+    group_items,
+    object_key,
+    process,
+    reread_truncated,
+    run_once,
+)
 from app.storage import BUCKET
 from botocore.exceptions import EndpointConnectionError
 from conftest import (
@@ -21,6 +29,7 @@ from conftest import (
     no_report,
     scanned_pdf,
 )
+from psycopg.types.json import Jsonb
 
 
 def documents(conn, sha256):
@@ -59,7 +68,7 @@ def test_item_reaches_garage_and_bronze_then_closes(conn, storage):
     assert fields == ["person_a", "person_b", "shared", "2026-11-30", ["élelmiszer", "háztartás"]]
     assert hashlib.sha256(stored_bytes(storage, key)).hexdigest() == item["sha256"]
     assert extractions(conn, document_id) == [
-        ("teszt-modell", "teszt-valtozat", "2", {"ocr_text": SAMPLE_TEXT, "seconds": 80.0})
+        ("teszt-modell", "teszt-valtozat", PROMPT_VERSION, {"ocr_text": SAMPLE_TEXT, "seconds": 80.0})
     ]
     assert inbox.closed == [item["id"]]
     assert inbox.outcomes == [{"result": "ok", "seconds": 80.0, "items": 2}]
@@ -424,3 +433,42 @@ def test_object_key_falls_back_to_upload_month():
     }
 
     assert object_key(item) == "photo/2026/11/ab.png"
+
+
+def latest_extraction(conn, document_id):
+    return conn.execute(
+        "select prompt_version, payload from bronze.extraction where document_id = %s "
+        "order by created_at desc limit 1",
+        (document_id,),
+    ).fetchone()
+
+
+def test_truncated_reading_from_an_older_setting_is_read_again(conn, storage):
+    content = invented_receipt()
+    item = make_item(content)
+    process([item], conn, FakeInbox({item["id"]: content}), storage, FakeReader(), no_report)
+    document_id = documents(conn, item["sha256"])[0][0]
+    # A bronz csak hozzáfűzhető: a régi beállítású csonka olvasás új, későbbi sorként kerül be.
+    conn.execute(
+        "insert into bronze.extraction "
+        "(document_id, model_name, model_version, prompt_version, payload, created_at) "
+        "values (%s, 'teszt-modell', 'teszt-valtozat', 'regi', %s, clock_timestamp())",
+        (document_id, Jsonb({"ocr_text": "TESZT", "done_reason": "length"})),
+    )
+    reader = FakeReader({"ocr_text": SAMPLE_TEXT, "done_reason": "stop", "seconds": 3.0})
+
+    assert document_id in reread_truncated(conn, storage, reader)
+    prompt_version, payload = latest_extraction(conn, document_id)
+    assert (prompt_version, payload["ocr_text"]) == (PROMPT_VERSION, SAMPLE_TEXT)
+    assert document_id not in reread_truncated(conn, storage, reader)
+
+
+def test_truncated_reading_with_the_current_setting_is_not_repeated(conn, storage):
+    content = invented_receipt()
+    item = make_item(content)
+    cut = FakeReader({"ocr_text": "TESZT", "done_reason": "length", "seconds": 3.0})
+    process([item], conn, FakeInbox({item["id"]: content}), storage, cut, no_report)
+    document_id = documents(conn, item["sha256"])[0][0]
+
+    assert document_id not in reread_truncated(conn, storage, FakeReader())
+

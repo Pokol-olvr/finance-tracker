@@ -1,0 +1,248 @@
+---
+projekt: Pénzügyi nyomkövető
+sprint: S6
+kezdes: 2027-01-11
+vege: 2027-01-24
+story_pont: 24
+tags: [penzugy, sprint]
+---
+
+# Sprint 6
+
+Vissza: [[Fejlesztési terv]]
+
+## Sprint cél
+
+**A webapp a Pi-re költözik, telefonról is elérhető, de csak a Tailscale-hálózatról, HTTPS-sel és kétfaktoros belépéssel. A Pi megerősítve, a Pi-hole és az Unbound mellett fut, és a Vaultwarden is rákerül. A továbbított e-mailes számla magától a bronzba kerül. A sprint végén a `finance` adatbázis üresen újraépül, és indul az éles használat.** A sprint 2027-01-11 és 2027-01-24 között tart, 24 story ponttal.
+
+| Kulcs | Jegy | SP | Függ tőle |
+| --- | --- | --- | --- |
+| FIN-313 | A Pi megerősítése | 3 | – |
+| FIN-301 | Tailscale a Pi-n, a telefonokon és az otthoni gépen | 2 | – |
+| FIN-315 | Együttélés a Pi-hole-lal és az Unbounddal | 2 | FIN-301 |
+| FIN-302 | Caddy HTTPS a saját domainen | 2 | FIN-301, FIN-315 |
+| FIN-303 | Authelia TOTP 2FA két felhasználóval | 3 | FIN-302 |
+| FIN-308 | Webapp és postaláda költözése a Pi-re | 3 | FIN-301, FIN-302, FIN-303 |
+| FIN-314 | Vaultwarden a Pi-n | 3 | FIN-302, FIN-313 |
+| FIN-307 | E-mailes számlafogadás | 5 | FIN-312 |
+| FIN-309 | A `finance` adatbázis üres újraépítése | 1 | FIN-308, FIN-307 |
+
+Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314, FIN-307, FIN-309. A megerősítés az első, mert a Pi már DNS-szerverként szolgálja ki a háztartást, és minden új szolgáltatás erre épül. A hálózat, a portok, a tanúsítvány és a belépés egymásra épül, a FIN-308 csak ezek után költözteti a webappot. A Vaultwarden a webapp után jön, mert ugyanazt a Caddyt és tanúsítványt használja. A FIN-307 a workerben fut, ezért a Pi-től függetlenül is haladhat, ha a Pi-s rész elakad. A FIN-309 az utolsó, mert utána már csak valódi adat kerül a rendszerbe.
+
+**Előfeltétel:** a `v0.5.0` kiadva és az otthoni stackre telepítve. A Sprint 4 nyitott, saját számlás pontjai (FIN-412, FIN-312) a FIN-307 első valódi számlájával lezárhatók.
+
+**Változás a tervhez képest:** az otthoni stack 2026-11-17-től a Windowsos gépen fut, WSL2-ben, RTX 5070 GPU-val; a Fedorás laptopon a projekten már nem dolgozunk. A WSL nyitott ablak nélkül leáll, ezért a FIN-301 része a WSL indítása a Windows indulásakor és a tükrözött hálózat.
+
+**A Pi jelenlegi szerepe:** natív Pi-hole v6 és Unbound fut rajta, ez a háztartás DNS-szervere; a DHCP-t a router adja, a Pi-hole NTP-szervert is ad. Debian 13-as Raspberry Pi OS fut rajta, a Docker és a Tailscale már fent van, mellettük a Beszel monitorozás. Ami ezt megszakítja, az az internetet is elveszi, ezért minden lépésnek van visszaútja, és a Pi-hole portjai nem változhatnak meg a helyi hálózaton.
+
+**Port forward nincs és nem is lesz:** a Tailscale NAT mögül is kapcsolódik, minden kapcsolatot az otthoni gép nyit, a tanúsítvány DNS-alapú.
+
+**Adat:** a Pi és az e-mail beállításai, a domain, a címek és a titkok csak a `.env`-ekbe kerülnek, a repóba nem. A tesztekhez kitalált levelek és címek kellenek.
+
+## FIN-301 Tailscale a Pi-n, a telefonokon és az otthoni gépen · 2 SP
+
+**Story:** felhasználóként a telefonomról akarom elérni a webappot, hogy ne kelljen a fotót a laptopra áttenni, de kívülről senki ne lássa.
+
+**Részfeladatok**
+
+- [ ] Tailscale a Pi-n, a két telefonon és az otthoni gépen, egy tailnetben 📅 2027-01-24
+    - A Pi-n 2026-11-17-én már fut; a feldolgozó gépen telepítve van, de 10 napja nem fut.
+- [ ] ACL: a telefonok csak a Pi webappját érik el, az otthoni gép a Pi-t és a saját szolgáltatásait 📅 2027-01-24
+- [ ] WSL-es otthoni gépnél: a Tailscale a Windows-oldalon fut; a WSL tükrözött hálózattal (`networkingMode=mirrored`) a Tailscale-címen is látszik, a riportok a `BIND_ADDRESS`-szel 📅 2027-01-24
+- [ ] A WSL a Windows indulásakor elindul, és ablak nélkül is fut, így a worker és a timerek bejelentkezés nélkül is dolgoznak 📅 2027-01-24
+- [ ] A Pi-n nincs nyitott bejövő port a routeren 📅 2027-01-24
+
+**Elfogadási feltételek**
+
+- [ ] A webapp csak a Tailscale-hálózatról érhető el
+- [ ] Mobilnetről, Tailscale nélkül a Pi címe nem válaszol
+- [ ] Az otthoni gép a Pi-t a Tailscale-címén éri el
+
+## FIN-313 A Pi megerősítése · 3 SP
+
+**Story:** a Pi gazdájaként a lehető legkevesebb joggal akarok belépni a mindennapokban, és ki akarom zárni a próbálkozókat, hogy a DNS-szerver és a postaláda ne legyen könnyű célpont.
+
+**Részfeladatok**
+
+- [x] SSH csak kulccsal: `PasswordAuthentication no`, `PermitRootLogin no`, `AllowUsers` a két felhasználóval 📅 2027-01-24
+- [x] Korlátozott felhasználó: SSH-val beléphet, de nincs `sudo`, nincs a `docker` csoportban (a `docker` csoport rootjogot ad), és a beállítófájlokat nem írhatja 📅 2027-01-24
+- [x] A rendszergazda-felhasználó külön, kulccsal; a `sudo` jelszót kér 📅 2027-01-24
+- [x] fail2ban: `sshd` jail, 5 hibás próbálkozás 10 percen belül, 1 órás kitiltás 📅 2027-01-24
+- [ ] fail2ban jail a Vaultwarden és az Authelia naplójára (a FIN-314-gyel és a FIN-303-mal) 📅 2027-01-24
+- [x] Tűzfal (`ufw`): 53 a helyi hálózatról és a tailnetről, 22 a helyi hálózatról és a tailnetről, 80 és 443 a tailnetről és a Pi-hole felületéhez a helyi hálózatról; NTP, mDNS és a Beszel a helyi hálózatról; minden más tiltva. Konzolos visszaút helyett 5 perces önvisszavonó időzítő 📅 2027-01-24
+- [x] `unattended-upgrades` a biztonsági frissítésekre, újraindítás nélkül 📅 2027-01-24
+- [x] Script a beállításhoz, a README-ben a visszavonás lépéseivel (`scripts/pi/`) 📅 2027-01-24
+
+**Elfogadási feltételek**
+
+- [x] Jelszóval nem lehet SSH-val belépni, roottal sem
+- [x] A korlátozott felhasználó belép, de `sudo` és `docker` parancsa elutasítva
+- [ ] Öt hibás SSH-próbálkozás után a cím ki van tiltva, és a `fail2ban-client status sshd` mutatja
+    - A feldolgozó gép kivétel, a próba a telefonról vagy egy másik gépről kell.
+    - 2026-11-17: a laptop kulcs nélküli próbálkozásait a fail2ban nem számolta, mert a Debian 13 az `sshd-session` folyamatban naplóz. Az `aggressive` mód és a szélesebb `journalmatch` után a mai naplóból 28 sort talál; a tiltás próbája még hátravan.
+- [x] A tűzfal bekapcsolása után a helyi hálózat DNS-e és az internet tovább működik
+
+**Mérés 2026-11-17:** a tűzfal után a helyi hálózatról működött a DNS, az SSH mindkét felhasználóval, a Pi-hole felülete és a Beszel, a Tailscale közvetlen kapcsolatokkal ment; a tiltott 45876-os port nem válaszolt.
+
+## FIN-315 Együttélés a Pi-hole-lal és az Unbounddal · 2 SP
+
+**Story:** a háztartás internetéért felelősként azt akarom, hogy az új szolgáltatások ne zavarják a Pi-hole-t, és a saját domain csak a tailnetről legyen feloldható.
+
+**Részfeladatok**
+
+- [x] A Pi-hole v6 webszervere (`webserver.port`) csak a helyi hálózati címen figyel, így a Tailscale-cím 80-as és 443-as portja a Caddyé 📅 2027-01-24
+- [x] Az Unbound a `127.0.0.1:5335`-ön marad, a Pi-hole továbbra is ezt kérdezi 📅 2027-01-24
+- [x] Belső DNS-rekordok a Pi-hole-ban: a pénzügyi név, az `auth.` aldomainje és a Vaultwarden neve a Pi Tailscale-címére 📅 2027-01-24
+- [ ] Tailscale split DNS: a domain a Pi Tailscale-címén lévő Pi-hole-hoz megy, minden más a telefon saját DNS-éhez 📅 2027-01-24
+- [x] A Cloudflare-ben nincs rekord a belső címre; a Cloudflare csak a tanúsítvány DNS-ellenőrzéséhez kell 📅 2027-01-24
+- [x] A Pi maga nem a Tailscale DNS-ét használja (`--accept-dns=false`), így a `tailscaled` kiesése nem viszi el a névfeloldását 📅 2027-01-24
+- [ ] A `127.0.0.1` kifejezett névszerverként a NetworkManagerben, egyeztetett időpontban, mert az újracsatlakozás rövid kiesés 📅 2027-01-24
+
+**Elfogadási feltételek**
+
+- [ ] A Pi-hole felülete a helyi hálózatról a megszokott címen elérhető, a Caddy pedig a Tailscale-címen fut
+    - A felület 2026-11-17-én a helyi címen elérhető; a Caddy a FIN-302-vel indul.
+- [ ] A domain a tailneten a Pi Tailscale-címére oldódik fel, a nyilvános DNS-ben nincs rá rekord
+    - 2026-11-17: a Pi-hole a három nevet a Pi Tailscale-címére oldja fel, a nyilvános DNS-ben nincs rekord; a tailneten a split DNS után ellenőrizendő.
+- [ ] Leállított Pi-hole mellett a telefonok a tailneten is elérik az internetet
+
+## FIN-302 Caddy HTTPS a saját domainen · 2 SP
+
+**Story:** felhasználóként érvényes HTTPS-t akarok, hogy a böngésző ne figyelmeztessen, és a PWA a kamerát is elérje.
+
+**Részfeladatok**
+
+- [x] Caddy a `pi/` Compose-ban, a DNS-szolgáltató pluginjával 📅 2027-01-24
+- [x] DNS-alapú ACME-ellenőrzés, mert az oldal kívülről nem látszik 📅 2027-01-24
+- [ ] Belső DNS-rekord a Pi Tailscale-címére a Pi-hole-ban (FIN-315) 📅 2027-01-24
+- [x] A DNS API-kulcs csak a Pi `.env`-jében, a lehető legszűkebb joggal 📅 2027-01-24
+
+**Elfogadási feltételek**
+
+- [ ] Érvényes tanúsítvány, a böngésző nem figyelmeztet
+- [ ] A tanúsítvány megújul emberi beavatkozás nélkül (a Caddy naplója mutatja)
+- [ ] HTTP-ről HTTPS-re irányít
+
+## FIN-303 Authelia TOTP 2FA két felhasználóval · 3 SP
+
+**Story:** felhasználóként második faktort akarok a belépéshez, hogy egy elveszett, de a tailnetbe belépett telefon se legyen elég.
+
+**Részfeladatok**
+
+- [x] Authelia a `pi/` Compose-ban, fájlalapú felhasználókkal, a Caddy `forward_auth` mögött 📅 2027-01-24
+- [ ] Két felhasználó a `HOUSEHOLD_MEMBERS` kódjaival, TOTP-vel 📅 2027-01-24
+    - A `scripts/authelia-user.sh` kész, a felhasználókat a Pi-n kell felvenni.
+- [x] A worker API (`/inbox/…`) Authelia nélkül, csak a `WORKER_API_TOKEN`-nel érhető el 📅 2027-01-24
+- [x] A webapp a belépett felhasználót a fejlécből veszi, így a feltöltő nem választható szabadon 📅 2027-01-24
+- [x] Munkamenet-idő és kizárás túl sok hibás próbálkozás után 📅 2027-01-24
+
+**Elfogadási feltételek**
+
+- [ ] Második faktor nélkül nincs hozzáférés
+- [ ] A worker token nélkül nem éri el az API-t, tokennel 2FA nélkül is
+- [ ] A feltöltő mindig a belépett felhasználó
+
+## FIN-308 Webapp és postaláda költözése a Pi-re · 3 SP
+
+**Story:** felhasználóként a Pi-re akarom költöztetni a webappot, hogy a feltöltés akkor is működjön, ha az otthoni gép ki van kapcsolva.
+
+**Részfeladatok**
+
+- [x] `pi/docker-compose.yml`: webapp, Caddy, Authelia; az adat a Pi `DATA_DIR`-jében 📅 2027-01-24
+- [ ] A webapp ARM-képe a Pi-n épül 📅 2027-01-24
+- [x] Az otthoni worker `INBOX_URL`-je a Pi Tailscale-címére mutat, minden kapcsolatot az otthoni oldal nyit ([[0006-blokkbeolvasas-a-pi-elott|ADR 0006]]) 📅 2027-01-24
+- [ ] Az otthoni Compose-ból kikerül a webapp; az állapot képernyő a Pi-n marad, a jelentést az otthoni gép küldi ([[0008-allapot-kepernyo-a-webappban|ADR 0008]]) 📅 2027-01-24
+- [ ] A Pi postaládája a mentésbe nem kerül, csak átmeneti tároló 📅 2027-01-24
+- [x] A README telepítési része a Pi-vel 📅 2027-01-24
+- [x] A webapp adatbázis nélkül is fut; a kézi bejegyzés API-ja a Pi-n 503, amíg a FIN-606 a kimenő sorra nem viszi 📅 2027-01-24
+
+**Elfogadási feltételek**
+
+- [ ] Telefonról feltölthető, a worker a Pi postaládájából húz
+- [ ] Kikapcsolt otthoni gépnél a feltöltés a Pi-n vár, bekapcsolás után feldolgozódik
+- [ ] Az Ellenőrzés, a Szabályok és a Betétdíj a Pi-n is működik
+
+## FIN-314 Vaultwarden a Pi-n · 3 SP
+
+**Story:** a háztartás tagjaként a jelszavainkat a saját Pi-nken akarom tartani, a tailnetről elérhetően, hogy ne kelljen felhős jelszókezelő.
+
+**Részfeladatok**
+
+- [ ] Vaultwarden a `pi/` Compose-ban, a `vault.` aldomainen a Caddy mögött; az Authelia nem áll elé, mert a Bitwarden-kliensek saját belépést használnak 📅 2027-01-24
+- [ ] `SIGNUPS_ALLOWED=false`, a két fiók meghívóval; az admin felület argon2-es tokennel, alapból kikapcsolva 📅 2027-01-24
+- [ ] Kötelező kétfaktoros belépés mindkét fióknak 📅 2027-01-24
+- [ ] Napi mentés: az otthoni gép húzza le a Vaultwarden adatát, és a restic-tárolóba teszi; a kapcsolatot itt is az otthoni oldal nyitja 📅 2027-01-24
+- [ ] Visszaállítási próba egy eldobható Vaultwardenbe 📅 2027-01-24
+- [ ] fail2ban jail a Vaultwarden hibás belépéseire (FIN-313) 📅 2027-01-24
+
+**Elfogadási feltételek**
+
+- [ ] A Bitwarden-kliens a telefonról és a gépről, a tailneten át szinkronizál
+- [ ] Idegen nem regisztrálhat, és az admin felület token nélkül nem nyílik meg
+- [ ] Egy napi mentésből a széf visszaállítható
+- [ ] A Vaultwarden adata a `finance` mentésétől külön pillanatképben van, és a FIN-309 nem törli
+
+## FIN-307 E-mailes számlafogadás · 5 SP
+
+**Story:** felhasználóként a webshopok számláit egy címre akarom továbbítani, hogy ne kelljen letölteni és feltölteni őket.
+
+**Részfeladatok**
+
+- [ ] Külön postafiók a levelezőszolgáltatónál, pl. `szamla@` a saját domainen 📅 2027-01-24
+- [ ] Worker: IMAP-lehúzás titkosított kapcsolaton, a feldolgozott levél a „Feldolgozva” mappába kerül 📅 2027-01-24
+- [ ] Csak a két saját feladótól, ellenőrzött SPF- és DKIM-eredménnyel 📅 2027-01-24
+- [ ] Címkék a tárgyból (`#élelmiszer #háztartás`), a vásárló a továbbító 📅 2027-01-24
+- [ ] A nyers `.eml` és a mellékletek a Garage-ba, a bronzban `email` forrástípussal (migráció) 📅 2027-01-24
+- [ ] A PDF-melléklet ugyanazon az úton megy, mint a webes feltöltés ([[0010-pdf-olvasas-es-szamlafeldolgozo|ADR 0010]]) 📅 2027-01-24
+- [ ] Kitalált levelekkel tesztek: idegen feladó, hamis DKIM, melléklet nélküli levél 📅 2027-01-24
+
+**Elfogadási feltételek**
+
+- [ ] Továbbított PDF-számla bekerül a bronzba, és megjelenik az Ellenőrzésen
+- [ ] Idegen feladó levele nem kerül be, és a postafiókban marad
+- [ ] Ugyanaz a levél kétszer nem kerül be
+- [ ] A postafiók jelszava csak az otthoni `.env`-ben van
+
+## FIN-309 A `finance` adatbázis üres újraépítése · 1 SP
+
+**Story:** adatgazdaként üres adatbázissal akarom indítani az éles használatot, hogy a mock adat és a próbablokkok ne torzítsák a riportokat.
+
+**Részfeladatok**
+
+- [ ] Script: a stack leállítása, a Postgres, a Garage és a postaláda adatának törlése, újraindítás üresen; a modell megmarad 📅 2027-01-24
+- [ ] A restic tároló újrakezdése, mert a régi pillanatképekben próbablokk is van 📅 2027-01-24
+- [ ] Az új `RESTIC_PASSWORD` a jelszókezelőbe 📅 2027-01-24
+- [ ] Az első valódi mentés és a `scripts/restore-test.sh` 📅 2027-01-24
+
+**Elfogadási feltételek**
+
+- [ ] A bronz és a Garage `raw` bucket üres
+- [ ] A mock adat és a próbablokkok eltűntek a restic-pillanatképekből is
+- [ ] A riportoldalak üres adattal is működnek
+- [ ] Az első éles mentés visszaállítási próbája sikeres
+
+## Események és nyitott kérdések
+
+- [ ] Sprinttervezés, kb. 30 perc 📅 2027-01-11
+- [ ] Heti áttekintés, kb. 15 perc 📅 2027-01-18
+- [ ] Demó és retró, kb. 30 perc 📅 2027-01-24
+- [ ] Kiadás: `v0.6.0` a [[Release folyamat]] szerint 📅 2027-01-24
+- [ ] A Pi-hole frissítése (`pihole -up`): 2026-11-17-én a Core, a Web és az FTL is egy verzióval le van maradva; rövid DNS-kiesés, ezért egyeztetett időpontban 📅 2027-01-24
+
+**A tervezésen eldöntendő**
+
+- [ ] A levelezőszolgáltató és a `szamla@` postafiók; támogatja-e az IMAP-ot és az alkalmazásjelszót 📅 2027-01-11
+
+**Eldöntve a tervezés előtt**
+
+- [x] Az otthoni stack, a feldolgozó, a Windowsos gépen fut WSL2-ben, GPU-val (2026-11-17).
+- [x] A postaláda egy Raspberry Pi 4, Raspberry Pi OS 64 bittel; a webapp képe arm64-re épül.
+- [x] A HTTPS a saját domainen, Cloudflare DNS-sel; a Caddy a Cloudflare-pluginnal, csak DNS-szerkesztési joggal rendelkező tokennel kéri a tanúsítványt.
+- [x] A Pi-n natív Pi-hole v6 és Unbound fut, ez a háztartás DNS-e; a domain belső rekordjai ide kerülnek, a tailneten split DNS-sel.
+- [x] A Vaultwarden is a Pi-re kerül, és a Pi megerősítése (korlátozott felhasználó, fail2ban) ebbe a sprintbe tartozik.
+- [x] Tailscale marad, nem Headscale, mert így nincs kívülről elérhető vezérlőszerver ([[0003-tailscale-a-wireguard-helyett|ADR 0003]]).
+
+- [x] Minden kapcsolatot az otthoni oldal nyit, a Pi-re és az otthoni hálózatba nem kell bejövő port ([[0006-blokkbeolvasas-a-pi-elott|ADR 0006]]).
+- [x] A Tailscale marad a WireGuard helyett ([[0003-tailscale-a-wireguard-helyett|ADR 0003]]).
+- [x] A riportfelület az otthoni stackben marad, a Pi-ről nem kell elérnie a goldot ([[0014-streamlit-a-metabase-helyett|ADR 0014]]).
+- [x] Az e-mailes számla PDF-je ugyanazon a feldolgozón megy át, mint a feltöltött ([[0010-pdf-olvasas-es-szamlafeldolgozo|ADR 0010]]).

@@ -21,7 +21,13 @@ SUFFIXES = {".jpg", ".jpeg", ".png", ".heic", ".webp", ".pdf"}
 def main() -> int:
     source, target = Path(sys.argv[1]), Path(sys.argv[2])
     settings = get_settings()
-    reader = ReceiptReader(settings.ollama_url, settings.ollama_model, settings.ollama_num_thread)
+    reader = ReceiptReader(
+        settings.ollama_url,
+        settings.ollama_model,
+        settings.ollama_num_thread,
+        settings.ollama_keep_alive,
+        settings.ollama_max_side,
+    )
     files = sorted(path for path in source.iterdir() if path.suffix.lower() in SUFFIXES)
 
     counts: Counter[str] = Counter()

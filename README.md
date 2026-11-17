@@ -7,6 +7,7 @@ A jelenlegi állapot az otthoni stack: Postgres a bronz, silver és gold sémák
 ## Előfeltételek
 
 - Rootless Podman, a `scripts/setup-podman.sh` egyszeri beállításával (Fedora); a CI Dockert használ, az is működik
+- Windowson WSL2-es Ubuntu Docker Engine-nel, a `scripts/setup-wsl.sh` egyszeri beállításával (lásd [Windows és WSL](#windows-és-wsl))
 - `openssl`, `curl`, `jq`
 - 5 GB szabad memória a kiolvasás idejére
 - 3 GB szabad lemez a modellnek
@@ -25,11 +26,71 @@ A riportok a `http://127.0.0.1:8501` címen érhetők el. A feltöltés, az Elle
 
 A `scripts/init-env.sh` által generált `RESTIC_PASSWORD` értékét mentsd el a jelszókezelőbe, nélküle a mentés használhatatlan.
 
+### Windows és WSL
+
+Windowson a stack a WSL2-es Ubuntuban fut, Docker Engine-nel. A repót a WSL saját fájlrendszerébe kell klónozni, nem a `C:` meghajtóra: ott a Git CRLF sorvégekkel bontja ki a scripteket, és a bind mountok lassúak. A szerkesztéshez a VS Code WSL-bővítménye vagy a `\\wsl$` út használható.
+
+```sh
+git clone <repo-url> ~/repos/finance-tracker && cd ~/repos/finance-tracker
+scripts/setup-wsl.sh
+newgrp docker
+scripts/init-env.sh
+scripts/ollama-pull.sh
+docker compose -f home/docker-compose.yml up -d --build
+scripts/dbt.sh
+```
+
+A `scripts/setup-wsl.sh` systemd-t vár, ezt a `/etc/wsl.conf` `[boot]` részében a `systemd=true` kapcsolja be. A portok a WSL-ből a Windows `127.0.0.1` címére is kijönnek, így a böngésző a fenti címeken éri el őket. A timerek csak akkor futnak, ha a WSL fut: nyitott WSL-ablak nélkül a Windows egy idő után leállítja.
+
+A Docker konténerei rootként futnak, ezért a `home/data` törléséhez `sudo rm -rf home/data` kell a `podman unshare` helyett.
+
+NVIDIA GPU-val a kiolvasás a GPU-n fut. A `scripts/setup-wsl-gpu.sh` telepíti az NVIDIA container toolkitet, a `home/.env`-ben pedig a `COMPOSE_FILE=docker-compose.yml:docker-compose.gpu.yml` kapcsolja be. Ilyenkor a modell 10 percig betöltve marad (`OLLAMA_KEEP_ALIVE`), mert a blokkonkénti újratöltés CPU-n tovább tart, mint maga a kiolvasás. A kép hosszabb oldala 2000 pixel (`OLLAMA_MAX_SIDE`, CPU-n 1400), mert a saját blokkokon a számjegyhibát ez kijavította. A modell egy CPU-szálat kap (`OLLAMA_NUM_THREAD`), mert több szál a GPU-ra várva is pörög: 17 blokkon 1, 2, 4 és 10 szállal is 36–40 másodperc volt a modellidő, a CPU-használat viszont 97% és 536% között változott. Egy RTX 5070-en 17 blokk 94 másodperc alatt olvasódott ki újratöltéssel.
+
+### Postaláda a Pi-n
+
+A webapp a Raspberry Pi 4-en fut, Caddy és Authelia mögött, csak a Tailscale-hálózatról elérhetően. A feldolgozó az otthoni gép marad: minden kapcsolatot ez nyit a Pi felé. A Pi-n nincs adatbázis, a kézi bejegyzés API-ja (`/entries`) ott 503-at ad, amíg a FIN-606 a kimenő soron át nem viszi.
+
+1. **A Pi-n** (64 bites Raspberry Pi OS): a repó klónozása, majd a Docker és a Tailscale telepítése a gyártók saját tárolójából, ha még nincs fent. A script a végén kiírja a Pi Tailscale-címét.
+   ```sh
+   scripts/setup-pi.sh
+   ```
+2. **DNS:** a `scripts/pi/pihole-tailnet.sh` a Pi-hole webszerverét a helyi címre szűkíti, hogy a Tailscale-cím 80-as és 443-as portja a Caddyé legyen, a `FINANCE_DOMAIN`, az `auth.` aldomain és a Vaultwarden nevét helyi rekordként a Pi Tailscale-címére irányítja, és a Pi-t leválasztja a Tailscale DNS-éről. A Tailscale admin felületén a domainre split DNS kell, a Pi Tailscale-címével. A Cloudflare-ben nincs rekord, ott csak egy API-token kell ehhez a zónához, `Zone.DNS` szerkesztési joggal, a tanúsítványhoz.
+3. **Beállítások és felhasználók** a Pi-n; a felhasználónevek a `HOUSEHOLD_MEMBERS` kódjai, a jelszót az Authelia kéri be:
+   ```sh
+   scripts/init-pi-env.sh
+   scripts/authelia-user.sh person_a
+   scripts/authelia-user.sh person_b
+   docker compose -f pi/docker-compose.yml up -d --build
+   ```
+4. **Első belépés:** a böngésző a TOTP beállítását kéri; a megerősítő kód a `pi/data/authelia/notification.txt` fájlba kerül, mert levél nincs.
+5. **Az otthoni gépen** a `home/.env`-ben az `INBOX_URL` és a `STATUS_URL` a `https://` + `FINANCE_DOMAIN` cím, a `BIND_ADDRESS` az otthoni gép Tailscale-címe, majd `docker compose -f home/docker-compose.yml up -d`.
+6. **Windowson** a WSL-nek ablak nélkül is futnia kell, és a portjainak a Tailscale-címen is látszaniuk kell; a script egy bejelentkezéskor induló feladatot és tükrözött hálózatot állít be, utána `wsl --shutdown`:
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File scripts\windows\wsl-autostart.ps1
+   ```
+7. **Telefonokon** a Tailscale alkalmazás, majd a `FINANCE_DOMAIN` megnyitása és hozzáadása a kezdőképernyőhöz.
+
+#### A Pi megerősítése
+
+A Pi a háztartás DNS-szervere is (natív Pi-hole v6 és Unbound), ezért minden lépésnek van visszaútja. A routeren nincs és nem is kell port forward: a Tailscale NAT mögül is kapcsolódik, az otthoni gép nyit minden kapcsolatot, a tanúsítvány DNS-alapú. A scriptek a `scripts/pi/` mappában vannak, sorrendben, rendszergazdaként futtatva:
+
+| Lépés | Mit csinál | Visszavonás |
+| --- | --- | --- |
+| `harden-1-fail2ban.sh <feldolgozó gép IP>` | fail2ban az SSH-ra: 10 percen belül 5 hiba után 1 óra tiltás; kivétel csak a Pi és a feldolgozó gép. Automatikus biztonsági frissítés, újraindítás nélkül | a script elején |
+| `harden-2-limited-user.sh <felhasználó> <rendszergazda> '<kulcs>'` | Korlátozott felhasználó saját kulccsal: belép és olvas, de nincs `sudo`, nincs `docker` csoport, nincs jelszó; a rendszergazda mappáját nem látja | `userdel -r` |
+| `harden-3-ssh.sh <rendszergazda> <korlátozott>` | SSH csak kulccsal, root nélkül, csak a két felhasználónak; a korlátozott nem építhet alagutat | a beállításfájl törlése |
+| `harden-4-ufw.sh <helyi hálózat>` | Tűzfal: a helyi hálózatról DNS, NTP, SSH, a Pi-hole felülete, mDNS és a Beszel; a tailnetről DNS, SSH és a Caddy; minden más tiltva. Élesítéskor 5 perces önvisszavonó időzítő indul | `ufw disable` |
+| `harden-4-finalize.sh` | Ellenőrzés után leállítja az időzítőt | – |
+
+A harmadik lépés előtt mindkét felhasználó kulcsos belépését ki kell próbálni. A tűzfal a Docker által közzétett portokra nem vonatkozik, ezért a `pi/` Compose minden portot csak a Tailscale-címre köt.
+
+Belépéssel a feltöltő és a döntést hozó mindig a belépett felhasználó: a webapp az Authelia `Remote-User` fejlécét veszi, és más nevében nem ment. A worker API (`/inbox/…`) és a `/health` belépés nélkül, a worker tokenjével érhető el.
+
 ## Felépítés
 
 ```text
 home/        otthoni Compose, Postgres init, Garage config
-pi/          a Pi Compose-fájlja (Sprint 6-tól)
+pi/          a Pi Compose-fájlja, Caddy és Authelia (Sprint 6-tól)
 webapp/      FastAPI webapp (Sprint 2-től)
 reports/     riportok Streamlitben (Sprint 5-től)
 worker/      lehúzás és kiolvasás (Sprint 3-tól)
@@ -128,7 +189,7 @@ Döntést a `review`, az `unparsed` és az olvashatatlan dokumentum kér. Az `ok
 
 Ami nem kiadás, például a szállítólevél, annál a képernyő ezt kiírja, és a szöveges olvasat nyitva látszik. Ilyenkor és ismeretlen táblázatú számlánál a szövegből kinyert sorok javaslatként jelennek meg. Ezek nem számítanak adatnak, amíg a javítást el nem mented.
 
-A modell ugyanarra a fájlra ugyanazt adja, ezért nincs újraolvasó gomb: rossz fotónál új fotó kell, annak más a hash-e. Ha egy elvetett dokumentum fájlját töltöd fel újra, a dokumentum modellfutás nélkül újranyílik, minden más esetben az eredmény „már megvolt”.
+A modell ugyanarra a fájlra ugyanazt adja, ezért nincs újraolvasó gomb: rossz fotónál új fotó kell, annak más a hash-e. Ha egy elvetett dokumentum fájlját töltöd fel újra, a dokumentum modellfutás nélkül újranyílik, minden más esetben az eredmény „már megvolt”. Kivétel a csonka olvasás: ha a modell kontextusa elfogyott, és azóta a beállítás változott, a worker induláskor újraolvassa a fájlt a Garage-ból ([ADR 0016](docs/adr/0016-csonka-olvasas-ujraolvasasa.md)). A kontextus 8192 token: a 2000 px-re kicsinyített kép a mérés szerint legfeljebb 4 112 képtoken (2000 × 2000-en), a szöveg legfeljebb 2 000. A feltöltött kép felbontása ezt nem növeli, mert a kép a modell előtt kicsinyül. Ha az olvasás mégis csonka, a worker azonnal újrapróbálja 16 384, majd 32 768 tokennel, kétszeres szöveghatárral, és a nagyobb modell utána kirakódik. A bronzban a `prompt_tokens`, a `num_ctx` és az `attempts` mutatja, mennyire volt közel a határ.
 
 A döntés előbb a webappba kerül, innen a worker a következő körben a `bronze.review_decision` táblába írja, a `bronze.receipt_parse` nem változik. A javított érték a dbt következő futása után látszik a silverben és a riportokban. A csomag a döntésig marad, a lezárt dokumentumé 30 nap után törlődik a webappból, a fájl a Garage-ban megmarad. A 30 napnál régebbi `ok` dokumentumot a worker nem tölti vissza. A HEIC fájlt a böngésző nem jeleníti meg, ezért ott a worker JPEG-előnézetet küld. Az indoklás: [ADR 0011](docs/adr/0011-ellenorzes-kepernyo-csomagokkal.md) és [ADR 0012](docs/adr/0012-ujranyitas-az-ujraolvasas-helyett.md).
 
@@ -164,9 +225,13 @@ A worker tesztjei a `scripts/test-worker.sh` paranccsal futnak, valódi Garage-d
 A `http://127.0.0.1:8000/rules` oldalon vehetők fel a szabályok:
 
 - **Tételszabály:** ha a tétel neve tartalmazza a mintát, a tétel megkapja a kategóriát. Az egyeztetés ékezet nélkül történik. Több találatnál a hosszabb minta nyer, egyezésnél a régebbi szabály.
+- **Termékszabály:** ha a tétel neve tartalmazza a mintát, vagy a mintája a tétel EAN-je, a tétel megkapja a terméket, például `élelmiszer/gomba/csiperke`. A kategória a termékből jön, és a termékszabály erősebb a tételszabálynál. Több találatnál az EAN nyer, utána a hosszabb minta.
+- **Kiszerelésszabály:** a kiszerelés nélküli névhez ad kiszerelést, például `SB BARNA CSIPERKE 500` → `500G`.
 - **Boltszabály:** az adószámhoz egységes boltnév tartozik.
 
 A szabály a régi dokumentumokra is érvényes, a kikapcsolt szabály a bronzban megmarad. Szabály nélkül az egy címkés blokk tétele a címkét kapja, a több címkésé `besorolatlan` lesz.
+
+A silver minden tételhez alapegységet és egységárat számol: Ft/kg, Ft/l vagy Ft/db. A mérlegelt tételnél a mért mennyiség az alap, különben a darabszám és a névben vagy a szabályban álló kiszerelés, például `4X120G`. A tétel alatti kedvezmény csökkenti az egységárat. A `gold.product_prices` termékenként, boltonként és hónaponként adja a súlyozott egységárat. Az indoklás: [ADR 0015](docs/adr/0015-termekcsaladok-es-egysegar.md).
 
 A `http://127.0.0.1:8000/deposit` oldal a várható DRS-betétdíjat mutatja. A blokkon fizetett betétdíj növeli, a beváltott utalvány csökkenti, egyik sem kiadás. Az összeg kézzel állítható és nullázható, a kézi művelet a következő dbt-futás után látszik. A negatív összeg azt jelzi, hogy régebbi vásárlás betétdíja nincs a rendszerben, ilyenkor egy kézi állítás adja a nyitó egyenleget. A nullázás a napra vonatkozik: az aznap vagy előtte kelt blokkok betétdíja elvész.
 
@@ -174,10 +239,11 @@ Mindkét oldal adata a webapp kimenő sorába kerül, innen a worker írja a bro
 
 ## Riportok
 
-A `http://127.0.0.1:8501` oldalon két riport van, a kód a `reports/` mappában:
+A `http://127.0.0.1:8501` oldalon három riport van, a kód a `reports/` mappában:
 
 - **Áttekintés:** bevétel, kiadás, egyenleg, megtakarítási ráta és várható betétdíj, a hónap összevetése az előzővel és az átlaggal, kiadás kategóriánként.
-- **Kiadások:** a dokumentumok listája szűrhető arra, ki fizetett. Egy sor kiválasztása után a tételek látszanak, a gomb pedig az Ellenőrzésre visz az eredetihez.
+- **Kiadások:** a dokumentumok listája szűrhető arra, ki fizetett. Egy sor kiválasztása után a tételek látszanak termékkel és egységárral, a gomb pedig az Ellenőrzésre visz az eredetihez.
+- **Árak:** egy termék legutóbbi és legolcsóbb egységára, a változás az első hónap óta, és havonta boltonként az ár. A termék a Szabályok oldalon felvett termékszabályból jön.
 
 A kiadásba csak a rendben lévő, jóváhagyott vagy javított dokumentum számít, ezt egyedül a `silver.documents` dönti el ([ADR 0013](docs/adr/0013-beszamitas-a-silverben.md)). A dbt óránként fut, ezért a változás legfeljebb egy órán belül látszik.
 
@@ -185,7 +251,12 @@ A riport kizárólag a goldot olvassa, és csak olvasható kapcsolattal. A Strea
 
 ## Állapot képernyő
 
-A `http://127.0.0.1:8000/status` oldal kilenc kártyán mutatja a stack részeit: Feltöltés, Worker, Ollama, Garage, Postgres, Riportok, dbt, Mentés és Gép. Fölöttük látszik az összkép és az aktuális feldolgozási lépés az eltelt idővel, alattuk a legutóbbi feldolgozások. Az oldal 5 másodpercenként frissül, az adatai a `/status.json` címen is elérhetők.
+A `http://127.0.0.1:8000/status` oldal tíz kártyán mutatja a stack részeit: Feltöltés, Worker, Ollama, Garage, Postgres, Riportok, dbt, Mentés, Gép és Erőforrások.
+
+- **Ollama:** a modell mérete és kvantálása, hogy GPU-n vagy CPU-n fut és mennyi memóriát foglal, az utolsó olvasás ideje token/s sebességgel, valamint az utolsó 20 olvasás átlaga. Az átlag a bronzból töltődik vissza, ezért a worker újraindítása után sem üres.
+- **Erőforrások:** a CPU minden szála külön oszlopban, a RAM és a swap, NVIDIA GPU-s gépen a GPU kihasználtsága, videomemóriája, hőmérséklete és fogyasztása.
+
+Az erőforrás-adat 15 másodpercenkénti pillanatkép, a CPU egy másodperces mintából számol, ezért egy 2–3 másodperces olvasás csúcsa kimaradhat belőle. Fölöttük látszik az összkép és az aktuális feldolgozási lépés az eltelt idővel, alattuk a legutóbbi feldolgozások. Az oldal 5 másodpercenként frissül, az adatai a `/status.json` címen is elérhetők.
 
 | Felirat | Jelentés |
 | --- | --- |

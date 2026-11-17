@@ -8,12 +8,19 @@ from app.receipt_parser import match_key, parse_pages
 BUYER_WORDS = {"VEVO", "VASARLO", "MEGRENDELO"}
 # Ezek nem kiadások: a hozzájuk tartozó számla számít, különben kétszer számolódna.
 NON_EXPENSE_TITLES = {"SZALLITOLEVEL", "DIJBEKERO", "PROFORMA"}
+# A visszaváltó automata utalványa nem vásárlás; a párosítása a vásárlással a FIN-411 feladata.
+# A REpont a nyugtán fizetési sorként is szerepel, ezért nyugtánál nem elég önmagában.
+VOUCHER_WORDS = {"UTALVANY", "VISSZAVALTOD"}
+
+
+def is_deposit_voucher(words: set[str]) -> bool:
+    return VOUCHER_WORDS <= words or ("REPONT" in words and "NYUGTA" not in words)
 
 
 def document_type(text: str) -> str:
     keys = [match_key(line) for line in text.splitlines()]
     words = set(re.findall(r"[A-Z]+", " ".join(keys)))
-    if NON_EXPENSE_TITLES & set(keys):
+    if NON_EXPENSE_TITLES & set(keys) or is_deposit_voucher(words):
         return "non_expense"
     if "SZAMLA" in words and "NETTO" in words and BUYER_WORDS & words:
         return "invoice"

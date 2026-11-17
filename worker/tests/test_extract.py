@@ -79,11 +79,29 @@ def test_read_sends_settings_and_keeps_the_text():
     assert steps == ["read_text"]
     assert len(sent) == 1
     assert sent[0]["messages"][0]["content"] == PROMPT
-    assert sent[0]["options"] == {"temperature": 0, "num_thread": 10, "num_predict": 2000}
+    assert sent[0]["options"] == {
+        "temperature": 0,
+        "num_thread": 10,
+        "num_predict": 2000,
+        "num_ctx": 8192,
+    }
     assert "format" not in sent[0]
     assert sent[0]["keep_alive"] == "0"
     assert sent[0]["stream"] is False
-    assert result == {"ocr_text": "TESZT\n7 626 Ft", "done_reason": "stop", "seconds": 17.0}
+    assert result == {
+        "ocr_text": "TESZT\n7 626 Ft",
+        "done_reason": "stop",
+        "seconds": 17.0,
+        "load_seconds": 0.0,
+        "image_seconds": 0.0,
+        "text_seconds": 0.0,
+        "tokens": 0,
+        "tokens_per_second": None,
+        "max_side": MAX_SIDE,
+        "prompt_tokens": None,
+        "num_ctx": 8192,
+        "attempts": 1,
+    }
 
 
 def test_unreadable_image_does_not_reach_the_model():
@@ -133,3 +151,88 @@ def test_inbox_client_sends_token():
         "authorization": "Bearer titok",
         "url": "http://webapp:8000/inbox/items?status=new",
     }
+
+
+def test_read_keeps_time_and_speed_of_the_last_run():
+    def handler(_request):
+        return httpx.Response(
+            200,
+            json={
+                "message": {"content": "NYUGTA"},
+                "total_duration": 2_200_000_000,
+                "load_duration": 30_000_000,
+                "prompt_eval_duration": 160_000_000,
+                "eval_count": 642,
+                "eval_duration": 2_000_000_000,
+            },
+        )
+
+    reader = reader_with(handler)
+    assert reader.last_stats is None
+
+    result = reader.read_image(b"kep", no_report)
+
+    assert reader.last_stats["seconds"] == 2.2
+    assert reader.last_stats["tokens_per_second"] == 321.0
+    assert (result["load_seconds"], result["image_seconds"], result["text_seconds"]) == (0.0, 0.2, 2.0)
+    assert result["tokens"] == 642
+
+
+def test_larger_image_side_is_used_and_recorded():
+    def handler(_request):
+        return httpx.Response(200, json={"message": {"content": "NYUGTA"}})
+
+    reader = ReceiptReader("http://ollama:11434", "glm-ocr", 1, "10m", 2000)
+    reader.client = httpx.Client(base_url="http://ollama:11434", transport=httpx.MockTransport(handler))
+
+    result = reader.read(image_bytes(Image.new("RGB", (3000, 6000))), no_report)
+
+    assert result["max_side"] == 2000
+    assert Image.open(BytesIO(prepare_image(image_bytes(Image.new("RGB", (3000, 6000))), 2000))).size == (
+        1000,
+        2000,
+    )
+
+
+def test_truncated_reading_is_retried_with_a_larger_context():
+    sent = []
+
+    def handler(request):
+        body = json.loads(request.content)
+        sent.append((body["options"]["num_ctx"], body["options"]["num_predict"], body["keep_alive"]))
+        done = "length" if len(sent) < 3 else "stop"
+        return httpx.Response(
+            200,
+            json={"message": {"content": f"OLVASAT {len(sent)}"}, "done_reason": done, "prompt_eval_count": 4112},
+        )
+
+    reader = ReceiptReader("http://ollama:11434", "glm-ocr", 1, "10m", 2000)
+    reader.client = httpx.Client(base_url="http://ollama:11434", transport=httpx.MockTransport(handler))
+
+    result = reader.read_image(b"kep", no_report)
+
+    assert sent == [(8192, 2000, "10m"), (16384, 4000, "0"), (32768, 8000, "0")]
+    assert (result["ocr_text"], result["done_reason"]) == ("OLVASAT 3", "stop")
+    assert (result["prompt_tokens"], result["num_ctx"], result["attempts"]) == (4112, 32768, 3)
+
+
+def test_complete_reading_is_not_retried():
+    sent = []
+
+    def handler(request):
+        sent.append(request)
+        return httpx.Response(200, json={"message": {"content": "NYUGTA"}, "done_reason": "stop"})
+
+    result = reader_with(handler).read_image(b"kep", no_report)
+
+    assert len(sent) == 1
+    assert (result["num_ctx"], result["attempts"]) == (8192, 1)
+
+
+def test_last_attempt_stays_truncated_and_is_kept():
+    def handler(_request):
+        return httpx.Response(200, json={"message": {"content": "CSONKA"}, "done_reason": "length"})
+
+    result = reader_with(handler).read_image(b"kep", no_report)
+
+    assert (result["done_reason"], result["attempts"], result["num_ctx"]) == ("length", 3, 32768)

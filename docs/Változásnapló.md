@@ -1,7 +1,7 @@
 ---
 projekt: Pénzügyi nyomkövető
 tipus: változásnapló
-datum: 2026-11-01
+datum: 2026-11-17
 tags: [penzugy, projekt, release]
 ---
 
@@ -13,15 +13,62 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 
 ## Kiadatlan
 
+### Javítva
+
+- A számlafeldolgozó a mértékegység nélküli, áfakulccsal kezdődő tételsorokat is olvassa; az ingyenes választás nem lesz tétel, és a neve nem ragad a következő tételre.
+- A számlán a nap-hónap-év dátum és a szállítási idő is teljesítési dátum.
+- Olvasható címke nélkül az áfasorok bruttója a végösszeg; a „Fizetendő összeg” megelőzi egy részösszeg „Fizetendő” sorát.
+- Ha a javaslat sorai messze vannak a végösszegtől, a javítás űrlapja egy sorral indul a végösszeggel.
+
+### Frissítési teendők
+
+- A worker induláskor a `PARSER_VERSION` 11 miatt minden tárolt szöveget újra feldolgoz, modell nélkül.
+
+## v0.5.0 · 2026-11-17
+
+### Hozzáadva
+
+- A Pi postaláda Compose-fájlja (`pi/`): a webapp Caddy mögött HTTPS-sel a saját domainen, Cloudflare DNS-alapú tanúsítvánnyal, és Authelia kétfaktoros (TOTP) belépéssel, csak a Pi Tailscale-címén.
+- `scripts/setup-pi.sh`, `scripts/init-pi-env.sh` és `scripts/authelia-user.sh` a Pi beállításához; `scripts/windows/wsl-autostart.ps1` a WSL ablak nélküli futtatásához és a tükrözött hálózathoz.
+- A CI a Pi Compose-fájlját is ellenőrzi.
+- FIN-315 `scripts/pi/pihole-tailnet.sh`: a Pi-hole webszervere a helyi címen, a saját domain nevei helyi rekordként a Pi Tailscale-címén, a Pi nem a Tailscale DNS-ét használja.
+- FIN-313 A Pi megerősítése a `scripts/pi/` scriptjeivel: fail2ban, automatikus biztonsági frissítés, korlátozott felhasználó, csak kulcsos SSH és tűzfal önvisszavonó időzítővel.
+
+### Módosítva
+
+- Belépéssel a feltöltő, a szabály és a döntés rögzítője mindig a belépett felhasználó; más nevében a webapp 403-mal elutasít.
+- A webapp adatbázis nélkül is fut: a `/health` ilyenkor a postaládát nézi, az `/entries` 503-at ad.
+- A worker postaládája az `INBOX_URL`-lel állítható, így a Pi-re mutathat.
+
+### Frissítési teendők
+
+- A Pi beállítása a README „Postaláda a Pi-n” része szerint; az otthoni `home/.env`-ben új, nem kötelező változó az `INBOX_URL`.
+
 ### Hozzáadva
 
 - FIN-406 Silver tétel szint: `documents`, `receipt_items`, `document_payments`, `stores`; a kiadásba csak a rendben lévő, jóváhagyott vagy javított dokumentum számít, a kiszerelés a tételnévből jön.
 - FIN-206 Riportfelület Streamlitben a `reports/` mappában: Áttekintés és Kiadások, lefúrással az Ellenőrzés képernyőig, közös menüvel a webappal.
 - FIN-501 Szabályok oldal a `/rules` címen: tétel- és boltszabályok, amelyek a régi dokumentumokra is érvényesek.
 - FIN-409 Betétdíj oldal a `/deposit` címen: a várható DRS-betétdíj, kézi állítás és nullázás; a betétdíj nem kiadás, a beváltott utalvány csökkenti.
+- FIN-507 Termékcsaládok és egységár: termék- és kiszerelésszabály a Szabályok oldalon, a tétel `kategória/termékcsalád/termék` besorolást és Ft/kg, Ft/l vagy Ft/db egységárat kap, a `gold.product_prices` havi árnaplót ad.
+- A blokkfeldolgozó kiolvassa a tétel fölötti cikkszámot (EAN), és a javítás is megőrzi.
+- Árak riport: termékenként a legutóbbi és legolcsóbb egységár, a változás az első hónap óta, havonta boltonként; a Kiadások tételei termékkel és egységárral.
+- A blokkfeldolgozó új formái: `D`-nek olvasott áfakód, mértékegység nélküli mérlegelt sor, szóközzel tagolt vagy betű nélküli akciókód, áfakód nélküli táblázatos jegyzék, VISA, MASTERCARD és REPONT a fizetésben, kettőspont nélküli fizetés.
+- NVIDIA GPU az Ollamának a `home/docker-compose.gpu.yml` kiegészítéssel, a WSL-es beállítást a `scripts/setup-wsl-gpu.sh` végzi.
+- Windowsos fejlesztés WSL2-es Ubuntuban: a `scripts/setup-wsl.sh` telepíti a Docker Engine-t, a Compose-t és a `jq`-t, a README leírja a menetét.
 
 ### Módosítva
 
+- A modell betöltve tartása az `OLLAMA_KEEP_ALIVE` változóval állítható; alapból 0 marad, GPU-val 10 perc.
+- GPU-val a modell egy CPU-szálat kap, így a kiolvasás alatt a CPU nem pörög.
+- GPU-val a kép hosszabb oldala 2000 px (`OLLAMA_MAX_SIDE`), CPU-n marad 1400.
+- A vásárlás dátuma a lábléc utolsó dátuma, az akciós szövegek dátuma nem; a boltnév nem lehet a dokumentum címe.
+- A visszaváltó automata utalványa nem kiadás, ezért nem kér döntést.
+- A modell kontextusa 8192 token (`PROMPT_VERSION` 3); a 4096-os alapértéknél a 2000 px-es fotó olvasása a blokk közepén megszakadt.
+- A régebbi beállítással csonkán maradt olvasást a worker induláskor újraolvassa, a blokkot nem kell újra feltölteni.
+- A csonka olvasás azonnal újrapróbálódik 16 384, majd 32 768 tokenes kontextussal; a bronz a képtokent, a kontextust és a próbálkozások számát is tárolja.
+- Az állapot képernyő Erőforrások csempét kap: szálankénti CPU, RAM, swap, és ha van, NVIDIA GPU. Az Ollama kártya a modell méretét, a GPU-n vagy CPU-n futást, az utolsó olvasást és az utolsó 20 olvasás átlagát mutatja.
+- A kiolvasás időadatai (betöltés, kép, szöveg, token/s) a `bronze.extraction` payloadjába is bekerülnek.
 - A dbt éjszaka helyett óránként fut, így a döntés egy órán belül a riportokban is látszik.
 - A dokumentumok kiadása megjelenik a gold táblákban.
 - A számlafeldolgozó felismeri az áfakulccsal kezdődő, mértékegység nélküli táblázatot, a nap-hónap-év dátumot és az áfasorból a végösszeget, ha annak nincs olvasható címkéje. Az ingyenes választások nem lesznek tételek.
@@ -34,9 +81,12 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 ### Frissítési teendők
 
 - `scripts/backup.sh`, majd `scripts/replace-metabase.sh`: friss jelszót állít be a `report_reader` szerepkörnek, és törli a Metabase adatbázisát. Ez nem visszafordítható, a korábbi `metabase.dump` a mentésben marad.
-- `podman compose -f home/docker-compose.yml up -d --build --remove-orphans`, majd `scripts/dbt.sh`.
+- `podman compose -f home/docker-compose.yml up -d --build --remove-orphans`, majd `scripts/dbt.sh`. A `migrate` szolgáltatás felveszi a `20261229120000_add_product_rules` migrációt, amely a szabályoknál a `product` és a `pack` típust engedi.
 - `scripts/install-timers.sh`: ez állítja át a dbt-t óránkénti futásra.
+- A worker induláskor a `PARSER_VERSION` 10 miatt minden tárolt szöveget újra feldolgoz, modell nélkül; a blokkokat nem kell újra feltölteni. A 2000 px csak az új olvasásokra érvényes.
 - A `home/.env` `MB_*` és `METABASE_*` sorai ezután törölhetők.
+- Új, nem kötelező `.env`-változók: `OLLAMA_KEEP_ALIVE`, `OLLAMA_MAX_SIDE`, `COMPOSE_FILE`. Üresen a korábbi CPU-s viselkedés marad.
+- NVIDIA GPU-s gépen, WSL-ben: `scripts/setup-wsl-gpu.sh`, majd a `home/.env`-be `COMPOSE_FILE=docker-compose.yml:docker-compose.gpu.yml`.
 
 ## v0.4.0 · 2026-11-01
 

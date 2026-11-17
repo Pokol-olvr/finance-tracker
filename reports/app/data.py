@@ -77,7 +77,23 @@ def documents(payer: str | None) -> pd.DataFrame:
 
 def document_items(group_id: str) -> pd.DataFrame:
     return query(
-        "select name, kind, category, quantity, unit, value from gold.expense_items "
-        "where group_id = %s order by line_no",
+        "select name, kind, category, product, quantity, unit, value, base_unit, base_unit_price "
+        "from gold.expense_items where group_id = %s order by line_no",
         (group_id,),
+    )
+
+
+def products() -> pd.DataFrame:
+    return query(
+        "select distinct category, product_family, product, base_unit from gold.product_prices "
+        "order by category, product_family, product, base_unit"
+    )
+
+
+def product_prices(product: str, base_unit: str) -> pd.DataFrame:
+    return query(
+        "select month, store_name, unit_price, min_unit_price, max_unit_price, quantity, "
+        "purchase_count from gold.product_prices where product = %s and base_unit = %s "
+        "order by month, store_name",
+        (product, base_unit),
     )

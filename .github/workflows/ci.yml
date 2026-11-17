@@ -34,6 +34,20 @@ jobs:
       - name: Compose-ellenőrzés
         working-directory: home
         run: docker compose config --quiet
+      - name: Pi Compose-ellenőrzés
+        working-directory: pi
+        # Kitalált értékek: csak a fájl szerkezetét ellenőrzi.
+        env:
+          FINANCE_DOMAIN: penzugy.example.test
+          ACME_EMAIL: ci@example.test
+          CLOUDFLARE_API_TOKEN: ci
+          BIND_ADDRESS: 127.0.0.1
+          WORKER_API_TOKEN: ci
+          REPORTS_URL: http://127.0.0.1:8501
+          AUTHELIA_SESSION_SECRET: ci
+          AUTHELIA_STORAGE_ENCRYPTION_KEY: ci
+          AUTHELIA_JWT_SECRET: ci
+        run: docker compose --env-file .env.example config --quiet
       - name: Postgres indítása
         working-directory: home
         run: docker compose up -d --wait postgres

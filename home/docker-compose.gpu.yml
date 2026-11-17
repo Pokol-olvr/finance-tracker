@@ -1,0 +1,22 @@
+# NVIDIA GPU az Ollamának. Bekapcsolás a .env-ben:
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.gpu.yml
+# Előfeltétel: NVIDIA container toolkit, WSL-ben a scripts/setup-wsl-gpu.sh telepíti.
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # GPU-n a modell bent marad: az újratöltés blokkonként CPU-n pörög, a futás csak pár másodperc.
+  # Egy CPU-szál elég: a 10 szál a GPU-ra várva is pörgött, 17 blokkon 536% helyett 97% CPU
+  # mellett ugyanaz a szöveg jött ki, 34 helyett 37 másodperc alatt.
+  worker:
+    environment:
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-10m}
+      OLLAMA_NUM_THREAD: ${OLLAMA_NUM_THREAD:-1}
+      # 17 saját blokkon 1400 px-en 14 `ok`, 2000 px-en 15, 32 helyett 39 másodperc modellidővel.
+      OLLAMA_MAX_SIDE: ${OLLAMA_MAX_SIDE:-2000}

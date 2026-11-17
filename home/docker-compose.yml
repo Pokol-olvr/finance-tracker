@@ -148,7 +148,8 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://app_writer:${APP_WRITER_PASSWORD:?}@postgres:5432/finance
-      INBOX_URL: http://webapp:8000
+      # A Pi-re költözés után a Pi címe, pl. https://penzugy.example.hu (FIN-308).
+      INBOX_URL: ${INBOX_URL:-http://webapp:8000}
       WORKER_API_TOKEN: ${WORKER_API_TOKEN:?}
       WORKER_POLL_SECONDS: ${WORKER_POLL_SECONDS:-60}
       GARAGE_ENDPOINT: http://garage:3900
@@ -157,6 +158,8 @@ services:
       OLLAMA_URL: http://ollama:11434
       OLLAMA_MODEL: ${OLLAMA_MODEL:-glm-ocr}
       OLLAMA_NUM_THREAD: ${OLLAMA_NUM_THREAD:-10}
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-0}
+      OLLAMA_MAX_SIDE: ${OLLAMA_MAX_SIDE:-1400}
     healthcheck:
       # A jelentő szál frissíti a fájlt; a főszál a modellnél percekig is állhat.
       test: [CMD, python, -c, "import os, sys, time; sys.exit(time.time() - os.path.getmtime('/tmp/worker-heartbeat') > 60)"]

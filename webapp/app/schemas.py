@@ -14,6 +14,8 @@ CATEGORIES = frozenset({"élelmiszer", "háztartás", "lakbér", "közlekedés",
 SHARED_PAYER = "shared"
 MOCK_AUTHOR = "mock"
 TAX_NUMBER = re.compile(r"\d{8}-\d-\d{2}")
+# A dbt receipt_items modellje ugyanezt a formát olvassa ki.
+PACK = re.compile(r"(?:\d+\s*[x*]\s*)?\d+(?:[,.]\d+)?\s*(?:g|kg|ml|cl|dl|l|db)", re.IGNORECASE)
 # A worker készpénznél és számlánál is ennyit enged a kerekítés miatt.
 CORRECTION_SUM_LIMIT = 2
 
@@ -108,6 +110,37 @@ class JobReport(BaseModel):
     next_run: datetime | None = None
 
 
+class GpuReport(BaseModel):
+    name: str
+    utilization_percent: float | None = None
+    memory_used_bytes: int
+    memory_total_bytes: int
+    temperature_c: float | None = None
+    power_w: float | None = None
+
+
+class LastRead(BaseModel):
+    finished_at: datetime
+    seconds: float
+    load_seconds: float | None = None
+    image_seconds: float | None = None
+    text_seconds: float | None = None
+    tokens: int | None = None
+    tokens_per_second: float | None = None
+
+
+class RecentReads(BaseModel):
+    count: int
+    average_seconds: float
+    average_tokens_per_second: float | None = None
+
+
+class CpuReport(BaseModel):
+    model: str | None = None
+    percent: float
+    cores: list[float]
+
+
 class HostReport(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -121,6 +154,11 @@ class HostReport(BaseModel):
     memory_available_bytes: int
     memory_total_bytes: int
     load: float
+    gpu: GpuReport | None = None
+    ollama_cpu_percent: float | None = None
+    cpu: CpuReport | None = None
+    swap_used_bytes: int | None = None
+    swap_total_bytes: int | None = None
 
 
 class WorkerReport(BaseModel):
@@ -134,6 +172,15 @@ class WorkerReport(BaseModel):
     model_downloaded: bool
     model_loaded: bool
     model_memory_bytes: int
+    model_vram_bytes: int = 0
+    model_parameters: str | None = None
+    model_quantization: str | None = None
+    model_context: int | None = None
+    model_expires_at: datetime | None = None
+    last_read: LastRead | None = None
+    recent_reads: RecentReads | None = None
+    num_thread: int | None = None
+    keep_alive: str | None = None
 
 
 class CloseResult(BaseModel):
@@ -164,6 +211,8 @@ class CorrectedItem(BaseModel):
     quantity: float | None = None
     unit: str | None = Field(default=None, max_length=20)
     unit_price: float | None = None
+    # A vonalkód száma a javítás után is megmarad, mert a termékszabály erre is illeszkedhet.
+    ean: str | None = Field(default=None, pattern=r"^\d{8,14}$")
 
 
 class Correction(BaseModel):
@@ -180,9 +229,13 @@ class Correction(BaseModel):
 
 
 class NewRule(BaseModel):
-    """Tételszabály: a név részlete és a kategória. Boltszabály: az adószám és az egységes név."""
+    """Tételszabály: a név részlete és a kategória. Boltszabály: az adószám és az egységes név.
 
-    rule_type: Literal["category", "store"]
+    Termékszabály: a név részlete vagy az EAN, és a `kategória/termékcsalád/termék` út.
+    Kiszerelésszabály: a név részlete és a kiszerelés, pl. `500G` vagy `4X120G` (ADR 0015).
+    """
+
+    rule_type: Literal["category", "store", "product", "pack"]
     pattern: str = Field(min_length=2, max_length=100)
     target: str = Field(min_length=1, max_length=100)
     created_by: str
@@ -200,6 +253,17 @@ class NewRule(BaseModel):
             raise ValueError("ismeretlen kategória")
         if self.rule_type == "store" and not TAX_NUMBER.fullmatch(self.pattern):
             raise ValueError("a boltszabály adószámra illeszkedik")
+        if self.rule_type == "product":
+            parts = [part.strip().lower() for part in self.target.split("/")]
+            if len(parts) != 3 or not all(parts) or any(len(part) > 40 for part in parts):
+                raise ValueError("a termék útja kategória/termékcsalád/termék")
+            if parts[0] not in CATEGORIES:
+                raise ValueError("ismeretlen kategória")
+            self.target = "/".join(parts)
+        if self.rule_type == "pack":
+            if not PACK.fullmatch(self.target):
+                raise ValueError("a kiszerelés pl. 500G, 1,5L, 10DB vagy 4X120G")
+            self.target = re.sub(r"\s+", "", self.target.upper()).replace("*", "X")
         return self
 
 

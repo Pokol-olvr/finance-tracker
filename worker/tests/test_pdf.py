@@ -74,14 +74,28 @@ def test_invoice_in_a_pdf_reaches_the_invoice_parser():
 
 def test_scanned_pdf_goes_to_the_model_page_by_page():
     content = scanned_pdf(2)
-    model = FakeReader({"ocr_text": "KIOLVASOTT", "seconds": 80.0, "done_reason": "stop"})
+    model = FakeReader(
+        {
+            "ocr_text": "KIOLVASOTT",
+            "seconds": 80.0,
+            "done_reason": "stop",
+            "tokens": 300,
+            "tokens_per_second": 100.0,
+            "prompt_tokens": 1223,
+            "num_ctx": 8192,
+            "attempts": 1,
+        }
+    )
 
     active = reader_for(content, model)
     result = active.read(content, no_report)
 
     assert isinstance(active, ScannedPdf)
     assert (active.name, active.version()) == (model.name, model.version())
-    assert result == {"ocr_text": "KIOLVASOTT\nKIOLVASOTT", "done_reason": "stop", "seconds": 160.0}
+    assert result["ocr_text"] == "KIOLVASOTT\nKIOLVASOTT"
+    assert (result["done_reason"], result["seconds"]) == ("stop", 160.0)
+    assert (result["tokens"], result["tokens_per_second"], result["max_side"]) == (600, 100.0, 1400)
+    assert (result["prompt_tokens"], result["num_ctx"], result["attempts"]) == (1223, 8192, 1)
 
 
 def test_scanned_pdf_reads_only_the_first_pages():

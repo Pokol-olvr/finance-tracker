@@ -1,0 +1,74 @@
+name: finance-pi
+
+# A Pi a postaláda: webapp Caddy és Authelia mögött, csak a Tailscale-címen (ADR 0005, ADR 0006).
+# Minden kapcsolatot az otthoni gép nyit; a Pi-re bejövő port csak a tailnetről érhető el.
+services:
+  # HTTPS a saját domainen, DNS-alapú tanúsítvánnyal, mert az oldal kívülről nem látszik.
+  caddy:
+    build: ./caddy
+    image: localhost/finance-pi-caddy
+    restart: unless-stopped
+    depends_on:
+      webapp:
+        condition: service_healthy
+      authelia:
+        condition: service_started
+    environment:
+      FINANCE_DOMAIN: ${FINANCE_DOMAIN:?a .env nincs kitöltve}
+      ACME_EMAIL: ${ACME_EMAIL:?}
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:?}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro,z
+      - ${DATA_DIR:-./data}/caddy:/data:z
+    ports:
+      # Csak a Pi Tailscale-címén: a helyi hálózatról és kívülről nem érhető el.
+      - ${BIND_ADDRESS:?a Pi Tailscale-címe}:443:443
+      - ${BIND_ADDRESS}:80:80
+
+  # Kétfaktoros belépés (TOTP) két felhasználóval; a felhasználók a data/authelia alatt vannak.
+  authelia:
+    image: docker.io/authelia/authelia:4.39.28
+    restart: unless-stopped
+    environment:
+      FINANCE_DOMAIN: ${FINANCE_DOMAIN:?}
+      X_AUTHELIA_CONFIG_FILTERS: template
+      AUTHELIA_SESSION_SECRET: ${AUTHELIA_SESSION_SECRET:?}
+      AUTHELIA_STORAGE_ENCRYPTION_KEY: ${AUTHELIA_STORAGE_ENCRYPTION_KEY:?}
+      AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET: ${AUTHELIA_JWT_SECRET:?}
+    volumes:
+      - ./authelia/configuration.yml:/config/configuration.yml:ro,z
+      - ${DATA_DIR:-./data}/authelia:/data:z
+
+  # A webapp a nobody felhasználóként fut, a postaláda mappája az övé.
+  inbox-init:
+    image: docker.io/library/python:3.13.18-slim
+    restart: "no"
+    user: "0"
+    volumes:
+      - ${DATA_DIR:-./data}/inbox:/inbox:z
+    command: [chown, "65534:65534", /inbox]
+
+  # Adatbázis nélkül: a webapp itt csak postaláda, minden a kimenő soron át megy a bronzba.
+  webapp:
+    build: ../webapp
+    image: localhost/finance-pi-webapp
+    restart: unless-stopped
+    depends_on:
+      inbox-init:
+        condition: service_completed_successfully
+    environment:
+      HOUSEHOLD_MEMBERS: ${HOUSEHOLD_MEMBERS:-person_a,person_b}
+      INBOX_DIR: /inbox
+      WORKER_API_TOKEN: ${WORKER_API_TOKEN:?}
+      REPORTS_URL: ${REPORTS_URL:?az otthoni gép riportjainak címe}
+      # Az Authelia ebben a fejlécben adja a belépett felhasználót, a Caddy másolja át.
+      AUTH_HEADER: Remote-User
+    volumes:
+      - ${DATA_DIR:-./data}/inbox:/inbox:z
+    # Port nincs: csak a Caddy éri el a Compose-hálózaton, így a fejlécet más nem állíthatja.
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request as u; u.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
