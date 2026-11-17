@@ -1,0 +1,53 @@
+# Authelia: kétfaktoros belépés (TOTP) a webapp előtt, két felhasználóval.
+# A titkok környezeti változóból jönnek, a felhasználók a data/authelia/users_database.yml-ben.
+# A domain a FINANCE_DOMAIN környezeti változóból jön (X_AUTHELIA_CONFIG_FILTERS=template).
+
+theme: auto
+
+server:
+  address: tcp://:9091/
+
+log:
+  level: info
+
+totp:
+  issuer: Pénzügyi nyomkövető
+
+authentication_backend:
+  # Elfelejtett jelszónál a felhasználót a Pi-n kell újra létrehozni, e-mail nincs.
+  password_reset:
+    disable: true
+  file:
+    path: /data/users_database.yml
+    password:
+      algorithm: argon2
+
+access_control:
+  default_policy: deny
+  rules:
+    - domain: '{{ env "FINANCE_DOMAIN" }}'
+      policy: two_factor
+
+session:
+  cookies:
+    - domain: '{{ env "FINANCE_DOMAIN" }}'
+      authelia_url: 'https://auth.{{ env "FINANCE_DOMAIN" }}'
+      default_redirection_url: 'https://{{ env "FINANCE_DOMAIN" }}'
+      inactivity: 1h
+      expiration: 12h
+      remember_me: 30d
+
+# Túl sok hibás próbálkozás után a felhasználó fél órára kizárva.
+regulation:
+  max_retries: 5
+  find_time: 10m
+  ban_time: 30m
+
+storage:
+  local:
+    path: /data/db.sqlite3
+
+# Levél nincs: a TOTP regisztrációjához szükséges kódot az Authelia ebbe a fájlba írja.
+notifier:
+  filesystem:
+    filename: /data/notification.txt

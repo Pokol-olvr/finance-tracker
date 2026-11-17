@@ -8,7 +8,7 @@ tags: [penzugy, projekt]
 
 # Fejlesztési terv
 
-8 epic, 10 kéthetes sprint, kb. 226 story pont. Minden story egy feladat: a 📅 dátum a sprint vége, a címkék az epicet és a sprintet jelölik. A [Tasks](https://publish.obsidian.md/tasks/) bővítménnyel szűrhető, pl. `tags include #sprint/S1`.
+8 epic, 10 kéthetes sprint, kb. 234 story pont. Minden story egy feladat: a 📅 dátum a sprint vége, a címkék az epicet és a sprintet jelölik. A [Tasks](https://publish.obsidian.md/tasks/) bővítménnyel szűrhető, pl. `tags include #sprint/S1`.
 
 Részletes sprintterv: [[Sprint 1]] · [[Sprint 2]] · [[Sprint 3]] · [[Sprint 4]] · [[Sprint 5]] · [[Sprint 6]] · Kapcsolódó: [[Üzleti koncepció]] · [[Technikai terv]] · [[Release folyamat]] · [[Változásnapló]]
 
@@ -89,7 +89,7 @@ Kész, ha: kézi bejegyzésből gold mutató és Áttekintés riport lesz.
 - [ ] FIN-207 A riportoldalak dizájnja valódi adaton · 5 SP #E2 #sprint/S9 📅 2027-03-07
     - Elfogadás: legalább egy teljes hónap valódi adatán mindketten végignézték az oldalakat, a kifogások javítva vannak, és telefonszélességen sincs vízszintes görgetés
 
-## FIN-E3 Postaláda, Pi és e-mail (S3–S4, S6, 39 SP)
+## FIN-E3 Postaláda, Pi és e-mail (S3–S4, S6, 47 SP)
 
 Kész, ha: telefonról feltöltött vagy e-mailben továbbított számla eljut az otthoni object store-ba.
 
@@ -117,6 +117,12 @@ Kész, ha: telefonról feltöltött vagy e-mailben továbbított számla eljut a
     - Elfogadás: egy kétképes blokkból egy blokk lesz egy végösszeggel, a közös sorok egyszer számítanak
 - [ ] FIN-312 PDF-feltöltés és -olvasás: szövegréteg, szkennelt PDF-nél a modell · 3 SP #E3 #sprint/S4 📅 2026-12-27
     - Elfogadás: egy szöveges PDF modellhívás nélkül, egy szkennelt PDF a modellen át dolgozódik fel
+- [ ] FIN-313 A Pi megerősítése: csak kulcsos SSH, korlátozott jogú felhasználó, fail2ban, tűzfal, automatikus biztonsági frissítés · 3 SP #E3 #sprint/S6 📅 2027-01-24
+    - Elfogadás: a korlátozott felhasználó belép, de sem sudo, sem Docker nem érhető el neki; öt hibás SSH-próbálkozás után a cím ki van tiltva
+- [ ] FIN-314 Vaultwarden a Pi-n a Caddy mögött, regisztráció nélkül, kötelező 2FA-val, napi mentéssel az otthoni gépre · 3 SP #E3 #sprint/S6 📅 2027-01-24
+    - Elfogadás: a Bitwarden-kliens a tailnetről eléri, idegen nem regisztrálhat, és egy mentésből visszaállítható
+- [ ] FIN-315 Együttélés a Pi-hole-lal és az Unbounddal: portok, belső DNS-rekordok, Tailscale split DNS · 2 SP #E3 #sprint/S6 📅 2027-01-24
+    - Elfogadás: a Pi-hole és a Caddy is fut, a domain a tailneten a Pi-re oldódik fel, a Pi kiesése a telefonok internetét nem állítja le
 
 ## FIN-E4 Blokkbeolvasás (S3–S5, S7, 56 SP)
 
