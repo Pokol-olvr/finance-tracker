@@ -222,3 +222,52 @@ def test_invalid_date_is_dropped():
 
 def test_match_key_ignores_accents_and_punctuation():
     assert match_key("Gòngyóleg!  drs") == "GONGYOLEG DRS"
+
+
+def test_weighed_line_without_unit_before_x_takes_the_unit_after_the_slash():
+    result = parsed("weighed_without_unit")
+
+    assert values(result) == [6000, -3000, 1000, -500]
+    cloth = result["items"][0]
+    assert (cloth["quantity"], cloth["unit"], cloth["unit_price"]) == (1.5, "KG", 4000)
+    assert result["items"][1]["vat_code"] == "eC00"
+    assert status_of(result, run_checks(result, None, False)) == "ok"
+
+
+def test_discount_code_without_letter_is_still_a_discount():
+    result = parsed("discount_code_without_letter")
+
+    assert values(result) == [349, 565, -66, 299, -30]
+    assert [item["kind"] for item in result["items"]].count("discount") == 2
+    assert result["total"] == 1117
+
+
+def test_vat_codes_read_with_d_still_start_an_item():
+    result = parsed("codes_read_as_d")
+
+    assert [item["name"] for item in result["items"]] == [
+        "ÁSVÁNYVÍZ 1.5L",
+        "DRS GÖNGYÖLEG",
+        "TEJ 2.8% 1L",
+        "KENYÉR 500G",
+        "BANÁN KG",
+    ]
+    assert sum(values(result)) == result["total"]
+
+
+def test_table_without_vat_codes_is_read_by_the_product_of_its_columns():
+    result = parsed("table_without_codes")
+
+    assert values(result) == [299, 50, 290, 1290]
+    assert [item["kind"] for item in result["items"]] == ["item", "deposit", "item", "item"]
+    assert (result["items"][2]["quantity"], result["items"][2]["unit_price"]) == (2, 145)
+    assert result["total"] == 1929
+    assert result["purchased_on"] == "2026-12-06"
+    assert result["payments"] == [{"method": "card", "amount": 1929}]
+
+
+def test_last_footer_date_is_the_purchase_date():
+    result = parsed("promotion_date_before_purchase")
+
+    assert (result["purchased_on"], result["purchased_at"]) == ("2026-12-07", "17:33")
+
