@@ -26,6 +26,7 @@ def main() -> int:
         settings.ollama_model,
         settings.ollama_num_thread,
         settings.ollama_keep_alive,
+        settings.ollama_max_side,
     )
     files = sorted(path for path in source.iterdir() if path.suffix.lower() in SUFFIXES)
 

@@ -12,7 +12,7 @@ import psycopg
 
 from app import bronze, pdf, reviews
 from app.config import Settings, get_settings
-from app.extract import PROMPT_VERSION, ModelMissing, ReceiptReader
+from app.extract import PROMPT_VERSION, TRUNCATED, ModelMissing, ReceiptReader
 from app.inbox import Inbox
 from app.parsing import parse_pending
 from app.receipt_parser import PARSER_VERSION
@@ -147,6 +147,26 @@ def run_once(
             reviews.sync(conn, inbox, storage)
 
 
+def reread_truncated(
+    conn: psycopg.Connection, storage: Storage, reader: ReceiptReader
+) -> list[UUID]:
+    """A csonka olvasás újra a modellhez megy, ha azóta változott a beállítás (ADR 0012 kivétele).
+
+    Ugyanarra a fájlra ugyanaz a beállítás ugyanazt adja, ezért csak régebbi `PROMPT_VERSION`
+    csonka olvasása fut újra; a régi sor a bronzban marad, a feldolgozás a legutóbbit veszi.
+    """
+    done = []
+    for document in bronze.truncated_documents(conn, TRUNCATED, PROMPT_VERSION):
+        content = storage.get(document["object_key"])
+        active = pdf.reader_for(content, reader) if document["source_type"] == "pdf" else reader
+        payload = active.read(content, lambda _step: None)
+        bronze.insert_extraction(
+            conn, document["id"], active.name, active.version(), PROMPT_VERSION, payload
+        )
+        done.append(document["id"])
+    return done
+
+
 def reparse_stored(settings: Settings) -> None:
     """Új `PARSER_VERSION` után a meglévő szövegek is feldolgozódnak, modellfutás nélkül."""
     with psycopg.connect(settings.database_url, autocommit=True) as conn:
@@ -172,9 +192,21 @@ def main() -> None:
         settings.ollama_model,
         settings.ollama_num_thread,
         settings.ollama_keep_alive,
+        settings.ollama_max_side,
     )
+    try:
+        with psycopg.connect(settings.database_url, autocommit=True) as conn:
+            reader.history.extend(
+                bronze.recent_read_stats(conn, settings.ollama_model, reader.history.maxlen)
+            )
+    except psycopg.Error as error:
+        log.warning("A korábbi olvasások ideje nem tölthető be: %s", error)
     reporter = StatusReporter(
-        settings.inbox_url, settings.worker_token, settings.ollama_url, settings.ollama_model
+        settings.inbox_url,
+        settings.worker_token,
+        settings.ollama_url,
+        settings.ollama_model,
+        reader=reader,
     )
     reporter.start()
 
@@ -182,6 +214,9 @@ def main() -> None:
     while True:
         try:
             if not parsers_ready:
+                with psycopg.connect(settings.database_url, autocommit=True) as conn:
+                    if reread := reread_truncated(conn, storage, reader):
+                        log.info("%s csonka olvasás újraolvasva.", len(reread))
                 reparse_stored(settings)
                 parsers_ready = True
             run_once(settings, inbox, storage, reader, reporter)

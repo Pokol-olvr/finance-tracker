@@ -110,6 +110,37 @@ class JobReport(BaseModel):
     next_run: datetime | None = None
 
 
+class GpuReport(BaseModel):
+    name: str
+    utilization_percent: float | None = None
+    memory_used_bytes: int
+    memory_total_bytes: int
+    temperature_c: float | None = None
+    power_w: float | None = None
+
+
+class LastRead(BaseModel):
+    finished_at: datetime
+    seconds: float
+    load_seconds: float | None = None
+    image_seconds: float | None = None
+    text_seconds: float | None = None
+    tokens: int | None = None
+    tokens_per_second: float | None = None
+
+
+class RecentReads(BaseModel):
+    count: int
+    average_seconds: float
+    average_tokens_per_second: float | None = None
+
+
+class CpuReport(BaseModel):
+    model: str | None = None
+    percent: float
+    cores: list[float]
+
+
 class HostReport(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -123,6 +154,11 @@ class HostReport(BaseModel):
     memory_available_bytes: int
     memory_total_bytes: int
     load: float
+    gpu: GpuReport | None = None
+    ollama_cpu_percent: float | None = None
+    cpu: CpuReport | None = None
+    swap_used_bytes: int | None = None
+    swap_total_bytes: int | None = None
 
 
 class WorkerReport(BaseModel):
@@ -136,6 +172,15 @@ class WorkerReport(BaseModel):
     model_downloaded: bool
     model_loaded: bool
     model_memory_bytes: int
+    model_vram_bytes: int = 0
+    model_parameters: str | None = None
+    model_quantization: str | None = None
+    model_context: int | None = None
+    model_expires_at: datetime | None = None
+    last_read: LastRead | None = None
+    recent_reads: RecentReads | None = None
+    num_thread: int | None = None
+    keep_alive: str | None = None
 
 
 class CloseResult(BaseModel):

@@ -7,30 +7,40 @@ from difflib import get_close_matches
 from itertools import product
 
 # Ha a szabály változik, a worker a meglévő szövegeket is újra feldolgozza, modellfutás nélkül.
-PARSER_VERSION = "7"
+PARSER_VERSION = "10"
 
 MAX_AMBIGUOUS_LINES = 12
 MAX_OVERLAP_LINES = 15
 
 GROUPED = r"\d{1,3}(?: \d{3})+"
 AMOUNT = rf"-?(?:{GROUPED}|\d+)"
-# Az olvasat a 00-t néha OD-nek vagy OO-nak adja; a kisbetűs előtag az akciós sorokat jelöli.
-ITEM_LINE = re.compile(r"^(?P<code>[a-z]?[A-E][0O][0OD])\s+(?P<rest>.+)$")
+# Az olvasat a 00-t néha OD-nek, DO-nak vagy OO-nak adja; a kisbetűs előtag az akciós sorokat jelöli.
+ITEM_LINE = re.compile(r"^(?P<code>[a-z]?[A-E][0OD][0OD])\s+(?P<rest>.+)$")
 QUANTITY_LINE = re.compile(
-    r"^(?P<quantity>\d+(?:[,.]\d+)?)\s*(?P<unit>[^\W\d_]+)\s*[*xX]\s*"
-    rf"(?P<unit_price>(?:{GROUPED}|\d+)(?:,\d+)?)\s*(?:ft)?\s*/\s*[^\W\d_]+"
+    r"^(?P<quantity>\d+(?:[,.]\d+)?)\s*(?P<unit>[^\W\d_]+)?\s*[*xX]\s*"
+    rf"(?P<unit_price>(?:{GROUPED}|\d+)(?:,\d+)?)\s*(?:ft)?\s*/\s*(?P<per>[^\W\d_]+)"
     rf"(?:\s+(?P<value>{GROUPED}|\d+))?$",
     re.IGNORECASE,
 )
 # Egyes boltoknál a mennyiség a név fölött áll, és a sor végén az áfakód van, pl. `ALMA 299 C27`.
 # A kisbetűs előtag itt is az akciós sorokat jelöli.
-VALUE_WITH_CODE = re.compile(rf"^(?P<name>.*?\S)\s+(?P<value>{AMOUNT})\s+(?P<code>[a-z]?[A-E]\d{{2}})$")
+VALUE_WITH_CODE = re.compile(
+    rf"^(?P<name>.*?\S)\s+(?P<value>{AMOUNT})\s+(?P<code>[a-z]?\s?[A-E]\d{{2}}|[a-z]\d{{2}})$"
+)
+# A dokumentum címe nem boltnév: a bolt az első olyan sor, amely nem cím.
+DOCUMENT_TITLES = {"NYUGTA", "ERTEKESITESI JEGYZEK", "SZAMLA", "BLOKK", "NYUGTA SZAMLA"}
+# A jegyzék a sorszámot a fejlécben adja, pl. `Sorszám: 2026/BOLT/00001`.
+SERIAL_LABEL = "SORSZAM"
+# Táblázatos jegyzék áfakód nélkül: név, darab, egységár, érték; a szorzat dönti el a tagolást.
+TABLE_TOTAL_WORDS = ("OSSZ", "OSSZ.")
 # A cikkszám a vonalkód száma (EAN), a tétel fölött áll; a termékszabály erre is illeszkedhet.
 EAN_LINE = re.compile(r"^(?:CIKKSZ[AÁ]M|EAN)\s*:?\s*(?P<ean>\d{8,14})$", re.IGNORECASE)
 TARE_LINE = re.compile(r"^\d+[,.]\d+\s*KG\s*-\s*\d+[,.]\d+\s*KG\b", re.IGNORECASE)
 BARE_AMOUNT = re.compile(rf"^(?P<value>{AMOUNT})(?:\s*FT)?$", re.IGNORECASE)
 TRAILING_AMOUNT = re.compile(rf"^(?P<name>.*?\S)\s+(?P<value>{AMOUNT})$")
 LABELLED_LINE = re.compile(r"^(?P<label>[^:]+):\s*(?P<rest>.*)$")
+# Kettőspont nélkül is jöhet a fizetés: `KÉSZPÉNZ 4 900 Ft`.
+UNLABELLED_LINE = re.compile(r"^(?P<label>[^\d:]*[^\W\d_])\s+(?P<rest>-?\d.*)$")
 LABEL_AMOUNT = re.compile(rf"^(?P<value>{AMOUNT})(?:\s*(?:FT|HUF))?\b", re.IGNORECASE)
 DATE_TEXT = re.compile(r"\b(20\d{2})[.\-/ ]\s?(\d{2})[.\-/ ]\s?(\d{2})\b")
 TIME_TEXT = re.compile(r"\b(?:[01]\d|2[0-3]):[0-5]\d\b")
@@ -46,6 +56,11 @@ PAYMENT_LABELS = {
     "SZEP KARTYA": "szep",
     "UTALVANY": "voucher",
     "GONGYOLEG": DEPOSIT_VOUCHER,
+    # Egyes boltok a kártya márkáját írják, a REpont a visszaváltó automata utalványa.
+    "VISA": "card",
+    "MASTERCARD": "card",
+    "MAESTRO": "card",
+    "REPONT": DEPOSIT_VOUCHER,
 }
 CHANGE_LABEL = "VISSZAJARO"
 ROUNDING_LABEL = "KEREKITES"
@@ -79,7 +94,18 @@ def is_item_start(line: str) -> bool:
 
 def is_total_line(line: str) -> bool:
     words = match_key(line).replace("0", "O").split()
-    return bool(words) and bool(get_close_matches(words[0].rstrip(":"), ["OSSZESEN"], cutoff=0.8))
+    if not words:
+        return False
+    first = words[0].rstrip(":")
+    return first in TABLE_TOTAL_WORDS or bool(get_close_matches(first, ["OSSZESEN"], cutoff=0.8))
+
+
+def unit_of(match: re.Match) -> str:
+    return (match["unit"] or match["per"]).upper()
+
+
+def code_of(match: re.Match) -> str:
+    return match["code"].replace(" ", "")
 
 
 def split_trailing_amount(rest: str) -> tuple[str, int | None, int | None]:
@@ -115,7 +141,7 @@ def parse_item(lines: list[str], index: int, end: int) -> tuple[dict, int, int]:
         bare = BARE_AMOUNT.match(line)
         if quantity_match:
             quantity = to_number(quantity_match["quantity"])
-            unit = quantity_match["unit"].upper()
+            unit = unit_of(quantity_match)
             unit_price = to_price(quantity_match["unit_price"])
             if quantity_match["value"]:
                 value = to_int(quantity_match["value"])
@@ -212,10 +238,10 @@ def read_quantity_first(lines: list[str]) -> tuple[list[dict], int]:
                 {
                     "name": name,
                     "match_name": match_key(name),
-                    "vat_code": row["code"],
+                    "vat_code": code_of(row),
                     "kind": classify(name, value),
                     "quantity": to_number(quantity_match["quantity"]) if quantity_match else None,
-                    "unit": quantity_match["unit"].upper() if quantity_match else None,
+                    "unit": unit_of(quantity_match) if quantity_match else None,
                     "unit_price": to_price(quantity_match["unit_price"]) if quantity_match else None,
                     "value": value,
                     "ean": ean,
@@ -225,6 +251,55 @@ def read_quantity_first(lines: list[str]) -> tuple[list[dict], int]:
         else:
             unmatched += 1
     return items, unmatched
+
+
+def split_table_row(line: str) -> dict | None:
+    """`NÉV DB EGYSÉGÁR ÉRTÉK`: a végéről olvasva az a tagolás jó, amelynél darab × egységár = érték.
+
+    Az ezres tagolás miatt több tagolás is kiadhatja a szorzatot, pl. `1 1 290 1 290`:
+    ilyenkor a legkisebb darabszám nyer, mert a jegyzéken a darabszám a kicsi szám.
+    """
+    tokens = line.split()
+    candidates = []
+    for value_size in (1, 2):
+        for price_size in (1, 2):
+            head = len(tokens) - value_size - price_size - 1
+            if head < 1:
+                continue
+            value_text = " ".join(tokens[-value_size:])
+            price_text = " ".join(tokens[head + 1 : head + 1 + price_size])
+            quantity_text = tokens[head]
+            if not (
+                re.fullmatch(AMOUNT, value_text)
+                and re.fullmatch(rf"(?:{GROUPED}|\d+)(?:,\d+)?", price_text)
+                and re.fullmatch(r"\d+(?:[,.]\d+)?", quantity_text)
+            ):
+                continue
+            quantity = to_number(quantity_text)
+            unit_price = to_price(price_text)
+            value = to_int(value_text)
+            if abs(quantity * unit_price - value) <= 1:
+                candidates.append((quantity, " ".join(tokens[:head]), unit_price, value))
+    if not candidates:
+        return None
+    quantity, name, unit_price, value = min(candidates, key=lambda row: row[0])
+    return {
+        "name": name,
+        "match_name": match_key(name),
+        "vat_code": None,
+        "kind": classify(name, value),
+        "quantity": quantity,
+        "unit": "DB",
+        "unit_price": unit_price,
+        "value": value,
+        "ean": None,
+    }
+
+
+def read_table(lines: list[str]) -> tuple[list[dict], int]:
+    """A fejléc és az áfaösszesítő sorai nem adnak ki szorzatot, ezért kimaradnak."""
+    items = [row for line in lines if (row := split_table_row(line))]
+    return items, 0
 
 
 def values_first(lines: list[str]) -> list[str]:
@@ -268,7 +343,7 @@ def parse_footer(lines: list[str]) -> dict:
     vouchers: list[int] = []
     change = rounding = None
     for index, line in enumerate(lines):
-        match = LABELLED_LINE.match(line)
+        match = LABELLED_LINE.match(line) or UNLABELLED_LINE.match(line)
         if match is None:
             continue
         label = known_label(match["label"], [*PAYMENT_LABELS, CHANGE_LABEL, ROUNDING_LABEL])
@@ -284,19 +359,27 @@ def parse_footer(lines: list[str]) -> dict:
         else:
             payments.setdefault(PAYMENT_LABELS[label], amount)
 
-    purchased_on = purchased_at = receipt_number = None
-    for line in lines:
+    # A vásárlás dátuma a lábléc utolsó dátuma: az akciós szövegek dátumai előtte állnak.
+    dates: list[tuple[int, str]] = []
+    receipt_number = None
+    for index, line in enumerate(lines):
         without_times = line
-        if purchased_on is None and (found := DATE_TEXT.search(line)):
+        if found := DATE_TEXT.search(line):
             try:
-                purchased_on = date(*map(int, found.groups())).isoformat()
+                dates.append((index, date(*map(int, found.groups())).isoformat()))
             except ValueError:
-                purchased_on = None
+                pass
             without_times = line.replace(found.group(0), " ")
-        if purchased_on and purchased_at is None and (found := TIME_TEXT.search(line)):
-            purchased_at = found.group(0)
         if receipt_number is None and (found := RECEIPT_NUMBER.search(without_times)):
             receipt_number = found.group(0)
+    purchased_on = purchased_at = None
+    if dates:
+        index, purchased_on = dates[-1]
+        # Az idő a dátum sorában, alatta vagy fölötte áll.
+        for near in (index, index + 1, index - 1):
+            if 0 <= near < len(lines) and (found := TIME_TEXT.search(lines[near])):
+                purchased_at = found.group(0)
+                break
     return {
         "payments": [
             *({"method": key, "amount": value} for key, value in payments.items()),
@@ -357,6 +440,8 @@ def parse(text: str) -> dict:
     items, unmatched = read_items(lines[first_item:end], total)
     if not items:
         items, unmatched = read_quantity_first(lines[:end])
+    if not items:
+        items, unmatched = read_table(lines[:end])
     # Az elcsúszott sorrendet csak akkor fogadjuk el, ha azzal kijön a végösszeg.
     if not items_add_up(items, total) and first_item > 0 and BARE_AMOUNT.match(lines[first_item - 1]):
         shifted, shifted_unmatched = read_items(values_first(lines[first_item - 1 : end]), total)
@@ -364,11 +449,31 @@ def parse(text: str) -> dict:
             items, unmatched = shifted, shifted_unmatched
 
     tax_number = TAX_NUMBER.search(text)
+    header = lines[: min(end, first_item)]
+    store_name = next(
+        (line for line in header if match_key(line).strip("- ") not in DOCUMENT_TITLES),
+        None,
+    )
+    footer = parse_footer(footer_lines)
+    if footer.get("receipt_number") is None:
+        labelled = (LABELLED_LINE.match(line) for line in lines[:end])
+        footer["receipt_number"] = next(
+            (
+                found["rest"].strip()
+                for found in labelled
+                if found and match_key(found["label"]) == SERIAL_LABEL and found["rest"].strip()
+            ),
+            None,
+        )
+    if footer.get("purchased_on") is None:
+        header = parse_footer(lines[:end])
+        footer["purchased_on"] = header.get("purchased_on")
+        footer["purchased_at"] = footer.get("purchased_at") or header.get("purchased_at")
     return {
-        "store_name": lines[0] if first_item > 0 and match_key(lines[0]) != "NYUGTA" else None,
+        "store_name": store_name if header else None,
         "tax_number": tax_number.group(0) if tax_number else None,
         "total": total,
         "items": items,
         "unmatched_lines": unmatched,
-        **parse_footer(footer_lines),
+        **footer,
     }

@@ -18,9 +18,11 @@ on conflict (sha256) do nothing
 returning id
 """
 
+# A tényleges beszúrási idő: egy tranzakción belül is ez dönti el, melyik a legutóbbi olvasás.
 INSERT_EXTRACTION = """
-insert into bronze.extraction (document_id, model_name, model_version, prompt_version, payload)
-values (%s, %s, %s, %s, %s)
+insert into bronze.extraction
+  (document_id, model_name, model_version, prompt_version, payload, created_at)
+values (%s, %s, %s, %s, %s, clock_timestamp())
 """
 
 HAS_EXTRACTION = """
@@ -171,6 +173,54 @@ def insert_extraction(
         INSERT_EXTRACTION,
         (document_id, model_name, model_version, prompt_version, Jsonb(payload)),
     )
+
+
+def recent_read_stats(conn: psycopg.Connection, model_name: str, limit: int) -> list[dict]:
+    """A modell utolsó futásainak időadatai, a régebbitől az újabbig."""
+    rows = conn.execute(
+        """
+        select created_at, payload
+        from bronze.extraction
+        where model_name = %s and payload ? 'seconds'
+        order by created_at desc
+        limit %s
+        """,
+        (model_name, limit),
+    ).fetchall()
+    return [
+        {
+            "finished_at": created_at.isoformat(),
+            "seconds": float(payload["seconds"]),
+            "load_seconds": payload.get("load_seconds"),
+            "image_seconds": payload.get("image_seconds"),
+            "text_seconds": payload.get("text_seconds"),
+            "tokens": payload.get("tokens"),
+            "tokens_per_second": payload.get("tokens_per_second"),
+        }
+        for created_at, payload in reversed(rows)
+    ]
+
+
+TRUNCATED_DOCUMENTS = """
+select d.id, d.object_key, d.source_type
+from bronze.raw_document as d
+cross join lateral (
+  select e.payload, e.prompt_version
+  from bronze.extraction as e
+  where e.document_id = d.id
+  order by e.created_at desc
+  limit 1
+) as latest
+where latest.payload ->> 'done_reason' = %s and latest.prompt_version <> %s
+order by d.ingested_at
+"""
+
+
+def truncated_documents(conn: psycopg.Connection, reason: str, prompt_version: str) -> list[dict]:
+    """Azok a dokumentumok, amelyeknek a legutóbbi olvasása egy régebbi beállítással csonka maradt."""
+    with conn.cursor(row_factory=dict_row) as cursor:
+        cursor.execute(TRUNCATED_DOCUMENTS, (reason, prompt_version))
+        return cursor.fetchall()
 
 
 def group_of(conn: psycopg.Connection, document_id: UUID) -> UUID:

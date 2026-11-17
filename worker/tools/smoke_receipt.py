@@ -52,6 +52,7 @@ def main() -> int:
         settings.ollama_model,
         settings.ollama_num_thread,
         settings.ollama_keep_alive,
+        settings.ollama_max_side,
     )
     print(f"Modell: {reader.name} ({reader.version()})")
 

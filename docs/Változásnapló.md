@@ -21,12 +21,23 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 - FIN-409 Betétdíj oldal a `/deposit` címen: a várható DRS-betétdíj, kézi állítás és nullázás; a betétdíj nem kiadás, a beváltott utalvány csökkenti.
 - FIN-507 Termékcsaládok és egységár: termék- és kiszerelésszabály a Szabályok oldalon, a tétel `kategória/termékcsalád/termék` besorolást és Ft/kg, Ft/l vagy Ft/db egységárat kap, a `gold.product_prices` havi árnaplót ad.
 - A blokkfeldolgozó kiolvassa a tétel fölötti cikkszámot (EAN), és a javítás is megőrzi.
+- Árak riport: termékenként a legutóbbi és legolcsóbb egységár, a változás az első hónap óta, havonta boltonként; a Kiadások tételei termékkel és egységárral.
+- A blokkfeldolgozó új formái: `D`-nek olvasott áfakód, mértékegység nélküli mérlegelt sor, szóközzel tagolt vagy betű nélküli akciókód, áfakód nélküli táblázatos jegyzék, VISA, MASTERCARD és REPONT a fizetésben, kettőspont nélküli fizetés.
 - NVIDIA GPU az Ollamának a `home/docker-compose.gpu.yml` kiegészítéssel, a WSL-es beállítást a `scripts/setup-wsl-gpu.sh` végzi.
 - Windowsos fejlesztés WSL2-es Ubuntuban: a `scripts/setup-wsl.sh` telepíti a Docker Engine-t, a Compose-t és a `jq`-t, a README leírja a menetét.
 
 ### Módosítva
 
 - A modell betöltve tartása az `OLLAMA_KEEP_ALIVE` változóval állítható; alapból 0 marad, GPU-val 10 perc.
+- GPU-val a modell egy CPU-szálat kap, így a kiolvasás alatt a CPU nem pörög.
+- GPU-val a kép hosszabb oldala 2000 px (`OLLAMA_MAX_SIDE`), CPU-n marad 1400.
+- A vásárlás dátuma a lábléc utolsó dátuma, az akciós szövegek dátuma nem; a boltnév nem lehet a dokumentum címe.
+- A visszaváltó automata utalványa nem kiadás, ezért nem kér döntést.
+- A modell kontextusa 8192 token (`PROMPT_VERSION` 3); a 4096-os alapértéknél a 2000 px-es fotó olvasása a blokk közepén megszakadt.
+- A régebbi beállítással csonkán maradt olvasást a worker induláskor újraolvassa, a blokkot nem kell újra feltölteni.
+- A csonka olvasás azonnal újrapróbálódik 16 384, majd 32 768 tokenes kontextussal; a bronz a képtokent, a kontextust és a próbálkozások számát is tárolja.
+- Az állapot képernyő Erőforrások csempét kap: szálankénti CPU, RAM, swap, és ha van, NVIDIA GPU. Az Ollama kártya a modell méretét, a GPU-n vagy CPU-n futást, az utolsó olvasást és az utolsó 20 olvasás átlagát mutatja.
+- A kiolvasás időadatai (betöltés, kép, szöveg, token/s) a `bronze.extraction` payloadjába is bekerülnek.
 - A dbt éjszaka helyett óránként fut, így a döntés egy órán belül a riportokban is látszik.
 - A dokumentumok kiadása megjelenik a gold táblákban.
 
@@ -39,7 +50,7 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 - `scripts/backup.sh`, majd `scripts/replace-metabase.sh`: friss jelszót állít be a `report_reader` szerepkörnek, és törli a Metabase adatbázisát. Ez nem visszafordítható, a korábbi `metabase.dump` a mentésben marad.
 - `podman compose -f home/docker-compose.yml up -d --build --remove-orphans`, majd `scripts/dbt.sh`.
 - `scripts/install-timers.sh`: ez állítja át a dbt-t óránkénti futásra.
-- A worker induláskor a `PARSER_VERSION` 7 miatt minden tárolt szöveget újra feldolgoz, modell nélkül; a blokkokat nem kell újra feltölteni.
+- A worker induláskor a `PARSER_VERSION` 10 miatt minden tárolt szöveget újra feldolgoz, modell nélkül; a blokkokat nem kell újra feltölteni. A 2000 px csak az új olvasásokra érvényes.
 - A `home/.env` `MB_*` és `METABASE_*` sorai ezután törölhetők.
 
 ## v0.4.0 · 2026-11-01

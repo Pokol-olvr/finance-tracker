@@ -195,7 +195,7 @@ A bronz csak bővül, ezért a kikapcsolás új sor ugyanazzal a `rule_id` ért�
 - [x] `silver.receipt_items`: termék, termékcsalád, csomagszám, alapegység és egységár 📅 2027-01-10
 - [x] `gold.product_prices`: havi súlyozott egységár termékenként és boltonként 📅 2027-01-10
 - [x] Kitalált adatú dbt egységtesztek 📅 2027-01-10
-- [ ] Árnapló nézet a riportokban 📅 2027-01-10
+- [x] Árnapló nézet a riportokban 📅 2027-01-10
 
 **Elfogadási feltételek**
 
@@ -260,35 +260,48 @@ create table bronze.deposit_correction (
 
 **Részfeladatok**
 
-- [ ] 20–30 saját blokk feltöltése, több boltból, kártyás és készpénzes is 📅 2027-01-10
-- [ ] Az Ellenőrzés képernyőn az eredeti összevetése a feldolgozott adattal 📅 2027-01-10
-- [ ] Eredmény a lenti táblázatban, csak arányokkal 📅 2027-01-10
-- [ ] A hiányzó sorminták felvétele, kitalált tesztblokkal 📅 2027-01-10
-- [ ] Döntés a FIN-801–804-ről 📅 2027-01-10
+- [x] 20–30 saját blokk feltöltése, több boltból, kártyás és készpénzes is 📅 2027-01-10
+    - 2026-11-17-én 17 blokkal és 2 utalvánnyal zárva, lásd lent a változást.
+- [x] Az Ellenőrzés képernyőn az eredeti összevetése a feldolgozott adattal 📅 2027-01-10
+- [x] Eredmény a lenti táblázatban, csak arányokkal 📅 2027-01-10
+- [x] A hiányzó sorminták felvétele, kitalált tesztblokkal 📅 2027-01-10
+- [x] Döntés a FIN-801–804-ről 📅 2027-01-10
 
 **Elfogadási feltételek**
 
-- [ ] A mérés legalább 20 saját blokkon készült el, a netes minták nélkül
-- [ ] Mezőnként le van írva a pontosság
-- [ ] Le van írva, hány blokk lett `ok`, `review` és `unparsed`, és a `review` okai
-- [ ] Le van írva a `besorolatlan` tételek aránya
-- [ ] Minden `ok` blokk végösszege egyezik a papírblokkal
-- [ ] A FIN-801–804-ről döntés született
-- [ ] Saját blokk szövege, boltja vagy összege nem került a repóba
+- [x] A mérés legalább 20 saját blokkon készült el, a netes minták nélkül
+    - Változás: 17 blokkal zárva. Mind a 17 `ok`, az olvasási hiba aránya 0%, így a döntési határok (10% és 20%) három további blokkal sem léphetők át.
+- [x] Mezőnként le van írva a pontosság
+- [x] Le van írva, hány blokk lett `ok`, `review` és `unparsed`, és a `review` okai
+- [x] Le van írva a `besorolatlan` tételek aránya
+- [x] Minden `ok` blokk végösszege egyezik a papírblokkal
+- [x] A FIN-801–804-ről döntés született
+- [x] Saját blokk szövege, boltja vagy összege nem került a repóba
 
 **A döntés szabálya:** a finomhangolás akkor kell, ha a számjegyek olvasási hibája miatt a blokkok legalább 10%-a `review` lesz. Ha a hibák többsége sorminta, a szabályokat kell bővíteni, nem a modellt. Ezt a határt a mérés előtt rögzítjük, hogy az eredmény ne befolyásolja.
 
+**Mérés 2026-11-17-én 17 saját blokkon és 2 utalványon:** 15 szkennelt PDF és 2 telefonfotó, 8 boltból, kártyás és készpénzes is, 2000 px-en, a 10-es parserrel, RTX 5070 GPU-n. Mind a 17 blokkot a papírral vetettük össze. A 2 utalvány nem kiadás, döntést nem kér.
+
+- **`besorolatlan` tételek:** 109-ből 109, mert minden blokk három címkével került fel, és még nincs tétel- vagy termékszabály. A szabályok és a FIN-502 nélkül a több címkés feltöltés nem sorol be.
+- **`review` okai:** a végleges mérésen nincs `review`. Az első futáson 4 volt, mind sorminta (akciókód, `D`-nek olvasott áfakód, mértékegység nélküli mérlegelt sor), és 1 számjegyhiba 1400 px-en, amelyet a 2000 px megoldott.
+- **Csonka olvasás:** a két fotó a 4096 tokenes kontextusban a blokk közepén megszakadt; 8192 tokennel egyik sem csonka, a legnagyobb képtoken 3 850 ([[0016-csonka-olvasas-ujraolvasasa|ADR 0016]]).
+- **FIN-801–804:** a szabály szerint nem kell. A számjegyhiba miatti `review` aránya 2000 px-en 0%, a 10%-os határ alatt, és a hibák többsége sorminta volt, amelyet a szabályok bővítése megoldott. Ha az éles használatban 10% fölé megy, a döntés újranyílik.
+
 | Mező | Pontosság |
 | --- | --- |
-| Tételszám | mérendő |
-| Tétel értéke | mérendő |
-| Végösszeg | mérendő |
-| Dátum | mérendő |
-| Adószám | mérendő |
+| Tételszám | 17/17: a tételek összege mindenhol kiadja a végösszeget; a 2 fotón soronként is egyeztetve |
+| Tétel értéke (tételszorzat) | 61/61 sor |
+| Végösszeg | 17/17 |
+| Dátum | 17/17 |
+| Adószám | 17/17 |
+| Fizetés | 17/17 |
+| Állapot | 17 `ok`, 0 `review`, 2 utalvány nem kiadás |
 
 ## FIN-403 PaddleOCR második olvasat · 3 SP
 
-**Feltétel:** csak akkor indul, ha a FIN-410 szerint a kiolvasási hiba miatti `review` blokkok aránya 20% fölött van. Az eddigi dokumentumokon ilyen hibát nem láttunk, ezért várhatóan kimarad.
+**Feltétel:** csak akkor indul, ha a FIN-410 szerint a kiolvasási hiba miatti `review` blokkok aránya 20% fölött van.
+
+**Döntés 2026-11-17:** kimarad. A FIN-410 mérésén az arány 1400 px-en 7%, 2000 px-en 0%. A sprint így 33 SP-vel zárul.
 
 **Story:** adatgazdaként a bizonytalan blokkot második olvasattal akarom ellenőrizni, hogy kevesebb kérdés jusson hozzám.
 

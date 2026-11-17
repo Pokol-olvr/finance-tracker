@@ -44,7 +44,7 @@ A `scripts/setup-wsl.sh` systemd-t vár, ezt a `/etc/wsl.conf` `[boot]` részéb
 
 A Docker konténerei rootként futnak, ezért a `home/data` törléséhez `sudo rm -rf home/data` kell a `podman unshare` helyett.
 
-NVIDIA GPU-val a kiolvasás a GPU-n fut. A `scripts/setup-wsl-gpu.sh` telepíti az NVIDIA container toolkitet, a `home/.env`-ben pedig a `COMPOSE_FILE=docker-compose.yml:docker-compose.gpu.yml` kapcsolja be. Ilyenkor a modell 10 percig betöltve marad (`OLLAMA_KEEP_ALIVE`), mert a blokkonkénti újratöltés CPU-n tovább tart, mint maga a kiolvasás. Egy RTX 5070-en 17 blokk 94 másodperc alatt olvasódott ki újratöltéssel.
+NVIDIA GPU-val a kiolvasás a GPU-n fut. A `scripts/setup-wsl-gpu.sh` telepíti az NVIDIA container toolkitet, a `home/.env`-ben pedig a `COMPOSE_FILE=docker-compose.yml:docker-compose.gpu.yml` kapcsolja be. Ilyenkor a modell 10 percig betöltve marad (`OLLAMA_KEEP_ALIVE`), mert a blokkonkénti újratöltés CPU-n tovább tart, mint maga a kiolvasás. A kép hosszabb oldala 2000 pixel (`OLLAMA_MAX_SIDE`, CPU-n 1400), mert a saját blokkokon a számjegyhibát ez kijavította. A modell egy CPU-szálat kap (`OLLAMA_NUM_THREAD`), mert több szál a GPU-ra várva is pörög: 17 blokkon 1, 2, 4 és 10 szállal is 36–40 másodperc volt a modellidő, a CPU-használat viszont 97% és 536% között változott. Egy RTX 5070-en 17 blokk 94 másodperc alatt olvasódott ki újratöltéssel.
 
 ## Felépítés
 
@@ -149,7 +149,7 @@ Döntést a `review`, az `unparsed` és az olvashatatlan dokumentum kér. Az `ok
 
 Ami nem kiadás, például a szállítólevél, annál a képernyő ezt kiírja, és a szöveges olvasat nyitva látszik. Ilyenkor és ismeretlen táblázatú számlánál a szövegből kinyert sorok javaslatként jelennek meg. Ezek nem számítanak adatnak, amíg a javítást el nem mented.
 
-A modell ugyanarra a fájlra ugyanazt adja, ezért nincs újraolvasó gomb: rossz fotónál új fotó kell, annak más a hash-e. Ha egy elvetett dokumentum fájlját töltöd fel újra, a dokumentum modellfutás nélkül újranyílik, minden más esetben az eredmény „már megvolt”.
+A modell ugyanarra a fájlra ugyanazt adja, ezért nincs újraolvasó gomb: rossz fotónál új fotó kell, annak más a hash-e. Ha egy elvetett dokumentum fájlját töltöd fel újra, a dokumentum modellfutás nélkül újranyílik, minden más esetben az eredmény „már megvolt”. Kivétel a csonka olvasás: ha a modell kontextusa elfogyott, és azóta a beállítás változott, a worker induláskor újraolvassa a fájlt a Garage-ból ([ADR 0016](docs/adr/0016-csonka-olvasas-ujraolvasasa.md)). A kontextus 8192 token: a 2000 px-re kicsinyített kép a mérés szerint legfeljebb 4 112 képtoken (2000 × 2000-en), a szöveg legfeljebb 2 000. A feltöltött kép felbontása ezt nem növeli, mert a kép a modell előtt kicsinyül. Ha az olvasás mégis csonka, a worker azonnal újrapróbálja 16 384, majd 32 768 tokennel, kétszeres szöveghatárral, és a nagyobb modell utána kirakódik. A bronzban a `prompt_tokens`, a `num_ctx` és az `attempts` mutatja, mennyire volt közel a határ.
 
 A döntés előbb a webappba kerül, innen a worker a következő körben a `bronze.review_decision` táblába írja, a `bronze.receipt_parse` nem változik. A javított érték a dbt következő futása után látszik a silverben és a riportokban. A csomag a döntésig marad, a lezárt dokumentumé 30 nap után törlődik a webappból, a fájl a Garage-ban megmarad. A 30 napnál régebbi `ok` dokumentumot a worker nem tölti vissza. A HEIC fájlt a böngésző nem jeleníti meg, ezért ott a worker JPEG-előnézetet küld. Az indoklás: [ADR 0011](docs/adr/0011-ellenorzes-kepernyo-csomagokkal.md) és [ADR 0012](docs/adr/0012-ujranyitas-az-ujraolvasas-helyett.md).
 
@@ -199,10 +199,11 @@ Mindkét oldal adata a webapp kimenő sorába kerül, innen a worker írja a bro
 
 ## Riportok
 
-A `http://127.0.0.1:8501` oldalon két riport van, a kód a `reports/` mappában:
+A `http://127.0.0.1:8501` oldalon három riport van, a kód a `reports/` mappában:
 
 - **Áttekintés:** bevétel, kiadás, egyenleg, megtakarítási ráta és várható betétdíj, a hónap összevetése az előzővel és az átlaggal, kiadás kategóriánként.
-- **Kiadások:** a dokumentumok listája szűrhető arra, ki fizetett. Egy sor kiválasztása után a tételek látszanak, a gomb pedig az Ellenőrzésre visz az eredetihez.
+- **Kiadások:** a dokumentumok listája szűrhető arra, ki fizetett. Egy sor kiválasztása után a tételek látszanak termékkel és egységárral, a gomb pedig az Ellenőrzésre visz az eredetihez.
+- **Árak:** egy termék legutóbbi és legolcsóbb egységára, a változás az első hónap óta, és havonta boltonként az ár. A termék a Szabályok oldalon felvett termékszabályból jön.
 
 A kiadásba csak a rendben lévő, jóváhagyott vagy javított dokumentum számít, ezt egyedül a `silver.documents` dönti el ([ADR 0013](docs/adr/0013-beszamitas-a-silverben.md)). A dbt óránként fut, ezért a változás legfeljebb egy órán belül látszik.
 
@@ -210,7 +211,12 @@ A riport kizárólag a goldot olvassa, és csak olvasható kapcsolattal. A Strea
 
 ## Állapot képernyő
 
-A `http://127.0.0.1:8000/status` oldal kilenc kártyán mutatja a stack részeit: Feltöltés, Worker, Ollama, Garage, Postgres, Riportok, dbt, Mentés és Gép. Fölöttük látszik az összkép és az aktuális feldolgozási lépés az eltelt idővel, alattuk a legutóbbi feldolgozások. Az oldal 5 másodpercenként frissül, az adatai a `/status.json` címen is elérhetők.
+A `http://127.0.0.1:8000/status` oldal tíz kártyán mutatja a stack részeit: Feltöltés, Worker, Ollama, Garage, Postgres, Riportok, dbt, Mentés, Gép és Erőforrások.
+
+- **Ollama:** a modell mérete és kvantálása, hogy GPU-n vagy CPU-n fut és mennyi memóriát foglal, az utolsó olvasás ideje token/s sebességgel, valamint az utolsó 20 olvasás átlaga. Az átlag a bronzból töltődik vissza, ezért a worker újraindítása után sem üres.
+- **Erőforrások:** a CPU minden szála külön oszlopban, a RAM és a swap, NVIDIA GPU-s gépen a GPU kihasználtsága, videomemóriája, hőmérséklete és fogyasztása.
+
+Az erőforrás-adat 15 másodpercenkénti pillanatkép, a CPU egy másodperces mintából számol, ezért egy 2–3 másodperces olvasás csúcsa kimaradhat belőle. Fölöttük látszik az összkép és az aktuális feldolgozási lépés az eltelt idővel, alattuk a legutóbbi feldolgozások. Az oldal 5 másodpercenként frissül, az adatai a `/status.json` címen is elérhetők.
 
 | Felirat | Jelentés |
 | --- | --- |
