@@ -322,7 +322,7 @@ create table bronze.deposit_correction (
 - [ ] Sprinttervezés, kb. 30 perc 📅 2026-12-28
 - [ ] Heti áttekintés, kb. 15 perc 📅 2027-01-04
 - [ ] Demó és retró, kb. 30 perc 📅 2027-01-10
-- [ ] Kiadás: `v0.5.0` a [[Release folyamat]] szerint 📅 2027-01-10
+- [x] Kiadás: `v0.5.0` a [[Release folyamat]] szerint 📅 2027-01-10
 
 **Eldöntve a tervezés előtt**
 
