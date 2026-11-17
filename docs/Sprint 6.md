@@ -72,6 +72,8 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 - [x] Tűzfal (`ufw`): 53 a helyi hálózatról és a tailnetről, 22 a helyi hálózatról és a tailnetről, 80 és 443 a tailnetről és a Pi-hole felületéhez a helyi hálózatról; NTP, mDNS és a Beszel a helyi hálózatról; minden más tiltva. Konzolos visszaút helyett 5 perces önvisszavonó időzítő 📅 2027-01-24
 - [x] `unattended-upgrades` a biztonsági frissítésekre, újraindítás nélkül 📅 2027-01-24
 - [x] Script a beállításhoz, a README-ben a visszavonás lépéseivel (`scripts/pi/`) 📅 2027-01-24
+- [x] Kulcscsere scripttel (`scripts/windows/rotate-ssh-key.ps1`); 2026-11-17-én az `olvaso` kulcsán kipróbálva, a rendszergazdai kulcs jelmondatot kapott 📅 2027-01-24
+- [ ] Éves kulcscsere, először 2027-11-17-én 📅 2027-01-24
 
 **Elfogadási feltételek**
 
