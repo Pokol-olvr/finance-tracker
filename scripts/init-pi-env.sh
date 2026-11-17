@@ -23,5 +23,5 @@ set_value AUTHELIA_STORAGE_ENCRYPTION_KEY "$(openssl rand -hex 32)"
 set_value AUTHELIA_JWT_SECRET "$(openssl rand -hex 32)"
 
 echo "Kész: $target"
-echo "Töltsd ki: FINANCE_DOMAIN, ACME_EMAIL, CLOUDFLARE_API_TOKEN, BIND_ADDRESS,"
+echo "Töltsd ki: FINANCE_DOMAIN, CLOUDFLARE_API_TOKEN, BIND_ADDRESS,"
 echo "WORKER_API_TOKEN (a home/.env-ből), HOUSEHOLD_MEMBERS, REPORTS_URL."

@@ -46,17 +46,19 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 **Részfeladatok**
 
 - [ ] Tailscale a Pi-n, a két telefonon és az otthoni gépen, egy tailnetben 📅 2027-01-24
-    - A Pi-n 2026-11-17-én már fut; a feldolgozó gépen telepítve van, de 10 napja nem fut.
-- [ ] ACL: a telefonok csak a Pi webappját érik el, az otthoni gép a Pi-t és a saját szolgáltatásait 📅 2027-01-24
-- [ ] WSL-es otthoni gépnél: a Tailscale a Windows-oldalon fut; a WSL tükrözött hálózattal (`networkingMode=mirrored`) a Tailscale-címen is látszik, a riportok a `BIND_ADDRESS`-szel 📅 2027-01-24
-- [ ] A WSL a Windows indulásakor elindul, és ablak nélkül is fut, így a worker és a timerek bejelentkezés nélkül is dolgoznak 📅 2027-01-24
-- [ ] A Pi-n nincs nyitott bejövő port a routeren 📅 2027-01-24
+    - 2026-11-18: a Pi-n és a feldolgozó gépen fut, az egyik telefon a tailnetben van; a második telefon hátravan.
+- [ ] ACL: a telefonok csak a Pi webappját és az otthoni gép riportjait érik el, az otthoni gép a Pi-t 📅 2027-01-24
+- [x] WSL-es otthoni gépnél: a Tailscale a Windows-oldalon fut; a WSL tükrözött hálózattal (`networkingMode=mirrored`) a Tailscale-címen is látszik, a riportok a `home/docker-compose.tailnet.yml`-lel a `127.0.0.1` mellett a Tailscale-címen is 📅 2027-01-24
+- [x] A WSL bejelentkezéskor elindul, és ablak nélkül is fut (`scripts/windows/wsl-autostart.ps1`), így a worker és a timerek nyitott terminál nélkül is dolgoznak 📅 2027-01-24
+- [x] A Pi-n nincs nyitott bejövő port a routeren 📅 2027-01-24
+- [x] A tükrözött hálózatban a Windows saját Postgrese (5432) ütközött a stackével: a stacké a `POSTGRES_PORT=5433`-ra került 📅 2027-01-24
 
 **Elfogadási feltételek**
 
 - [ ] A webapp csak a Tailscale-hálózatról érhető el
 - [ ] Mobilnetről, Tailscale nélkül a Pi címe nem válaszol
-- [ ] Az otthoni gép a Pi-t a Tailscale-címén éri el
+- [x] Az otthoni gép a Pi-t a Tailscale-címén éri el
+- [x] A riportok a Pi-ről a tailneten elérhetők, a helyi hálózatról Tailscale nélkül nem (2026-11-18)
 
 ## FIN-313 A Pi megerősítése · 3 SP
 
@@ -95,7 +97,8 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 - [x] A Pi-hole v6 webszervere (`webserver.port`) csak a helyi hálózati címen figyel, így a Tailscale-cím 80-as és 443-as portja a Caddyé 📅 2027-01-24
 - [x] Az Unbound a `127.0.0.1:5335`-ön marad, a Pi-hole továbbra is ezt kérdezi 📅 2027-01-24
 - [x] Belső DNS-rekordok a Pi-hole-ban: a pénzügyi név, az `auth.` aldomainje és a Vaultwarden neve a Pi Tailscale-címére 📅 2027-01-24
-- [ ] Tailscale split DNS: a domain a Pi Tailscale-címén lévő Pi-hole-hoz megy, minden más a telefon saját DNS-éhez 📅 2027-01-24
+- [x] Tailscale split DNS: a domain a Pi Tailscale-címén lévő Pi-hole-hoz megy 📅 2027-01-24
+- [x] Globális névszerver a tailneten is a Pi-hole, „Override DNS servers” bekapcsolva, így a reklámszűrés otthonon kívül is működik 📅 2027-01-24
 - [x] A Cloudflare-ben nincs rekord a belső címre; a Cloudflare csak a tanúsítvány DNS-ellenőrzéséhez kell 📅 2027-01-24
 - [x] A Pi maga nem a Tailscale DNS-ét használja (`--accept-dns=false`), így a `tailscaled` kiesése nem viszi el a névfeloldását 📅 2027-01-24
 - [ ] A `127.0.0.1` kifejezett névszerverként a NetworkManagerben, egyeztetett időpontban, mert az újracsatlakozás rövid kiesés 📅 2027-01-24
@@ -107,6 +110,7 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 - [ ] A domain a tailneten a Pi Tailscale-címére oldódik fel, a nyilvános DNS-ben nincs rá rekord
     - 2026-11-17: a Pi-hole a három nevet a Pi Tailscale-címére oldja fel, a nyilvános DNS-ben nincs rekord; a tailneten a split DNS után ellenőrizendő.
 - [ ] Leállított Pi-hole mellett a telefonok a tailneten is elérik az internetet
+    - Változás 2026-11-17: tudatos döntés, hogy a tailnet globális DNS-e a Pi-hole, a reklámszűrés miatt. A Pi kiesésekor a tailnetes eszközökön nincs névfeloldás; ilyenkor a Tailscale kikapcsolása visszaadja az internetet. A feltétel ezért nem teljesül, és nem is cél.
 
 ## FIN-302 Caddy HTTPS a saját domainen · 2 SP
 
@@ -116,14 +120,16 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 
 - [x] Caddy a `pi/` Compose-ban, a DNS-szolgáltató pluginjával 📅 2027-01-24
 - [x] DNS-alapú ACME-ellenőrzés, mert az oldal kívülről nem látszik 📅 2027-01-24
-- [ ] Belső DNS-rekord a Pi Tailscale-címére a Pi-hole-ban (FIN-315) 📅 2027-01-24
+- [x] Belső DNS-rekord a Pi Tailscale-címére a Pi-hole-ban (FIN-315) 📅 2027-01-24
 - [x] A DNS API-kulcs csak a Pi `.env`-jében, a lehető legszűkebb joggal 📅 2027-01-24
 
 **Elfogadási feltételek**
 
-- [ ] Érvényes tanúsítvány, a böngésző nem figyelmeztet
+- [x] Érvényes tanúsítvány, a böngésző nem figyelmeztet
+    - 2026-11-18: Let's Encrypt-tanúsítvány a pénzügyi névre és az `auth.` aldomainre, 2027-02-15-ig; a Cloudflare-token csak a zónára szól, DNS Edit és Zone Read joggal, 2027-11-18-ig.
 - [ ] A tanúsítvány megújul emberi beavatkozás nélkül (a Caddy naplója mutatja)
 - [ ] HTTP-ről HTTPS-re irányít
+- [ ] A Cloudflare-token cseréje 2027-11-18 előtt, az SSH-kulcsok éves cseréjével együtt
 
 ## FIN-303 Authelia TOTP 2FA két felhasználóval · 3 SP
 
@@ -134,6 +140,7 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 - [x] Authelia a `pi/` Compose-ban, fájlalapú felhasználókkal, a Caddy `forward_auth` mögött 📅 2027-01-24
 - [ ] Két felhasználó a `HOUSEHOLD_MEMBERS` kódjaival, TOTP-vel 📅 2027-01-24
     - A `scripts/authelia-user.sh` kész, a felhasználókat a Pi-n kell felvenni.
+    - 2026-11-18: felhasználói fájl nélkül az Authelia egy példafelhasználót hozott létre; az Authelia leállítva, a fájl törölve, amíg a két valódi felhasználó nincs fent. Addig a domain 502-t ad, a worker API token nélkül 401-et.
 - [x] A worker API (`/inbox/…`) Authelia nélkül, csak a `WORKER_API_TOKEN`-nel érhető el 📅 2027-01-24
 - [x] A webapp a belépett felhasználót a fejlécből veszi, így a feltöltő nem választható szabadon 📅 2027-01-24
 - [x] Munkamenet-idő és kizárás túl sok hibás próbálkozás után 📅 2027-01-24
@@ -241,6 +248,7 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 - [x] A postaláda egy Raspberry Pi 4, Raspberry Pi OS 64 bittel; a webapp képe arm64-re épül.
 - [x] A HTTPS a saját domainen, Cloudflare DNS-sel; a Caddy a Cloudflare-pluginnal, csak DNS-szerkesztési joggal rendelkező tokennel kéri a tanúsítványt.
 - [x] A Pi-n natív Pi-hole v6 és Unbound fut, ez a háztartás DNS-e; a domain belső rekordjai ide kerülnek, a tailneten split DNS-sel.
+- [x] A tailnet globális DNS-e is a Pi-hole (Override DNS servers), hogy a reklámszűrés otthonon kívül is működjön; a Pi kiesése így a tailnetes eszközök DNS-ét is viszi (2026-11-17).
 - [x] A Vaultwarden is a Pi-re kerül, és a Pi megerősítése (korlátozott felhasználó, fail2ban) ebbe a sprintbe tartozik.
 - [x] Tailscale marad, nem Headscale, mert így nincs kívülről elérhető vezérlőszerver ([[0003-tailscale-a-wireguard-helyett|ADR 0003]]).
 

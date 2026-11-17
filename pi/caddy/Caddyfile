@@ -1,6 +1,6 @@
 # A tanúsítvány DNS-alapú ellenőrzéssel jön, mert a domain csak a tailneten érhető el.
+# E-mail-cím nélkül: a Let's Encrypt 2025 óta nem küld lejárati értesítőt, a Caddy maga újít.
 {
-	email {$ACME_EMAIL}
 	acme_dns cloudflare {$CLOUDFLARE_API_TOKEN}
 }
 

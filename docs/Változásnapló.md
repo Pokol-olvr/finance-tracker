@@ -31,6 +31,7 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 - A Pi postaláda Compose-fájlja (`pi/`): a webapp Caddy mögött HTTPS-sel a saját domainen, Cloudflare DNS-alapú tanúsítvánnyal, és Authelia kétfaktoros (TOTP) belépéssel, csak a Pi Tailscale-címén.
 - `scripts/setup-pi.sh`, `scripts/init-pi-env.sh` és `scripts/authelia-user.sh` a Pi beállításához; `scripts/windows/wsl-autostart.ps1` a WSL ablak nélküli futtatásához és a tükrözött hálózathoz.
 - A CI a Pi Compose-fájlját is ellenőrzi.
+- `home/docker-compose.tailnet.yml`: a riportok a helyi cím mellett a gép Tailscale-címén is, a `TAILNET_ADDRESS`-szel.
 - `scripts/windows/rotate-ssh-key.ps1`: SSH-kulcs cseréje a régi kulcs eltávolításával, próbával az új kulccsal.
 - FIN-315 `scripts/pi/pihole-tailnet.sh`: a Pi-hole webszervere a helyi címen, a saját domain nevei helyi rekordként a Pi Tailscale-címén, a Pi nem a Tailscale DNS-ét használja.
 - FIN-313 A Pi megerősítése a `scripts/pi/` scriptjeivel: fail2ban, automatikus biztonsági frissítés, korlátozott felhasználó, csak kulcsos SSH és tűzfal önvisszavonó időzítővel.
