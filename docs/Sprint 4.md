@@ -398,19 +398,20 @@ Az `id` a webappban készül, ezért a lehúzás ismételhető. Egy dokumentumho
 
 **Részfeladatok**
 
-- [ ] Legalább 5 saját blokk feltöltése, legalább 3 boltból, köztük kártyás és készpénzes 📅 2026-12-27
-- [ ] A hiányzó sorminták felvétele; hozzájuk kitalált tesztblokk 📅 2026-12-27
+- [x] Legalább 5 saját blokk feltöltése, legalább 3 boltból, köztük kártyás és készpénzes 📅 2026-12-27
+- [x] A hiányzó sorminták felvétele; hozzájuk kitalált tesztblokk 📅 2026-12-27
     - Az első új formátum, ahol a mennyiség a név fölött áll, már bekerült (`quantity_first`), a kedvezménysorokkal együtt.
-- [ ] Eredmény a lenti táblázatban, csak arányokkal 📅 2026-12-27
-- [ ] Döntés a FIN-403-ról és a kép méretéről 📅 2026-12-27
+    - A mérés után: `D`-nek olvasott áfakód, mértékegység nélküli mérlegelt sor, szóközzel tagolt vagy betű nélküli akciókód, áfakód nélküli táblázatos jegyzék, kártyamárka és REpont a fizetésben, kettőspont nélküli fizetés, akciós dátum a láblécben, a dokumentum címe boltnévként.
+- [x] Eredmény a lenti táblázatban, csak arányokkal 📅 2026-12-27
+- [x] Döntés a FIN-403-ról és a kép méretéről 📅 2026-12-27
 
 **Elfogadási feltételek**
 
-- [ ] A mérés legalább 5 blokkon, legalább 3 boltból elkészült
-- [ ] Mezőnként le van írva a pontosság: tételszám, érték, végösszeg, dátum, adószám
-- [ ] Le van írva, hány blokk lett `ok`, `review` és `unparsed`
-- [ ] Minden `ok` blokk végösszege egyezik a papírblokkal
-- [ ] Saját blokk szövege, boltja vagy összege nem került a repóba
+- [x] A mérés legalább 5 blokkon, legalább 3 boltból elkészült
+- [x] Mezőnként le van írva a pontosság: tételszám, érték, végösszeg, dátum, adószám
+- [x] Le van írva, hány blokk lett `ok`, `review` és `unparsed`
+- [x] Minden `ok` blokk végösszege egyezik a papírblokkal
+- [x] Saját blokk szövege, boltja vagy összege nem került a repóba
 
 **A döntés szabálya**
 
@@ -419,13 +420,25 @@ Az `id` a webappban készül, ezért a lehúzás ismételhető. Egy dokumentumho
 
 **Mérés 2026-11-01-én egy szkennelt A4-es lapon:** ugyanazzal a beállítással mindig ugyanaz a szöveg jött ki, ezért a változatlan újraolvasás nem javít. A margók levágása nem adott több tételt. 2000 pixelen a kimenet elérte a tokenhatárt, kevesebb tétel lett, és kb. 190 másodpercig tartott. Egy lap nem általánosítható, a döntéshez a saját blokkok mérése kell.
 
-| Mező | Pontosság |
-| --- | --- |
-| Tételszám | mérendő |
-| Tétel értéke | mérendő |
-| Végösszeg | mérendő |
-| Dátum | mérendő |
-| Adószám | mérendő |
+**Mérés 2026-11-17-én 17 saját dokumentumon:** 15 blokk 8 boltból, kártyás és készpénzes is, és 2 visszaváltási utalvány, szkennelt PDF-ből, RTX 5070 GPU-n. Az első futás a 7-es parserrel 10 `ok`, 4 `review` és 3 `unparsed` lett; mind a 7 hiba sorminta volt, nem olvasási hiba. A 9-es parserrel:
+
+| Mező | 1400 px | 2000 px |
+| --- | --- | --- |
+| Tételszám | a tételek összege 15/15 blokknál kiadja a végösszeget | 15/15 |
+| Tétel értéke (tételszorzat) | 52/55 sor | 55/55 sor |
+| Végösszeg | 15/15 | 15/15 |
+| Dátum | 15/15 | 15/15 |
+| Adószám | 15/15 | 15/15 |
+| Fizetés | 15/15 | 15/15 |
+| Állapot | 14 `ok`, 1 `review`, 2 `unparsed` | 15 `ok`, 2 `unparsed` |
+| Modellidő 17 dokumentumra | 32 s | 39 s |
+
+A tételszámot soronként nem vetettük össze a papírral, a végösszeg és a tételszorzat egyezése jelzi. A 2 `unparsed` a visszaváltási utalvány, amely nem kiadás, és a párosítása a FIN-411 feladata.
+
+**Döntés:**
+
+- **FIN-403:** kimarad. Az olvasási hiba miatti `review` aránya 1400 px-en 7%, 2000 px-en 0%, mindkettő a 20%-os határ alatt.
+- **Képméret:** GPU-n 2000 px (`OLLAMA_MAX_SIDE`), mert az egyetlen számjegyhibás blokkot kijavította, 24%-kal hosszabb modellidővel. CPU-n marad az 1400 px, mert ott a 2000 px blokkonként kb. 190 másodperc.
 
 ## Események és nyitott kérdések
 

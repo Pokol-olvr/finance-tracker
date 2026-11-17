@@ -195,7 +195,7 @@ A bronz csak bővül, ezért a kikapcsolás új sor ugyanazzal a `rule_id` ért�
 - [x] `silver.receipt_items`: termék, termékcsalád, csomagszám, alapegység és egységár 📅 2027-01-10
 - [x] `gold.product_prices`: havi súlyozott egységár termékenként és boltonként 📅 2027-01-10
 - [x] Kitalált adatú dbt egységtesztek 📅 2027-01-10
-- [ ] Árnapló nézet a riportokban 📅 2027-01-10
+- [x] Árnapló nézet a riportokban 📅 2027-01-10
 
 **Elfogadási feltételek**
 
@@ -261,34 +261,42 @@ create table bronze.deposit_correction (
 **Részfeladatok**
 
 - [ ] 20–30 saját blokk feltöltése, több boltból, kártyás és készpénzes is 📅 2027-01-10
-- [ ] Az Ellenőrzés képernyőn az eredeti összevetése a feldolgozott adattal 📅 2027-01-10
+    - 2026-11-17-én 15 blokk és 2 utalvány van fent; legalább 5 blokk még hiányzik.
+- [x] Az Ellenőrzés képernyőn az eredeti összevetése a feldolgozott adattal 📅 2027-01-10
 - [ ] Eredmény a lenti táblázatban, csak arányokkal 📅 2027-01-10
-- [ ] A hiányzó sorminták felvétele, kitalált tesztblokkal 📅 2027-01-10
-- [ ] Döntés a FIN-801–804-ről 📅 2027-01-10
+- [x] A hiányzó sorminták felvétele, kitalált tesztblokkal 📅 2027-01-10
+- [x] Döntés a FIN-801–804-ről 📅 2027-01-10
 
 **Elfogadási feltételek**
 
 - [ ] A mérés legalább 20 saját blokkon készült el, a netes minták nélkül
 - [ ] Mezőnként le van írva a pontosság
 - [ ] Le van írva, hány blokk lett `ok`, `review` és `unparsed`, és a `review` okai
-- [ ] Le van írva a `besorolatlan` tételek aránya
+- [x] Le van írva a `besorolatlan` tételek aránya
 - [ ] Minden `ok` blokk végösszege egyezik a papírblokkal
-- [ ] A FIN-801–804-ről döntés született
+- [x] A FIN-801–804-ről döntés született
 - [ ] Saját blokk szövege, boltja vagy összege nem került a repóba
 
 **A döntés szabálya:** a finomhangolás akkor kell, ha a számjegyek olvasási hibája miatt a blokkok legalább 10%-a `review` lesz. Ha a hibák többsége sorminta, a szabályokat kell bővíteni, nem a modellt. Ezt a határt a mérés előtt rögzítjük, hogy az eredmény ne befolyásolja.
 
+**Részeredmény 2026-11-17-én 15 blokkon:** a mezőnkénti pontosság a [[Sprint 4]] FIN-410 táblázatában van; 2000 px-en minden mező 15/15. A végleges táblázat a 20. blokk után készül el.
+
+- **`besorolatlan` tételek:** 109-ből 109, mert minden blokk három címkével került fel, és még nincs tétel- vagy termékszabály. A szabályok és a FIN-502 nélkül a több címkés feltöltés nem sorol be.
+- **FIN-801–804:** a szabály szerint nem kell. A számjegyhiba miatti `review` aránya 7%, 2000 px-en 0%, a 10%-os határ alatt, és a hibák többsége sorminta volt, amelyet a szabályok bővítése megoldott. Ha a 20 blokkos mérés 10% fölé visz, a döntés újranyílik.
+
 | Mező | Pontosság |
 | --- | --- |
-| Tételszám | mérendő |
-| Tétel értéke | mérendő |
-| Végösszeg | mérendő |
-| Dátum | mérendő |
-| Adószám | mérendő |
+| Tételszám | 15 blokkon a tételek összege 15/15 egyezik; 20 blokk után végleges |
+| Tétel értéke | 15 blokkon 55/55 sor; 20 blokk után végleges |
+| Végösszeg | 15 blokkon 15/15; 20 blokk után végleges |
+| Dátum | 15 blokkon 15/15; 20 blokk után végleges |
+| Adószám | 15 blokkon 15/15; 20 blokk után végleges |
 
 ## FIN-403 PaddleOCR második olvasat · 3 SP
 
-**Feltétel:** csak akkor indul, ha a FIN-410 szerint a kiolvasási hiba miatti `review` blokkok aránya 20% fölött van. Az eddigi dokumentumokon ilyen hibát nem láttunk, ezért várhatóan kimarad.
+**Feltétel:** csak akkor indul, ha a FIN-410 szerint a kiolvasási hiba miatti `review` blokkok aránya 20% fölött van.
+
+**Döntés 2026-11-17:** kimarad. A FIN-410 mérésén az arány 1400 px-en 7%, 2000 px-en 0%. A sprint így 33 SP-vel zárul.
 
 **Story:** adatgazdaként a bizonytalan blokkot második olvasattal akarom ellenőrizni, hogy kevesebb kérdés jusson hozzám.
 

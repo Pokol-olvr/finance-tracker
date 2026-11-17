@@ -44,7 +44,7 @@ A `scripts/setup-wsl.sh` systemd-t vár, ezt a `/etc/wsl.conf` `[boot]` részéb
 
 A Docker konténerei rootként futnak, ezért a `home/data` törléséhez `sudo rm -rf home/data` kell a `podman unshare` helyett.
 
-NVIDIA GPU-val a kiolvasás a GPU-n fut. A `scripts/setup-wsl-gpu.sh` telepíti az NVIDIA container toolkitet, a `home/.env`-ben pedig a `COMPOSE_FILE=docker-compose.yml:docker-compose.gpu.yml` kapcsolja be. Ilyenkor a modell 10 percig betöltve marad (`OLLAMA_KEEP_ALIVE`), mert a blokkonkénti újratöltés CPU-n tovább tart, mint maga a kiolvasás. A modell egy CPU-szálat kap (`OLLAMA_NUM_THREAD`), mert több szál a GPU-ra várva is pörög: 17 blokkon 1, 2, 4 és 10 szállal is 36–40 másodperc volt a modellidő, a CPU-használat viszont 97% és 536% között változott. Egy RTX 5070-en 17 blokk 94 másodperc alatt olvasódott ki újratöltéssel.
+NVIDIA GPU-val a kiolvasás a GPU-n fut. A `scripts/setup-wsl-gpu.sh` telepíti az NVIDIA container toolkitet, a `home/.env`-ben pedig a `COMPOSE_FILE=docker-compose.yml:docker-compose.gpu.yml` kapcsolja be. Ilyenkor a modell 10 percig betöltve marad (`OLLAMA_KEEP_ALIVE`), mert a blokkonkénti újratöltés CPU-n tovább tart, mint maga a kiolvasás. A kép hosszabb oldala 2000 pixel (`OLLAMA_MAX_SIDE`, CPU-n 1400), mert a saját blokkokon a számjegyhibát ez kijavította. A modell egy CPU-szálat kap (`OLLAMA_NUM_THREAD`), mert több szál a GPU-ra várva is pörög: 17 blokkon 1, 2, 4 és 10 szállal is 36–40 másodperc volt a modellidő, a CPU-használat viszont 97% és 536% között változott. Egy RTX 5070-en 17 blokk 94 másodperc alatt olvasódott ki újratöltéssel.
 
 ## Felépítés
 
@@ -199,10 +199,11 @@ Mindkét oldal adata a webapp kimenő sorába kerül, innen a worker írja a bro
 
 ## Riportok
 
-A `http://127.0.0.1:8501` oldalon két riport van, a kód a `reports/` mappában:
+A `http://127.0.0.1:8501` oldalon három riport van, a kód a `reports/` mappában:
 
 - **Áttekintés:** bevétel, kiadás, egyenleg, megtakarítási ráta és várható betétdíj, a hónap összevetése az előzővel és az átlaggal, kiadás kategóriánként.
-- **Kiadások:** a dokumentumok listája szűrhető arra, ki fizetett. Egy sor kiválasztása után a tételek látszanak, a gomb pedig az Ellenőrzésre visz az eredetihez.
+- **Kiadások:** a dokumentumok listája szűrhető arra, ki fizetett. Egy sor kiválasztása után a tételek látszanak termékkel és egységárral, a gomb pedig az Ellenőrzésre visz az eredetihez.
+- **Árak:** egy termék legutóbbi és legolcsóbb egységára, a változás az első hónap óta, és havonta boltonként az ár. A termék a Szabályok oldalon felvett termékszabályból jön.
 
 A kiadásba csak a rendben lévő, jóváhagyott vagy javított dokumentum számít, ezt egyedül a `silver.documents` dönti el ([ADR 0013](docs/adr/0013-beszamitas-a-silverben.md)). A dbt óránként fut, ezért a változás legfeljebb egy órán belül látszik.
 
