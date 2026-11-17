@@ -10,7 +10,7 @@ tags: [penzugy, projekt]
 
 8 epic, 10 kéthetes sprint, kb. 226 story pont. Minden story egy feladat: a 📅 dátum a sprint vége, a címkék az epicet és a sprintet jelölik. A [Tasks](https://publish.obsidian.md/tasks/) bővítménnyel szűrhető, pl. `tags include #sprint/S1`.
 
-Részletes sprintterv: [[Sprint 1]] · [[Sprint 2]] · [[Sprint 3]] · [[Sprint 4]] · Kapcsolódó: [[Üzleti koncepció]] · [[Technikai terv]] · [[Release folyamat]] · [[Változásnapló]]
+Részletes sprintterv: [[Sprint 1]] · [[Sprint 2]] · [[Sprint 3]] · [[Sprint 4]] · [[Sprint 5]] · [[Sprint 6]] · Kapcsolódó: [[Üzleti koncepció]] · [[Technikai terv]] · [[Release folyamat]] · [[Változásnapló]]
 
 ## Sprintek
 
