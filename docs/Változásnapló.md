@@ -1,7 +1,7 @@
 ---
 projekt: Pénzügyi nyomkövető
 tipus: változásnapló
-datum: 2026-11-01
+datum: 2026-11-17
 tags: [penzugy, projekt, release]
 ---
 
@@ -12,6 +12,8 @@ Kapcsolódó: [[Release folyamat]] · [[Fejlesztési terv]]
 Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen készül a GitHub Release szövege. A vezetés szabályai: [[Release folyamat]].
 
 ## Kiadatlan
+
+## v0.5.0 · 2026-11-17
 
 ### Hozzáadva
 
@@ -48,10 +50,12 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 ### Frissítési teendők
 
 - `scripts/backup.sh`, majd `scripts/replace-metabase.sh`: friss jelszót állít be a `report_reader` szerepkörnek, és törli a Metabase adatbázisát. Ez nem visszafordítható, a korábbi `metabase.dump` a mentésben marad.
-- `podman compose -f home/docker-compose.yml up -d --build --remove-orphans`, majd `scripts/dbt.sh`.
+- `podman compose -f home/docker-compose.yml up -d --build --remove-orphans`, majd `scripts/dbt.sh`. A `migrate` szolgáltatás felveszi a `20261229120000_add_product_rules` migrációt, amely a szabályoknál a `product` és a `pack` típust engedi.
 - `scripts/install-timers.sh`: ez állítja át a dbt-t óránkénti futásra.
 - A worker induláskor a `PARSER_VERSION` 10 miatt minden tárolt szöveget újra feldolgoz, modell nélkül; a blokkokat nem kell újra feltölteni. A 2000 px csak az új olvasásokra érvényes.
 - A `home/.env` `MB_*` és `METABASE_*` sorai ezután törölhetők.
+- Új, nem kötelező `.env`-változók: `OLLAMA_KEEP_ALIVE`, `OLLAMA_MAX_SIDE`, `COMPOSE_FILE`. Üresen a korábbi CPU-s viselkedés marad.
+- NVIDIA GPU-s gépen, WSL-ben: `scripts/setup-wsl-gpu.sh`, majd a `home/.env`-be `COMPOSE_FILE=docker-compose.yml:docker-compose.gpu.yml`.
 
 ## v0.4.0 · 2026-11-01
 
