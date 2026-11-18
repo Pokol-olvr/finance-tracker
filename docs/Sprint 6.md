@@ -182,6 +182,7 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 - [x] Kikapcsolt otthoni gépnél a feltöltés a Pi-n vár, bekapcsolás után feldolgozódik
     - 2026-11-18: leállított workernél a telefonos feltöltés a Pi-n `new` állapotban várt; a worker indulás után egy percen belül feldolgozta, a tétel `closed`. A worker, a gép és a betétdíj jelentése másodpercekkel frissebb volt a Pi-n.
 - [ ] Az Ellenőrzés, a Szabályok és a Betétdíj a Pi-n is működik
+    - 2026-11-18: az Ellenőrzés és az állapot képernyő a Pi-n működik. A Szabályok és a Betétdíj oldalán ismert, a költözéstől független hibák vannak, ezekre később, külön jegyben térünk vissza.
 
 ## FIN-314 Vaultwarden a Pi-n · 3 SP
 
