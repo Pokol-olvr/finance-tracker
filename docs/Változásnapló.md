@@ -21,9 +21,15 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 - Ha a javaslat sorai messze vannak a végösszegtől, a javítás űrlapja egy sorral indul a végösszeggel.
 - A `scripts/authelia-user.sh` jelszókérdése látszik, és kiírja, melyik felhasználóé.
 
+### Módosítva
+
+- FIN-308 Az otthoni Compose-ban nincs webapp, a postaláda a Pi-n van. Pi nélkül a `home/docker-compose.inbox.yml` kiegészítés adja a helyi postaládát, a `.env.example` és az `init-env.sh` ezzel indul.
+- Az `INBOX_URL` kötelező; a riportok webapp-linkje is ez.
+
 ### Frissítési teendők
 
 - A worker induláskor a `PARSER_VERSION` 11 miatt minden tárolt szöveget újra feldolgoz, modell nélkül.
+- A `home/.env`-be kell az `INBOX_URL`: Pi nélkül `INBOX_URL=http://webapp:8000`, és a `COMPOSE_FILE`-ba a `docker-compose.inbox.yml` (pl. `COMPOSE_FILE=docker-compose.yml:docker-compose.inbox.yml`); a Pi-vel a README „Postaláda a Pi-n” 5. lépése.
 
 ## v0.5.0 · 2026-11-17
 

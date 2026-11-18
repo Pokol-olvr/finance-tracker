@@ -1,0 +1,49 @@
+# Helyi postaláda Pi nélkül, fejlesztéshez és teszthez: a webapp az otthoni gépen fut.
+# Élesben a postaláda a Pi-n van (pi/docker-compose.yml, FIN-308), ez a fájl ott nem kell.
+# Bekapcsolás a .env-ben: a COMPOSE_FILE végére :docker-compose.inbox.yml, és
+#   INBOX_URL=http://webapp:8000
+services:
+  # A mappa a gazdagép felhasználójáé, a webapp viszont nobody-ként fut.
+  inbox-init:
+    image: docker.io/library/python:3.13.18-slim
+    restart: "no"
+    user: "0"
+    volumes:
+      - ${DATA_DIR:-./data}/inbox:/inbox:z
+    command: [chown, "65534:65534", /inbox]
+
+  webapp:
+    build: ../webapp
+    image: localhost/finance-tracker-webapp
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      inbox-init:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgresql://app_writer:${APP_WRITER_PASSWORD:?}@postgres:5432/finance
+      HOUSEHOLD_MEMBERS: ${HOUSEHOLD_MEMBERS:-person_a,person_b}
+      INBOX_DIR: /inbox
+      WORKER_API_TOKEN: ${WORKER_API_TOKEN:?}
+      REPORTS_URL: http://${BIND_ADDRESS:-127.0.0.1}:${REPORTS_PORT:-8501}
+    volumes:
+      - ${DATA_DIR:-./data}/inbox:/inbox:z
+    ports:
+      # Belépés nincs, ezért csak helyben látszhat.
+      - 127.0.0.1:${WEBAPP_PORT:-8000}:8000
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request as u; u.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+  worker:
+    depends_on:
+      webapp:
+        condition: service_healthy
+
+  reports:
+    environment:
+      WEBAPP_URL: http://${BIND_ADDRESS:-127.0.0.1}:${WEBAPP_PORT:-8000}

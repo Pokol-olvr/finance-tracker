@@ -164,18 +164,25 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 **Részfeladatok**
 
 - [x] `pi/docker-compose.yml`: webapp, Caddy, Authelia; az adat a Pi `DATA_DIR`-jében 📅 2027-01-24
-- [ ] A webapp ARM-képe a Pi-n épül 📅 2027-01-24
+- [x] A webapp ARM-képe a Pi-n épül 📅 2027-01-24
+    - 2026-11-18: `arm64`, a Pi-n a `docker compose up --build` építi.
 - [x] Az otthoni worker `INBOX_URL`-je a Pi Tailscale-címére mutat, minden kapcsolatot az otthoni oldal nyit ([[0006-blokkbeolvasas-a-pi-elott|ADR 0006]]) 📅 2027-01-24
-- [ ] Az otthoni Compose-ból kikerül a webapp; az állapot képernyő a Pi-n marad, a jelentést az otthoni gép küldi ([[0008-allapot-kepernyo-a-webappban|ADR 0008]]) 📅 2027-01-24
-- [ ] A Pi postaládája a mentésbe nem kerül, csak átmeneti tároló 📅 2027-01-24
+- [x] Az otthoni Compose-ból kikerül a webapp; az állapot képernyő a Pi-n marad, a jelentést az otthoni gép küldi ([[0008-allapot-kepernyo-a-webappban|ADR 0008]]) 📅 2027-01-24
+    - A helyi postaláda a `home/docker-compose.inbox.yml` kiegészítésbe került: Pi nélkül, fejlesztéshez és a CI-ban ez az alap (`init-env.sh`), a Pi-vel kimarad. Az `INBOX_URL` kötelező lett.
+    - 2026-11-18: az otthoni `.env`-ben az `INBOX_URL` és a `STATUS_URL` a Pi https-címe; a `--remove-orphans` leállította a helyi webappot. A régi `.env` a repón kívül, a WSL-ben megmaradt, a helyi postaláda adatai is.
+    - A Pi postaládája üresen indult: a worker a 19 döntésre váró ellenőrző csomagot magától feltöltötte, döntés és szabály még nem volt, így átmásolni nem kellett semmit.
+- [x] A Pi postaládája a mentésbe nem kerül, csak átmeneti tároló 📅 2027-01-24
+    - A feltöltés a Garage-ba és a bronzba kerül, a döntéseket a worker behúzza; ami a Pi-n marad, az elveszhet. Az Authelia adata (felhasználók, TOTP) sincs mentve: elvesztésekor a felhasználókat újra kell venni, és a TOTP-t újra kell regisztrálni.
 - [x] A README telepítési része a Pi-vel 📅 2027-01-24
 - [x] A webapp adatbázis nélkül is fut; a kézi bejegyzés API-ja a Pi-n 503, amíg a FIN-606 a kimenő sorra nem viszi 📅 2027-01-24
 
 **Elfogadási feltételek**
 
-- [ ] Telefonról feltölthető, a worker a Pi postaládájából húz
-- [ ] Kikapcsolt otthoni gépnél a feltöltés a Pi-n vár, bekapcsolás után feldolgozódik
+- [x] Telefonról feltölthető, a worker a Pi postaládájából húz
+- [x] Kikapcsolt otthoni gépnél a feltöltés a Pi-n vár, bekapcsolás után feldolgozódik
+    - 2026-11-18: leállított workernél a telefonos feltöltés a Pi-n `new` állapotban várt; a worker indulás után egy percen belül feldolgozta, a tétel `closed`. A worker, a gép és a betétdíj jelentése másodpercekkel frissebb volt a Pi-n.
 - [ ] Az Ellenőrzés, a Szabályok és a Betétdíj a Pi-n is működik
+    - 2026-11-18: az Ellenőrzés és az állapot képernyő a Pi-n működik. A Szabályok és a Betétdíj oldalán ismert, a költözéstől független hibák vannak, ezekre később, külön jegyben térünk vissza.
 
 ## FIN-314 Vaultwarden a Pi-n · 3 SP
 

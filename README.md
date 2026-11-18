@@ -19,10 +19,10 @@ git clone <repo-url> finance-tracker && cd finance-tracker
 scripts/setup-podman.sh
 scripts/init-env.sh
 scripts/ollama-pull.sh
-podman compose -f home/docker-compose.yml up -d --build
+(cd home && podman compose up -d --build)
 ```
 
-A riportok a `http://127.0.0.1:8501` címen érhetők el. A feltöltés, az Ellenőrzés, a szabályok és a betétdíj a `http://127.0.0.1:8000` címen van.
+A riportok a `http://127.0.0.1:8501` címen érhetők el. A feltöltés, az Ellenőrzés, a szabályok és a betétdíj Pi nélkül a `http://127.0.0.1:8000` címen van: a `.env` alapból a helyi postaládát kapcsolja be (`home/docker-compose.inbox.yml`). A Pi-vel a webapp a Pi-n fut, a saját domainen, belépéssel (README, „Postaláda a Pi-n”); a lenti `127.0.0.1:8000` címek helyett akkor az a cím érvényes.
 
 A `scripts/init-env.sh` által generált `RESTIC_PASSWORD` értékét mentsd el a jelszókezelőbe, nélküle a mentés használhatatlan.
 
@@ -71,7 +71,11 @@ A webapp a Raspberry Pi 4-en fut, Caddy és Authelia mögött, csak a Tailscale-
    docker compose -f pi/docker-compose.yml up -d --build
    ```
 4. **Első belépés:** a böngésző a TOTP beállítását kéri; a megerősítő kód a `pi/data/authelia/notification.txt` fájlba kerül, mert levél nincs, mindig a legalsó a friss (`sudo tail pi/data/authelia/notification.txt`). A kód után néhány perc van a QR-kód beolvasására és a hatjegyű kód beírására, utána a regisztráció „rossz kód”-dal hiúsul meg. A QR-t bármelyik hitelesítő app olvashatja, az iPhone beépített kódgenerátora is (Jelszavak, ellenőrző kód); a TOTP ne kerüljön ugyanoda, ahol az Authelia jelszava van. Jelszócsere vagy elfelejtett jelszó: ugyanaz a `scripts/authelia-user.sh` a felhasználó nevével, a bejegyzést lecseréli, a TOTP marad.
-5. **Az otthoni gépen** a `home/.env`-ben az `INBOX_URL` és a `STATUS_URL` a `https://` + `FINANCE_DOMAIN` cím, a `BIND_ADDRESS` az otthoni gép Tailscale-címe, majd `docker compose -f home/docker-compose.yml up -d`.
+5. **Az otthoni gépen** a `home/.env`-ben az `INBOX_URL` és a `STATUS_URL` a `https://` + `FINANCE_DOMAIN` cím, a `COMPOSE_FILE`-ból kimarad a `docker-compose.inbox.yml`, a riportok a `docker-compose.tailnet.yml`-lel a Tailscale-címen is látszanak (Windowson lásd lent). Utána a helyi webapp leáll, a worker a Pi-re vált:
+   ```sh
+   cd home && docker compose up -d --build --remove-orphans
+   ```
+   A worker a Pi üres postaládájába magától feltölti a döntésre váró ellenőrző csomagokat. A helyi postaláda (`home/data/inbox`) megmarad, visszaállni a két változó és a `COMPOSE_FILE` visszaírásával lehet; a Pi-n hozott döntéseket a worker addigra már behúzta.
 6. **Windowson** a WSL-nek ablak nélkül is futnia kell, és a portjainak a Tailscale-címen is látszaniuk kell; a script egy bejelentkezéskor induló feladatot és tükrözött hálózatot állít be, utána `wsl --shutdown`:
    ```powershell
    powershell -ExecutionPolicy Bypass -File scripts\windows\wsl-autostart.ps1
@@ -121,8 +125,8 @@ docs/adr/    döntési jegyzetek
 | `postgres` | `127.0.0.1:5432` | `finance` adatbázis |
 | `migrate` | nincs | Induláskor lefuttatja a `migrations/` mappát, majd kilép |
 | `garage` | `127.0.0.1:3900` | S3 API, `raw` bucket |
-| `inbox-init` | nincs | Induláskor beállítja a postaláda mappájának tulajdonosát, majd kilép |
-| `webapp` | `127.0.0.1:8000` | Feltöltés, Ellenőrzés, Szabályok, Betétdíj és állapot képernyő, kézi bejegyzés API és postaláda; belépés nélkül, ezért csak helyben látszik |
+| `inbox-init` | nincs | Csak helyi postaládával: induláskor beállítja a postaláda mappájának tulajdonosát, majd kilép |
+| `webapp` | `127.0.0.1:8000` | Csak helyi postaládával (`docker-compose.inbox.yml`): Feltöltés, Ellenőrzés, Szabályok, Betétdíj és állapot képernyő, kézi bejegyzés API és postaláda; belépés nélkül, ezért csak helyben látszik. A Pi-vel a Pi-n fut |
 | `ollama` | nincs | A GLM-OCR modell futtatója, csak a Compose-hálózaton |
 | `worker` | nincs | A postaládából a Garage-ba és a bronzba viszi a feltöltéseket, és kiolvastatja őket |
 | `reports` | `127.0.0.1:8501` | Riportok Streamlitben, csak a goldot olvassa; belépés nélkül, ezért csak helyben látszik |
@@ -162,7 +166,7 @@ A `purchased_by` és a `payer` a `HOUSEHOLD_MEMBERS` kódjait használja, a `pay
 
 ## Blokk és számla feltöltése és kiolvasása
 
-A `http://127.0.0.1:8000` oldalon kell megadni a fájlokat, a feltöltőt, a vásárlót, a fizető felet és legalább egy címkét. Az oldal JPEG, PNG, HEIC, WebP vagy PDF fájlt fogad, fájlonként legfeljebb 20 MB-ig. A telefon a FIN-308-ig nem éri el az oldalt, ezért a fotót előbb a laptopra kell áttenni.
+A `http://127.0.0.1:8000` oldalon kell megadni a fájlokat, a feltöltőt, a vásárlót, a fizető felet és legalább egy címkét. Az oldal JPEG, PNG, HEIC, WebP vagy PDF fájlt fogad, fájlonként legfeljebb 20 MB-ig. A Pi-vel a telefon a tailneten, belépés után közvetlenül feltölt; a feltöltés kikapcsolt otthoni gépnél a Pi-n vár, és a worker indulás után behúzza.
 
 - **Több blokk egyszerre:** legfeljebb 20 fájl tölthető fel körönként, behúzással is. A megadott adatok mindegyikre érvényesek, és egy rossz fájl nem állítja meg a többit. Több fájlnál a dátum üres marad, és a dokumentumról olvassuk ki.
 - **Egy dokumentum több fájlból:** az „Egy dokumentum több fájlból” kapcsolóval 2–5 kép vagy PDF tartozik egy dokumentumhoz, a nyilakkal rendezhető sorrendben. Így tölthető fel a hosszú blokk és az oldalanként külön fájlba szkennelt számla is. A két képen is látszó sorok egyszer számítanak. Ha bármelyik fájl hibás, egyik sem kerül be.

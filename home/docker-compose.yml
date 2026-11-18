@@ -72,7 +72,8 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://report_reader:${REPORT_READER_PASSWORD:?}@postgres:5432/finance
-      WEBAPP_URL: http://${BIND_ADDRESS:-127.0.0.1}:${WEBAPP_PORT:-8000}
+      # A riportok linkje a webappra; a postaláda címe, helyi postaládánál a kiegészítés felülírja.
+      WEBAPP_URL: ${INBOX_URL:?}
       STREAMLIT_BROWSER_SERVER_ADDRESS: ${BIND_ADDRESS:-localhost}
     ports:
       - ${BIND_ADDRESS:-127.0.0.1}:${REPORTS_PORT:-8501}:8501
@@ -82,43 +83,6 @@ services:
       timeout: 5s
       retries: 6
       start_period: 15s
-
-  # A mappa a gazdagép felhasználójáé, a webapp viszont nobody-ként fut.
-  inbox-init:
-    image: docker.io/library/python:3.13.18-slim
-    restart: "no"
-    user: "0"
-    volumes:
-      - ${DATA_DIR:-./data}/inbox:/inbox:z
-    command: [chown, "65534:65534", /inbox]
-
-  # Egyelőre itt fut, a Pi-re költözéssel átkerül a pi/ Compose-fájlba (ADR 0005).
-  webapp:
-    build: ../webapp
-    image: localhost/finance-tracker-webapp
-    restart: unless-stopped
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-      inbox-init:
-        condition: service_completed_successfully
-    environment:
-      DATABASE_URL: postgresql://app_writer:${APP_WRITER_PASSWORD:?}@postgres:5432/finance
-      HOUSEHOLD_MEMBERS: ${HOUSEHOLD_MEMBERS:-person_a,person_b}
-      INBOX_DIR: /inbox
-      WORKER_API_TOKEN: ${WORKER_API_TOKEN:?}
-      REPORTS_URL: http://${BIND_ADDRESS:-127.0.0.1}:${REPORTS_PORT:-8501}
-    volumes:
-      - ${DATA_DIR:-./data}/inbox:/inbox:z
-    ports:
-      # Belépés a FIN-303-ig nincs, ezért csak helyben látszhat.
-      - 127.0.0.1:${WEBAPP_PORT:-8000}:8000
-    healthcheck:
-      test: [CMD, python, -c, "import urllib.request as u; u.urlopen('http://localhost:8000/health')"]
-      interval: 10s
-      timeout: 5s
-      retries: 6
-      start_period: 10s
 
   # Modellek a data/ollama alatt; portja nincs, csak a worker éri el a Compose-hálózaton.
   ollama:
@@ -142,14 +106,12 @@ services:
         condition: service_completed_successfully
       garage:
         condition: service_healthy
-      webapp:
-        condition: service_healthy
       ollama:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://app_writer:${APP_WRITER_PASSWORD:?}@postgres:5432/finance
-      # A Pi-re költözés után a Pi címe, pl. https://penzugy.example.hu (FIN-308).
-      INBOX_URL: ${INBOX_URL:-http://webapp:8000}
+      # A Pi címe, pl. https://penzugy.example.hu; helyi postaládánál http://webapp:8000 (FIN-308).
+      INBOX_URL: ${INBOX_URL:?a postaláda címe, lásd .env.example}
       WORKER_API_TOKEN: ${WORKER_API_TOKEN:?}
       WORKER_POLL_SECONDS: ${WORKER_POLL_SECONDS:-60}
       GARAGE_ENDPOINT: http://garage:3900

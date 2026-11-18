@@ -103,13 +103,33 @@ def test_healthy_stack_is_all_right():
     assert build()["overall"] == {"state": "ok", "label": "Minden rendben"}
 
 
-@pytest.mark.parametrize("name", ["ollama", "worker", "garage", "postgres", "reports", "webapp"])
+@pytest.mark.parametrize("name", ["ollama", "worker", "garage", "postgres", "reports"])
 def test_stopped_service_is_an_error(name):
     result = build(host=without_service(name))
 
     assert result["overall"]["state"] == "error"
     failed = [item for item in result["cards"] if item["state"] == "error"]
     assert [item["summary"] for item in failed] == ["Nem fut"]
+
+
+def test_webapp_on_the_pi_is_not_an_error():
+    """A Pi-re költözés után az otthoni gép listájában nincs webapp, mégis az adja az oldalt."""
+    result = build(host=without_service("webapp"))
+
+    assert card(result, "upload")["state"] == "ok"
+    assert result["overall"] == {"state": "ok", "label": "Minden rendben"}
+
+
+def test_webapp_on_the_pi_runs_without_host_report():
+    result = build(host_age=120)
+
+    assert card(result, "upload")["state"] == "ok"
+
+
+def test_unhealthy_local_webapp_is_an_error():
+    result = build(host=with_service_health("webapp", "unhealthy"))
+
+    assert card(result, "upload")["state"] == "error"
 
 
 def test_stopped_worker_is_error_even_with_stale_worker_report():
@@ -157,7 +177,10 @@ def test_missing_reports_are_stale():
 
     assert result["overall"]["state"] == "stale"
     assert result["report_age_seconds"] is None
-    assert {item["state"] for item in result["cards"]} == {"stale"}
+    # A Feltöltés kártyát maga a webapp adja, az jelentés nélkül is fut.
+    others = [item for item in result["cards"] if item["key"] != "upload"]
+    assert {item["state"] for item in others} == {"stale"}
+    assert card(result, "upload")["state"] == "ok"
 
 
 def test_processing_shows_step_elapsed_time_and_queue():
