@@ -21,6 +21,12 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 - Ha a javaslat sorai messze vannak a végösszegtől, a javítás űrlapja egy sorral indul a végösszeggel.
 - A `scripts/authelia-user.sh` jelszókérdése látszik, és kiírja, melyik felhasználóé.
 
+### Hozzáadva
+
+- FIN-314 Vaultwarden a Pi-n a saját aldomainen, a Caddy mögött; regisztráció csak a fiókok létrehozásáig, az admin felület alapból kikapcsolva.
+- `scripts/pi/fail2ban-web.sh`: fail2ban az Authelia és a Vaultwarden hibás belépéseire; `scripts/pi/tailscale-nosnat.sh`, hogy a szolgáltatások a kliens valódi címét lássák.
+- A Pi mentése: a `scripts/backup.sh` a `PI_BACKUP_TARGET`-tel lehúzza a Vaultwarden és az Authelia adatát, külön `pi` pillanatképbe (`scripts/pi/backup-user.sh`, `scripts/restore-test-pi.sh`).
+
 ### Módosítva
 
 - FIN-308 Az otthoni Compose-ban nincs webapp, a postaláda a Pi-n van. Pi nélkül a `home/docker-compose.inbox.yml` kiegészítés adja a helyi postaládát, a `.env.example` és az `init-env.sh` ezzel indul.
@@ -29,6 +35,7 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 ### Frissítési teendők
 
 - A worker induláskor a `PARSER_VERSION` 11 miatt minden tárolt szöveget újra feldolgoz, modell nélkül.
+- A Pi `.env`-jébe kell a `VAULT_DOMAIN`; a Pi-hole-ban a név helyi rekordja a Pi Tailscale-címére.
 - A `home/.env`-be kell az `INBOX_URL`: Pi nélkül `INBOX_URL=http://webapp:8000`, és a `COMPOSE_FILE`-ba a `docker-compose.inbox.yml` (pl. `COMPOSE_FILE=docker-compose.yml:docker-compose.inbox.yml`); a Pi-vel a README „Postaláda a Pi-n” 5. lépése.
 
 ## v0.5.0 · 2026-11-17

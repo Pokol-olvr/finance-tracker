@@ -70,7 +70,8 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 - [x] Korlátozott felhasználó: SSH-val beléphet, de nincs `sudo`, nincs a `docker` csoportban (a `docker` csoport rootjogot ad), és a beállítófájlokat nem írhatja 📅 2027-01-24
 - [x] A rendszergazda-felhasználó külön, kulccsal; a `sudo` jelszót kér 📅 2027-01-24
 - [x] fail2ban: `sshd` jail, 5 hibás próbálkozás 10 percen belül, 1 órás kitiltás 📅 2027-01-24
-- [ ] fail2ban jail a Vaultwarden és az Authelia naplójára (a FIN-314-gyel és a FIN-303-mal) 📅 2027-01-24
+- [x] fail2ban jail a Vaultwarden és az Authelia naplójára (a FIN-314-gyel és a FIN-303-mal) 📅 2027-01-24
+    - 2026-11-18: `scripts/pi/fail2ban-web.sh`, a Pi Tailscale-je nem címzi át a továbbított forgalmat (`scripts/pi/tailscale-nosnat.sh`).
 - [x] Tűzfal (`ufw`): 53 a helyi hálózatról és a tailnetről, 22 a helyi hálózatról és a tailnetről, 80 és 443 a tailnetről és a Pi-hole felületéhez a helyi hálózatról; NTP, mDNS és a Beszel a helyi hálózatról; minden más tiltva. Konzolos visszaút helyett 5 perces önvisszavonó időzítő 📅 2027-01-24
 - [x] `unattended-upgrades` a biztonsági frissítésekre, újraindítás nélkül 📅 2027-01-24
 - [x] Script a beállításhoz, a README-ben a visszavonás lépéseivel (`scripts/pi/`) 📅 2027-01-24
@@ -190,19 +191,27 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 
 **Részfeladatok**
 
-- [ ] Vaultwarden a `pi/` Compose-ban, a `vault.` aldomainen a Caddy mögött; az Authelia nem áll elé, mert a Bitwarden-kliensek saját belépést használnak 📅 2027-01-24
-- [ ] `SIGNUPS_ALLOWED=false`, a két fiók meghívóval; az admin felület argon2-es tokennel, alapból kikapcsolva 📅 2027-01-24
-- [ ] Kötelező kétfaktoros belépés mindkét fióknak 📅 2027-01-24
-- [ ] Napi mentés: az otthoni gép húzza le a Vaultwarden adatát, és a restic-tárolóba teszi; a kapcsolatot itt is az otthoni oldal nyitja 📅 2027-01-24
-- [ ] Visszaállítási próba egy eldobható Vaultwardenbe 📅 2027-01-24
-- [ ] fail2ban jail a Vaultwarden hibás belépéseire (FIN-313) 📅 2027-01-24
+- [x] Vaultwarden a `pi/` Compose-ban, a `vault.` aldomainen a Caddy mögött; az Authelia nem áll elé, mert a Bitwarden-kliensek saját belépést használnak 📅 2027-01-24
+    - 2026-11-18: 1.37.5, Let's Encrypt-tanúsítvány a `vault.` névre, a Pi-hole helyi rekordja a FIN-315-ből.
+- [x] Regisztráció lezárva; az admin felület alapból kikapcsolva, argon2-es tokennel kapcsolható 📅 2027-01-24
+    - 2026-11-18: egy fiók, a második személynek egyelőre nem kell; a regisztráció a fiók létrehozásáig volt nyitva (`VAULT_SIGNUPS_ALLOWED`), utána `disableUserRegistration: true`. Meghívó helyett ez, mert levélküldés nincs. Az admin felület: „The admin panel is disabled”.
+- [ ] Kötelező kétfaktoros belépés a fiókra (Authenticator app, a recovery code a mesterjelszó mellett) 📅 2027-01-24
+- [x] Napi mentés: az otthoni gép húzza le a Vaultwarden adatát, és a restic-tárolóba teszi; a kapcsolatot itt is az otthoni oldal nyitja 📅 2027-01-24
+    - A `mentes` felhasználó kulcsa kényszerített paranccsal csak a friss mentést kapja (`scripts/pi/backup-user.sh`); más parancs, alagút és shell kipróbálva elutasítva. A mentésben az Authelia adata és a `pi/.env` is benne van, mert a TOTP-titkok a benne lévő kulccsal titkosítottak.
+    - 2026-11-18: az első `pi` pillanatkép 591 KiB.
+- [x] Visszaállítási próba egy eldobható Vaultwardenbe (`scripts/restore-test-pi.sh`) 📅 2027-01-24
+    - 2026-11-18: 1 felhasználó, 13 bejegyzés, 2 TOTP, mindkét adatbázis integritása rendben, az eldobható Vaultwarden elindult rajta.
+- [x] fail2ban jail a Vaultwarden hibás belépéseire (FIN-313) 📅 2027-01-24
+    - `scripts/pi/fail2ban-web.sh`: az Authelia és a Vaultwarden is, a forward ponton, külön láncban az SSH-étól. Rossz jelszavas próbával mindkét szűrő talált.
+    - Előfeltétel volt, hogy a Pi Tailscale-je ne címezze át a továbbított forgalmat (`scripts/pi/tailscale-nosnat.sh`): addig minden kérés a Docker-átjáró címéről jött.
 
 **Elfogadási feltételek**
 
 - [ ] A Bitwarden-kliens a telefonról és a gépről, a tailneten át szinkronizál
-- [ ] Idegen nem regisztrálhat, és az admin felület token nélkül nem nyílik meg
-- [ ] Egy napi mentésből a széf visszaállítható
-- [ ] A Vaultwarden adata a `finance` mentésétől külön pillanatképben van, és a FIN-309 nem törli
+    - 2026-11-18: a gépen a böngészőbővítmény szinkronizál, a Firefox jelszavai importálva; a telefon hátravan.
+- [x] Idegen nem regisztrálhat, és az admin felület token nélkül nem nyílik meg
+- [x] Egy napi mentésből a széf visszaállítható
+- [x] A Vaultwarden adata a `finance` mentésétől külön pillanatképben van, és a FIN-309 nem törli
 
 ## FIN-307 E-mailes számlafogadás · 5 SP
 

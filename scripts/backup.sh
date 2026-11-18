@@ -41,8 +41,11 @@ if [[ -n ${PI_BACKUP_TARGET:-} ]]; then
     rm -rf "$BACKUP_DIR/pi"
     mv "$BACKUP_DIR/pi.new" "$BACKUP_DIR/pi"
     compose run --rm restic backup --tag pi /backup/pi
+    # A pi.env titkokat tart: nyersen nem marad a lemezen, csak a titkosított pillanatképben.
+    rm -rf "$BACKUP_DIR/pi"
   else
     echo "A Pi mentése nem sikerült, az otthoni mentés megvan." >&2
+    rm -rf "$BACKUP_DIR/pi.new"
     pi_failed=true
   fi
 fi
