@@ -206,22 +206,26 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 
 ## FIN-307 E-mailes számlafogadás · 5 SP
 
-**Story:** felhasználóként a webshopok számláit egy címre akarom továbbítani, hogy ne kelljen letölteni és feltölteni őket.
+**Story:** felhasználóként a számláimat egy saját domaines postaládába akarom kapni, hogy ami oda érkezik, magától bekerüljön, letöltés és feltöltés nélkül.
+
+**Elképzelés (2026-11-18):** a saját domainen egy cím, pl. `szamla@`, ez postaládaként működik: a boltoknál és szolgáltatóknál a számlacímet erre állítjuk át, és a régi számlák továbbítva is ide jönnek. A worker figyeli, és minden új levelet a bronzba visz: a feladó címével, a tárggyal, a törzzsel és a mellékletekkel (PDF vagy más fájl, amelyben az összeg van). Ha nincs melléklet, a számla a levél törzsében is lehet. Postafiók: mailbox.org vagy Posteo IMAP-pal, a Proton IMAP-ja csak a Bridge-dzsel menne, ezért nem jó. A cím a Cloudflare Email Routinggal továbbít a postafiókba, így szolgáltatóváltáskor a cím marad.
+
+**Nyitott kérdések:** ki a vásárló, ha a bolt közvetlenül küld (javaslat: személyenként egy cím, pl. két alias, vagy az Ellenőrzésen dől el); mi kerül be idegen feladótól (javaslat: érvényes DKIM- vagy SPF-eredménnyel bármelyik feladó, a többi a postafiók „Karantén” mappájába, és minden levél az Ellenőrzésen dől el).
 
 **Részfeladatok**
 
-- [ ] Külön postafiók a levelezőszolgáltatónál, pl. `szamla@` a saját domainen 📅 2027-01-24
+- [ ] Postafiók a levelezőszolgáltatónál, a saját domaines cím a Cloudflare Email Routinggal 📅 2027-01-24
 - [ ] Worker: IMAP-lehúzás titkosított kapcsolaton, a feldolgozott levél a „Feldolgozva” mappába kerül 📅 2027-01-24
-- [ ] Csak a két saját feladótól, ellenőrzött SPF- és DKIM-eredménnyel 📅 2027-01-24
-- [ ] Címkék a tárgyból (`#élelmiszer #háztartás`), a vásárló a továbbító 📅 2027-01-24
+- [ ] Feladó-ellenőrzés SPF- és DKIM-eredménnyel; ami nem megy át, a „Karantén” mappába kerül 📅 2027-01-24
+- [ ] A bronzba a feladó, a tárgy, a törzs és a mellékletek; a vásárló a címzett címből vagy az Ellenőrzésen; címkék a tárgyból (`#élelmiszer #háztartás`), ha van 📅 2027-01-24
 - [ ] A nyers `.eml` és a mellékletek a Garage-ba, a bronzban `email` forrástípussal (migráció) 📅 2027-01-24
 - [ ] A PDF-melléklet ugyanazon az úton megy, mint a webes feltöltés ([[0010-pdf-olvasas-es-szamlafeldolgozo|ADR 0010]]) 📅 2027-01-24
-- [ ] Kitalált levelekkel tesztek: idegen feladó, hamis DKIM, melléklet nélküli levél 📅 2027-01-24
+- [ ] Kitalált levelekkel tesztek: hamis DKIM, melléklet nélküli levél, számla a törzsben, továbbított levél 📅 2027-01-24
 
 **Elfogadási feltételek**
 
-- [ ] Továbbított PDF-számla bekerül a bronzba, és megjelenik az Ellenőrzésen
-- [ ] Idegen feladó levele nem kerül be, és a postafiókban marad
+- [ ] A boltól közvetlenül érkező és a továbbított PDF-számla is bekerül a bronzba, és megjelenik az Ellenőrzésen
+- [ ] Hamis vagy ellenőrizetlen feladó levele nem kerül be, és a postafiók „Karantén” mappájában marad
 - [ ] Ugyanaz a levél kétszer nem kerül be
 - [ ] A postafiók jelszava csak az otthoni `.env`-ben van
 

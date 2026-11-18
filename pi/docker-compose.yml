@@ -1,6 +1,7 @@
 name: finance-pi
 
-# A Pi a postaláda: webapp Caddy és Authelia mögött, csak a Tailscale-címen (ADR 0005, ADR 0006).
+# A Pi a postaláda: webapp Caddy és Authelia mögött, csak a Tailscale-címen (ADR 0005, ADR 0006),
+# mellette a Vaultwarden jelszókezelő (FIN-314).
 # Minden kapcsolatot az otthoni gép nyit; a Pi-re bejövő port csak a tailnetről érhető el.
 services:
   # HTTPS a saját domainen, DNS-alapú tanúsítvánnyal, mert az oldal kívülről nem látszik.
@@ -15,6 +16,7 @@ services:
         condition: service_started
     environment:
       FINANCE_DOMAIN: ${FINANCE_DOMAIN:?a .env nincs kitöltve}
+      VAULT_DOMAIN: ${VAULT_DOMAIN:?a .env nincs kitöltve}
       CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:?}
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro,z
@@ -28,6 +30,11 @@ services:
   authelia:
     image: docker.io/authelia/authelia:4.39.28
     restart: unless-stopped
+    # A journalba ír, ahol a fail2ban a hibás belépéseket keresi (scripts/pi/fail2ban-web.sh).
+    logging:
+      driver: journald
+      options:
+        tag: authelia
     environment:
       FINANCE_DOMAIN: ${FINANCE_DOMAIN:?}
       X_AUTHELIA_CONFIG_FILTERS: template
@@ -37,6 +44,29 @@ services:
     volumes:
       - ./authelia/configuration.yml:/config/configuration.yml:ro,z
       - ${DATA_DIR:-./data}/authelia:/data:z
+
+  # Jelszókezelő a saját aldomainen. A Bitwarden-kliensek saját belépést és kétfaktort használnak,
+  # ezért az Authelia nem áll elé. Port nincs, csak a Caddy éri el.
+  vaultwarden:
+    image: docker.io/vaultwarden/server:1.37.5
+    restart: unless-stopped
+    environment:
+      DOMAIN: https://${VAULT_DOMAIN:?}
+      # Regisztráció csak a két fiók létrehozásáig, utána false (README, „Vaultwarden”).
+      SIGNUPS_ALLOWED: ${VAULT_SIGNUPS_ALLOWED:-false}
+      INVITATIONS_ALLOWED: "false"
+      # Üresen az admin felület ki van kapcsolva; bekapcsolni argon2-es hash-sel lehet (README).
+      ADMIN_TOKEN: ${VAULT_ADMIN_TOKEN:-}
+      PASSWORD_HINTS_ALLOWED: "false"
+      SHOW_PASSWORD_HINT: "false"
+      # A Caddy ebben adja a kliens tailnetes címét; a fail2ban ez alapján tilt.
+      IP_HEADER: X-Forwarded-For
+    volumes:
+      - ${DATA_DIR:-./data}/vaultwarden:/data:z
+    logging:
+      driver: journald
+      options:
+        tag: vaultwarden
 
   # A webapp a nobody felhasználóként fut, a postaláda mappája az övé.
   inbox-init:
