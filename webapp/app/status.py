@@ -90,7 +90,11 @@ def service_state(host: dict | None, name: str) -> tuple[str, str]:
 
 
 def upload_card(host: dict | None, queue: dict) -> dict:
-    state, summary = service_state(host, "webapp")
+    """Az oldalt maga a webapp adja, tehát fut. Ha az otthoni gépen fut (helyi postaláda), az
+    egészségét a `compose ps` mutatja; ha a listában nincs, a Pi-n fut, az otthoni géptől függetlenül.
+    """
+    local = host is not None and any(row["name"] == "webapp" for row in host["services"])
+    state, summary = service_state(host, "webapp") if local else (OK, "Fut")
     facts = [
         fact("Várakozik", format_number(queue.get("new", 0))),
         fact("Lezárt", format_number(queue.get("closed", 0))),

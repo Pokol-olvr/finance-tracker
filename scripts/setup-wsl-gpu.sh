@@ -23,4 +23,4 @@ sudo nvidia-ctk runtime configure --runtime=docker
 sudo systemctl restart docker
 
 docker run --rm --gpus all docker.io/library/ubuntu:24.04 nvidia-smi -L
-echo "Kész. A home/.env-be: COMPOSE_FILE=docker-compose.yml:docker-compose.gpu.yml"
+echo "Kész. A home/.env COMPOSE_FILE sorának végére: :docker-compose.gpu.yml"
