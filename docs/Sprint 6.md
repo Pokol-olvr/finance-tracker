@@ -55,8 +55,10 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 
 **Elfogadási feltételek**
 
-- [ ] A webapp csak a Tailscale-hálózatról érhető el
+- [x] A webapp csak a Tailscale-hálózatról érhető el
+    - 2026-11-18: a Caddy csak a Pi Tailscale-címén figyel; a helyi címen a 443-as porton a Pi-hole saját felülete válaszol (`CN=pi.hole`), a nyilvános DNS-ben nincs rekord (DoH: NXDOMAIN), port forward nincs.
 - [ ] Mobilnetről, Tailscale nélkül a Pi címe nem válaszol
+    - 2026-11-18: a nyilvános DNS-ben a nevek nem léteznek (NXDOMAIN), a 100.x cím az interneten nem útválasztható; a telefonos próba hátravan.
 - [x] Az otthoni gép a Pi-t a Tailscale-címén éri el
 - [x] A riportok a Pi-ről a tailneten elérhetők, a helyi hálózatról Tailscale nélkül nem (2026-11-18)
 
@@ -102,15 +104,19 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 - [x] Globális névszerver a tailneten is a Pi-hole, „Override DNS servers” bekapcsolva, így a reklámszűrés otthonon kívül is működik 📅 2027-01-24
 - [x] A Cloudflare-ben nincs rekord a belső címre; a Cloudflare csak a tanúsítvány DNS-ellenőrzéséhez kell 📅 2027-01-24
 - [x] A Pi maga nem a Tailscale DNS-ét használja (`--accept-dns=false`), így a `tailscaled` kiesése nem viszi el a névfeloldását 📅 2027-01-24
-- [ ] A `127.0.0.1` kifejezett névszerverként a NetworkManagerben, egyeztetett időpontban, mert az újracsatlakozás rövid kiesés 📅 2027-01-24
+- [x] A `127.0.0.1` kifejezett névszerverként a NetworkManagerben, egyeztetett időpontban, mert az újracsatlakozás rövid kiesés 📅 2027-01-24
+    - 2026-11-17: `ipv4.dns 127.0.0.1`, `ipv4.ignore-auto-dns yes`, a `resolv.conf`-ban `nameserver 127.0.0.1`; 2026-11-18-án ellenőrizve.
 
 **Elfogadási feltételek**
 
-- [ ] A Pi-hole felülete a helyi hálózatról a megszokott címen elérhető, a Caddy pedig a Tailscale-címen fut
+- [x] A Pi-hole felülete a helyi hálózatról a megszokott címen elérhető, a Caddy pedig a Tailscale-címen fut
+    - 2026-11-18: a helyi címen a Pi-hole felülete válaszol, a Caddy csak a Tailscale-címen (443).
     - A felület 2026-11-17-én a helyi címen elérhető; a Caddy a FIN-302-vel indul.
-- [ ] A domain a tailneten a Pi Tailscale-címére oldódik fel, a nyilvános DNS-ben nincs rá rekord
+- [x] A domain a tailneten a Pi Tailscale-címére oldódik fel, a nyilvános DNS-ben nincs rá rekord
+    - 2026-11-18: a három név a tailneten a Pi Tailscale-címére oldódik fel; a Cloudflare DoH szerint nyilvánosan NXDOMAIN. A Windows a 1.1.1.1-nek szánt kérést is a Tailscale-en át küldi, ezért nyilvános próbához DoH kell.
     - 2026-11-17: a Pi-hole a három nevet a Pi Tailscale-címére oldja fel, a nyilvános DNS-ben nincs rekord; a tailneten a split DNS után ellenőrizendő.
-- [ ] Leállított Pi-hole mellett a telefonok a tailneten is elérik az internetet
+- [-] Leállított Pi-hole mellett a telefonok a tailneten is elérik az internetet
+    - 2026-11-17: tudatosan elvetve: a tailnet globális névszervere a Pi-hole, felülírással, hogy a telefonok mindenhol szűrjenek; a Pi kiesésekor a tailneten nincs DNS.
     - Változás 2026-11-17: tudatos döntés, hogy a tailnet globális DNS-e a Pi-hole, a reklámszűrés miatt. A Pi kiesésekor a tailnetes eszközökön nincs névfeloldás; ilyenkor a Tailscale kikapcsolása visszaadja az internetet. A feltétel ezért nem teljesül, és nem is cél.
 
 ## FIN-302 Caddy HTTPS a saját domainen · 2 SP
