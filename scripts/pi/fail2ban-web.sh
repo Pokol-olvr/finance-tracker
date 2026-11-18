@@ -32,7 +32,8 @@ ignoreregex =
 FILTER
 
 cat >/etc/fail2ban/jail.d/finance-web.local <<JAIL
-# A Docker-konténerek forgalma a forward láncon megy át, ott kell tiltani.
+# A Docker-konténerek forgalma a forward ponton megy át, ott kell tiltani; külön láncban, mert az
+# sshd jail f2b-chain lánca az input ponton van, és egy lánc csak egy ponthoz köthető.
 [authelia]
 enabled = true
 filter = finance-authelia
@@ -40,7 +41,7 @@ backend = systemd
 journalmatch = CONTAINER_TAG=authelia
 ignoreip = 127.0.0.1/8 ::1 $worker
 port = http,https
-banaction = nftables[type=multiport, chain_hook=forward]
+banaction = nftables[type=multiport, chain_hook=forward, chain=f2b-docker]
 maxretry = 5
 findtime = 10m
 bantime = 1h
@@ -52,7 +53,7 @@ backend = systemd
 journalmatch = CONTAINER_TAG=vaultwarden
 ignoreip = 127.0.0.1/8 ::1 $worker
 port = http,https
-banaction = nftables[type=multiport, chain_hook=forward]
+banaction = nftables[type=multiport, chain_hook=forward, chain=f2b-docker]
 maxretry = 5
 findtime = 10m
 bantime = 1h
