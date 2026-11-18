@@ -19,6 +19,7 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 - A számlán a nap-hónap-év dátum és a szállítási idő is teljesítési dátum.
 - Olvasható címke nélkül az áfasorok bruttója a végösszeg; a „Fizetendő összeg” megelőzi egy részösszeg „Fizetendő” sorát.
 - Ha a javaslat sorai messze vannak a végösszegtől, a javítás űrlapja egy sorral indul a végösszeggel.
+- A `scripts/authelia-user.sh` jelszókérdése látszik, és kiírja, melyik felhasználóé.
 
 ### Frissítési teendők
 

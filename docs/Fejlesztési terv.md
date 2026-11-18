@@ -97,7 +97,7 @@ Kész, ha: telefonról feltöltött vagy e-mailben továbbított számla eljut a
     - Elfogadás: a webapp csak a Tailscale-hálózatról érhető el
 - [ ] FIN-302 Caddy HTTPS a saját domainen, DNS-alapú tanúsítvány · 2 SP #E3 #sprint/S6 📅 2027-01-24
     - Elfogadás: érvényes tanúsítvány, a böngésző nem figyelmeztet
-- [ ] FIN-303 Authelia TOTP 2FA két felhasználóval · 3 SP #E3 #sprint/S6 📅 2027-01-24
+- [x] FIN-303 Authelia TOTP 2FA két felhasználóval · 3 SP #E3 #sprint/S6 📅 2027-01-24
     - Elfogadás: második faktor nélkül nincs hozzáférés
 - [ ] FIN-304 PWA feltöltés: fotó, ki vásárolt, a blokk dátuma, több címke; a feltöltés ideje automatikus · 5 SP #E3 #sprint/S3 📅 2026-12-13
     - Elfogadás: böngészőből egy képernyőn feltölthető; telefonról a FIN-308 után
