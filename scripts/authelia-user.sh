@@ -21,8 +21,10 @@ data_dir=${data_dir:-$repo_root/pi/data}
 users=$data_dir/authelia/users_database.yml
 image=$(sed -n 's/^ *image: *\(docker.io\/authelia\/authelia:.*\)$/\1/p' "$repo_root/pi/docker-compose.yml")
 
+# A kimenet a terminálra is kimegy, különben a jelszókérdés nem látszik; a hash nem titok.
+echo "$user jelszava, utána a megerősítés:"
 digest=$(docker run --rm -it "$image" authelia crypto hash generate argon2 |
-  tr -d '\r' | sed -n 's/^Digest: //p')
+  tee /dev/tty | tr -d '\r' | sed -n 's/^Digest: //p')
 [[ $digest == \$argon2* ]] || {
   echo "A hash nem készült el." >&2
   exit 1

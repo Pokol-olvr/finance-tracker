@@ -70,7 +70,7 @@ A webapp a Raspberry Pi 4-en fut, Caddy és Authelia mögött, csak a Tailscale-
    scripts/authelia-user.sh person_b
    docker compose -f pi/docker-compose.yml up -d --build
    ```
-4. **Első belépés:** a böngésző a TOTP beállítását kéri; a megerősítő kód a `pi/data/authelia/notification.txt` fájlba kerül, mert levél nincs.
+4. **Első belépés:** a böngésző a TOTP beállítását kéri; a megerősítő kód a `pi/data/authelia/notification.txt` fájlba kerül, mert levél nincs, mindig a legalsó a friss (`sudo tail pi/data/authelia/notification.txt`). A kód után néhány perc van a QR-kód beolvasására és a hatjegyű kód beírására, utána a regisztráció „rossz kód”-dal hiúsul meg. A QR-t bármelyik hitelesítő app olvashatja, az iPhone beépített kódgenerátora is (Jelszavak, ellenőrző kód); a TOTP ne kerüljön ugyanoda, ahol az Authelia jelszava van. Jelszócsere vagy elfelejtett jelszó: ugyanaz a `scripts/authelia-user.sh` a felhasználó nevével, a bejegyzést lecseréli, a TOTP marad.
 5. **Az otthoni gépen** a `home/.env`-ben az `INBOX_URL` és a `STATUS_URL` a `https://` + `FINANCE_DOMAIN` cím, a `BIND_ADDRESS` az otthoni gép Tailscale-címe, majd `docker compose -f home/docker-compose.yml up -d`.
 6. **Windowson** a WSL-nek ablak nélkül is futnia kell, és a portjainak a Tailscale-címen is látszaniuk kell; a script egy bejelentkezéskor induló feladatot és tükrözött hálózatot állít be, utána `wsl --shutdown`:
    ```powershell

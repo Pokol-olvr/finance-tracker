@@ -128,7 +128,8 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 - [x] Érvényes tanúsítvány, a böngésző nem figyelmeztet
     - 2026-11-18: Let's Encrypt-tanúsítvány a pénzügyi névre és az `auth.` aldomainre, 2027-02-15-ig; a Cloudflare-token csak a zónára szól, DNS Edit és Zone Read joggal, 2027-11-18-ig.
 - [ ] A tanúsítvány megújul emberi beavatkozás nélkül (a Caddy naplója mutatja)
-- [ ] HTTP-ről HTTPS-re irányít
+- [x] HTTP-ről HTTPS-re irányít
+    - 2026-11-18: `http://` a tailnetről 308-cal a `https://` címre.
 - [ ] A Cloudflare-token cseréje 2027-11-18 előtt, az SSH-kulcsok éves cseréjével együtt
 
 ## FIN-303 Authelia TOTP 2FA két felhasználóval · 3 SP
@@ -138,18 +139,23 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 **Részfeladatok**
 
 - [x] Authelia a `pi/` Compose-ban, fájlalapú felhasználókkal, a Caddy `forward_auth` mögött 📅 2027-01-24
-- [ ] Két felhasználó a `HOUSEHOLD_MEMBERS` kódjaival, TOTP-vel 📅 2027-01-24
-    - A `scripts/authelia-user.sh` kész, a felhasználókat a Pi-n kell felvenni.
-    - 2026-11-18: felhasználói fájl nélkül az Authelia egy példafelhasználót hozott létre; az Authelia leállítva, a fájl törölve, amíg a két valódi felhasználó nincs fent. Addig a domain 502-t ad, a worker API token nélkül 401-et.
+- [x] Két felhasználó a `HOUSEHOLD_MEMBERS` kódjaival, TOTP-vel 📅 2027-01-24
+    - 2026-11-18: felhasználói fájl nélkül az Authelia egy példafelhasználót hozott létre; az Authelia leállítva, a fájl törölve, amíg a két valódi felhasználó nincs fent.
+    - 2026-11-18: mindkét felhasználó fent (`scripts/authelia-user.sh`, a fájl `600`, root), az Authelia fut, mindkettőnek SHA1-es TOTP-ja van, a telefon beépített kódgenerátorával.
+    - A script elnyelte az Authelia jelszókérdését, ezért a második felhasználónál nem látszott, hogy jelszóra vár; javítva, a kérdés már látszik.
+    - A regisztrációhoz kért megerősítő kód után az emelt jogú munkamenet néhány perc alatt lejár; ha addig nincs beírva a TOTP-kód, a regisztráció „rossz kód”-dal hiúsul meg, és elölről kell kezdeni.
 - [x] A worker API (`/inbox/…`) Authelia nélkül, csak a `WORKER_API_TOKEN`-nel érhető el 📅 2027-01-24
 - [x] A webapp a belépett felhasználót a fejlécből veszi, így a feltöltő nem választható szabadon 📅 2027-01-24
 - [x] Munkamenet-idő és kizárás túl sok hibás próbálkozás után 📅 2027-01-24
 
 **Elfogadási feltételek**
 
-- [ ] Második faktor nélkül nincs hozzáférés
-- [ ] A worker token nélkül nem éri el az API-t, tokennel 2FA nélkül is
-- [ ] A feltöltő mindig a belépett felhasználó
+- [x] Második faktor nélkül nincs hozzáférés
+    - 2026-11-18: belépés nélkül a domain a belépőoldalra irányít (302), a szabály `two_factor`, az alapszabály `deny`.
+- [x] A worker token nélkül nem éri el az API-t, tokennel 2FA nélkül is
+    - 2026-11-18: `/inbox/items` token nélkül 401, `/health` 200, a webapp portja közvetlenül nem érhető el.
+- [x] A feltöltő mindig a belépett felhasználó
+    - 2026-11-18: belépés nélkül a kliens által küldött `Remote-User` fejléc is a belépőoldalra irányít; belépve a fejlécet a Caddy az Authelia válaszából írja felül.
 
 ## FIN-308 Webapp és postaláda költözése a Pi-re · 3 SP
 
