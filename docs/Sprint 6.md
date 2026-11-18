@@ -195,7 +195,8 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
     - 2026-11-18: 1.37.5, Let's Encrypt-tanúsítvány a `vault.` névre, a Pi-hole helyi rekordja a FIN-315-ből.
 - [x] Regisztráció lezárva; az admin felület alapból kikapcsolva, argon2-es tokennel kapcsolható 📅 2027-01-24
     - 2026-11-18: egy fiók, a második személynek egyelőre nem kell; a regisztráció a fiók létrehozásáig volt nyitva (`VAULT_SIGNUPS_ALLOWED`), utána `disableUserRegistration: true`. Meghívó helyett ez, mert levélküldés nincs. Az admin felület: „The admin panel is disabled”.
-- [ ] Kötelező kétfaktoros belépés a fiókra (Authenticator app, a recovery code a mesterjelszó mellett) 📅 2027-01-24
+- [x] Kötelező kétfaktoros belépés a fiókra (Authenticator app, a recovery code a mesterjelszó mellett) 📅 2027-01-24
+    - 2026-11-18: az Authenticator app bekapcsolva, a recovery code lekérve (a Vaultwarden naplója szerint).
 - [x] Napi mentés: az otthoni gép húzza le a Vaultwarden adatát, és a restic-tárolóba teszi; a kapcsolatot itt is az otthoni oldal nyitja 📅 2027-01-24
     - A `mentes` felhasználó kulcsa kényszerített paranccsal csak a friss mentést kapja (`scripts/pi/backup-user.sh`); más parancs, alagút és shell kipróbálva elutasítva. A mentésben az Authelia adata és a `pi/.env` is benne van, mert a TOTP-titkok a benne lévő kulccsal titkosítottak.
     - 2026-11-18: az első `pi` pillanatkép 591 KiB.
