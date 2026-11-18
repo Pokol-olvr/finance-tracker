@@ -30,3 +30,15 @@
 auth.{$FINANCE_DOMAIN} {
 	reverse_proxy authelia:9091
 }
+
+# Vaultwarden: saját belépés, Authelia nélkül; az admin felület token nélkül ki van kapcsolva.
+# A Caddy az X-Forwarded-For fejlécben adja a kliens címét, a fail2ban ez alapján tilt.
+{$VAULT_DOMAIN} {
+	reverse_proxy vaultwarden:80
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy same-origin
+	}
+}

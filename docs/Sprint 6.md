@@ -55,8 +55,10 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 
 **Elfogadási feltételek**
 
-- [ ] A webapp csak a Tailscale-hálózatról érhető el
+- [x] A webapp csak a Tailscale-hálózatról érhető el
+    - 2026-11-18: a Caddy csak a Pi Tailscale-címén figyel; a helyi címen a 443-as porton a Pi-hole saját felülete válaszol (`CN=pi.hole`), a nyilvános DNS-ben nincs rekord (DoH: NXDOMAIN), port forward nincs.
 - [ ] Mobilnetről, Tailscale nélkül a Pi címe nem válaszol
+    - 2026-11-18: a nyilvános DNS-ben a nevek nem léteznek (NXDOMAIN), a 100.x cím az interneten nem útválasztható; a telefonos próba hátravan.
 - [x] Az otthoni gép a Pi-t a Tailscale-címén éri el
 - [x] A riportok a Pi-ről a tailneten elérhetők, a helyi hálózatról Tailscale nélkül nem (2026-11-18)
 
@@ -70,7 +72,8 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 - [x] Korlátozott felhasználó: SSH-val beléphet, de nincs `sudo`, nincs a `docker` csoportban (a `docker` csoport rootjogot ad), és a beállítófájlokat nem írhatja 📅 2027-01-24
 - [x] A rendszergazda-felhasználó külön, kulccsal; a `sudo` jelszót kér 📅 2027-01-24
 - [x] fail2ban: `sshd` jail, 5 hibás próbálkozás 10 percen belül, 1 órás kitiltás 📅 2027-01-24
-- [ ] fail2ban jail a Vaultwarden és az Authelia naplójára (a FIN-314-gyel és a FIN-303-mal) 📅 2027-01-24
+- [x] fail2ban jail a Vaultwarden és az Authelia naplójára (a FIN-314-gyel és a FIN-303-mal) 📅 2027-01-24
+    - 2026-11-18: `scripts/pi/fail2ban-web.sh`, a Pi Tailscale-je nem címzi át a továbbított forgalmat (`scripts/pi/tailscale-nosnat.sh`).
 - [x] Tűzfal (`ufw`): 53 a helyi hálózatról és a tailnetről, 22 a helyi hálózatról és a tailnetről, 80 és 443 a tailnetről és a Pi-hole felületéhez a helyi hálózatról; NTP, mDNS és a Beszel a helyi hálózatról; minden más tiltva. Konzolos visszaút helyett 5 perces önvisszavonó időzítő 📅 2027-01-24
 - [x] `unattended-upgrades` a biztonsági frissítésekre, újraindítás nélkül 📅 2027-01-24
 - [x] Script a beállításhoz, a README-ben a visszavonás lépéseivel (`scripts/pi/`) 📅 2027-01-24
@@ -101,15 +104,19 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 - [x] Globális névszerver a tailneten is a Pi-hole, „Override DNS servers” bekapcsolva, így a reklámszűrés otthonon kívül is működik 📅 2027-01-24
 - [x] A Cloudflare-ben nincs rekord a belső címre; a Cloudflare csak a tanúsítvány DNS-ellenőrzéséhez kell 📅 2027-01-24
 - [x] A Pi maga nem a Tailscale DNS-ét használja (`--accept-dns=false`), így a `tailscaled` kiesése nem viszi el a névfeloldását 📅 2027-01-24
-- [ ] A `127.0.0.1` kifejezett névszerverként a NetworkManagerben, egyeztetett időpontban, mert az újracsatlakozás rövid kiesés 📅 2027-01-24
+- [x] A `127.0.0.1` kifejezett névszerverként a NetworkManagerben, egyeztetett időpontban, mert az újracsatlakozás rövid kiesés 📅 2027-01-24
+    - 2026-11-17: `ipv4.dns 127.0.0.1`, `ipv4.ignore-auto-dns yes`, a `resolv.conf`-ban `nameserver 127.0.0.1`; 2026-11-18-án ellenőrizve.
 
 **Elfogadási feltételek**
 
-- [ ] A Pi-hole felülete a helyi hálózatról a megszokott címen elérhető, a Caddy pedig a Tailscale-címen fut
+- [x] A Pi-hole felülete a helyi hálózatról a megszokott címen elérhető, a Caddy pedig a Tailscale-címen fut
+    - 2026-11-18: a helyi címen a Pi-hole felülete válaszol, a Caddy csak a Tailscale-címen (443).
     - A felület 2026-11-17-én a helyi címen elérhető; a Caddy a FIN-302-vel indul.
-- [ ] A domain a tailneten a Pi Tailscale-címére oldódik fel, a nyilvános DNS-ben nincs rá rekord
+- [x] A domain a tailneten a Pi Tailscale-címére oldódik fel, a nyilvános DNS-ben nincs rá rekord
+    - 2026-11-18: a három név a tailneten a Pi Tailscale-címére oldódik fel; a Cloudflare DoH szerint nyilvánosan NXDOMAIN. A Windows a 1.1.1.1-nek szánt kérést is a Tailscale-en át küldi, ezért nyilvános próbához DoH kell.
     - 2026-11-17: a Pi-hole a három nevet a Pi Tailscale-címére oldja fel, a nyilvános DNS-ben nincs rekord; a tailneten a split DNS után ellenőrizendő.
-- [ ] Leállított Pi-hole mellett a telefonok a tailneten is elérik az internetet
+- [-] Leállított Pi-hole mellett a telefonok a tailneten is elérik az internetet
+    - 2026-11-17: tudatosan elvetve: a tailnet globális névszervere a Pi-hole, felülírással, hogy a telefonok mindenhol szűrjenek; a Pi kiesésekor a tailneten nincs DNS.
     - Változás 2026-11-17: tudatos döntés, hogy a tailnet globális DNS-e a Pi-hole, a reklámszűrés miatt. A Pi kiesésekor a tailnetes eszközökön nincs névfeloldás; ilyenkor a Tailscale kikapcsolása visszaadja az internetet. A feltétel ezért nem teljesül, és nem is cél.
 
 ## FIN-302 Caddy HTTPS a saját domainen · 2 SP
@@ -190,38 +197,51 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 
 **Részfeladatok**
 
-- [ ] Vaultwarden a `pi/` Compose-ban, a `vault.` aldomainen a Caddy mögött; az Authelia nem áll elé, mert a Bitwarden-kliensek saját belépést használnak 📅 2027-01-24
-- [ ] `SIGNUPS_ALLOWED=false`, a két fiók meghívóval; az admin felület argon2-es tokennel, alapból kikapcsolva 📅 2027-01-24
-- [ ] Kötelező kétfaktoros belépés mindkét fióknak 📅 2027-01-24
-- [ ] Napi mentés: az otthoni gép húzza le a Vaultwarden adatát, és a restic-tárolóba teszi; a kapcsolatot itt is az otthoni oldal nyitja 📅 2027-01-24
-- [ ] Visszaállítási próba egy eldobható Vaultwardenbe 📅 2027-01-24
-- [ ] fail2ban jail a Vaultwarden hibás belépéseire (FIN-313) 📅 2027-01-24
+- [x] Vaultwarden a `pi/` Compose-ban, a `vault.` aldomainen a Caddy mögött; az Authelia nem áll elé, mert a Bitwarden-kliensek saját belépést használnak 📅 2027-01-24
+    - 2026-11-18: 1.37.5, Let's Encrypt-tanúsítvány a `vault.` névre, a Pi-hole helyi rekordja a FIN-315-ből.
+- [x] Regisztráció lezárva; az admin felület alapból kikapcsolva, argon2-es tokennel kapcsolható 📅 2027-01-24
+    - 2026-11-18: egy fiók, a második személynek egyelőre nem kell; a regisztráció a fiók létrehozásáig volt nyitva (`VAULT_SIGNUPS_ALLOWED`), utána `disableUserRegistration: true`. Meghívó helyett ez, mert levélküldés nincs. Az admin felület: „The admin panel is disabled”.
+- [x] Kötelező kétfaktoros belépés a fiókra (Authenticator app, a recovery code a mesterjelszó mellett) 📅 2027-01-24
+    - 2026-11-18: az Authenticator app bekapcsolva, a recovery code lekérve (a Vaultwarden naplója szerint).
+- [x] Napi mentés: az otthoni gép húzza le a Vaultwarden adatát, és a restic-tárolóba teszi; a kapcsolatot itt is az otthoni oldal nyitja 📅 2027-01-24
+    - A `mentes` felhasználó kulcsa kényszerített paranccsal csak a friss mentést kapja (`scripts/pi/backup-user.sh`); más parancs, alagút és shell kipróbálva elutasítva. A mentésben az Authelia adata és a `pi/.env` is benne van, mert a TOTP-titkok a benne lévő kulccsal titkosítottak.
+    - 2026-11-18: az első `pi` pillanatkép 591 KiB.
+- [x] Visszaállítási próba egy eldobható Vaultwardenbe (`scripts/restore-test-pi.sh`) 📅 2027-01-24
+    - 2026-11-18: 1 felhasználó, 13 bejegyzés, 2 TOTP, mindkét adatbázis integritása rendben, az eldobható Vaultwarden elindult rajta.
+- [x] fail2ban jail a Vaultwarden hibás belépéseire (FIN-313) 📅 2027-01-24
+    - `scripts/pi/fail2ban-web.sh`: az Authelia és a Vaultwarden is, a forward ponton, külön láncban az SSH-étól. Rossz jelszavas próbával mindkét szűrő talált.
+    - Előfeltétel volt, hogy a Pi Tailscale-je ne címezze át a továbbított forgalmat (`scripts/pi/tailscale-nosnat.sh`): addig minden kérés a Docker-átjáró címéről jött.
 
 **Elfogadási feltételek**
 
 - [ ] A Bitwarden-kliens a telefonról és a gépről, a tailneten át szinkronizál
-- [ ] Idegen nem regisztrálhat, és az admin felület token nélkül nem nyílik meg
-- [ ] Egy napi mentésből a széf visszaállítható
-- [ ] A Vaultwarden adata a `finance` mentésétől külön pillanatképben van, és a FIN-309 nem törli
+    - 2026-11-18: a gépen a böngészőbővítmény szinkronizál, a Firefox jelszavai importálva; a telefon hátravan.
+- [x] Idegen nem regisztrálhat, és az admin felület token nélkül nem nyílik meg
+- [x] Egy napi mentésből a széf visszaállítható
+- [x] A Vaultwarden adata a `finance` mentésétől külön pillanatképben van, és a FIN-309 nem törli
 
 ## FIN-307 E-mailes számlafogadás · 5 SP
 
-**Story:** felhasználóként a webshopok számláit egy címre akarom továbbítani, hogy ne kelljen letölteni és feltölteni őket.
+**Story:** felhasználóként a számláimat egy saját domaines postaládába akarom kapni, hogy ami oda érkezik, magától bekerüljön, letöltés és feltöltés nélkül.
+
+**Elképzelés (2026-11-18):** a saját domainen egy cím, pl. `szamla@`, ez postaládaként működik: a boltoknál és szolgáltatóknál a számlacímet erre állítjuk át, és a régi számlák továbbítva is ide jönnek. A worker figyeli, és minden új levelet a bronzba visz: a feladó címével, a tárggyal, a törzzsel és a mellékletekkel (PDF vagy más fájl, amelyben az összeg van). Ha nincs melléklet, a számla a levél törzsében is lehet. Postafiók: mailbox.org vagy Posteo IMAP-pal, a Proton IMAP-ja csak a Bridge-dzsel menne, ezért nem jó. A cím a Cloudflare Email Routinggal továbbít a postafiókba, így szolgáltatóváltáskor a cím marad.
+
+**Nyitott kérdések:** ki a vásárló, ha a bolt közvetlenül küld (javaslat: személyenként egy cím, pl. két alias, vagy az Ellenőrzésen dől el); mi kerül be idegen feladótól (javaslat: érvényes DKIM- vagy SPF-eredménnyel bármelyik feladó, a többi a postafiók „Karantén” mappájába, és minden levél az Ellenőrzésen dől el).
 
 **Részfeladatok**
 
-- [ ] Külön postafiók a levelezőszolgáltatónál, pl. `szamla@` a saját domainen 📅 2027-01-24
+- [ ] Postafiók a levelezőszolgáltatónál, a saját domaines cím a Cloudflare Email Routinggal 📅 2027-01-24
 - [ ] Worker: IMAP-lehúzás titkosított kapcsolaton, a feldolgozott levél a „Feldolgozva” mappába kerül 📅 2027-01-24
-- [ ] Csak a két saját feladótól, ellenőrzött SPF- és DKIM-eredménnyel 📅 2027-01-24
-- [ ] Címkék a tárgyból (`#élelmiszer #háztartás`), a vásárló a továbbító 📅 2027-01-24
+- [ ] Feladó-ellenőrzés SPF- és DKIM-eredménnyel; ami nem megy át, a „Karantén” mappába kerül 📅 2027-01-24
+- [ ] A bronzba a feladó, a tárgy, a törzs és a mellékletek; a vásárló a címzett címből vagy az Ellenőrzésen; címkék a tárgyból (`#élelmiszer #háztartás`), ha van 📅 2027-01-24
 - [ ] A nyers `.eml` és a mellékletek a Garage-ba, a bronzban `email` forrástípussal (migráció) 📅 2027-01-24
 - [ ] A PDF-melléklet ugyanazon az úton megy, mint a webes feltöltés ([[0010-pdf-olvasas-es-szamlafeldolgozo|ADR 0010]]) 📅 2027-01-24
-- [ ] Kitalált levelekkel tesztek: idegen feladó, hamis DKIM, melléklet nélküli levél 📅 2027-01-24
+- [ ] Kitalált levelekkel tesztek: hamis DKIM, melléklet nélküli levél, számla a törzsben, továbbított levél 📅 2027-01-24
 
 **Elfogadási feltételek**
 
-- [ ] Továbbított PDF-számla bekerül a bronzba, és megjelenik az Ellenőrzésen
-- [ ] Idegen feladó levele nem kerül be, és a postafiókban marad
+- [ ] A boltól közvetlenül érkező és a továbbított PDF-számla is bekerül a bronzba, és megjelenik az Ellenőrzésen
+- [ ] Hamis vagy ellenőrizetlen feladó levele nem kerül be, és a postafiók „Karantén” mappájában marad
 - [ ] Ugyanaz a levél kétszer nem kerül be
 - [ ] A postafiók jelszava csak az otthoni `.env`-ben van
 

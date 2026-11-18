@@ -27,4 +27,30 @@ if ! compose run --rm restic cat config >/dev/null 2>&1; then
 fi
 
 compose run --rm restic backup /backup/dumps /backup/garage-raw
+
+# A Pi adata (Vaultwarden, Authelia, a Pi .env-je) külön pillanatképbe, így a FIN-309 sem érinti.
+# A kapcsolatot ez a gép nyitja; a Pi mentő kulcsa csak a friss mentést adja (scripts/pi/backup-user.sh).
+pi_failed=false
+if [[ -n ${PI_BACKUP_TARGET:-} ]]; then
+  pi_key=${PI_BACKUP_KEY:-$HOME/.ssh/finance_pi_backup}
+  rm -rf "$BACKUP_DIR/pi.new"
+  mkdir -p "$BACKUP_DIR/pi.new"
+  if ssh -i "$pi_key" -o BatchMode=yes -o IdentitiesOnly=yes "$PI_BACKUP_TARGET" |
+    tar -C "$BACKUP_DIR/pi.new" -xf - &&
+    [[ -s $BACKUP_DIR/pi.new/vaultwarden/db.sqlite3 && -s $BACKUP_DIR/pi.new/authelia/db.sqlite3 ]]; then
+    rm -rf "$BACKUP_DIR/pi"
+    mv "$BACKUP_DIR/pi.new" "$BACKUP_DIR/pi"
+    compose run --rm restic backup --tag pi /backup/pi
+    # A pi.env titkokat tart: nyersen nem marad a lemezen, csak a titkosított pillanatképben.
+    rm -rf "$BACKUP_DIR/pi"
+  else
+    echo "A Pi mentése nem sikerült, az otthoni mentés megvan." >&2
+    rm -rf "$BACKUP_DIR/pi.new"
+    pi_failed=true
+  fi
+fi
+
 compose run --rm restic forget --keep-daily 7 --keep-weekly 4 --keep-monthly 6 --prune
+if $pi_failed; then
+  exit 1
+fi
