@@ -41,7 +41,9 @@ backend = systemd
 journalmatch = CONTAINER_TAG=authelia
 ignoreip = 127.0.0.1/8 ::1 $worker
 port = http,https
-banaction = nftables[type=multiport, chain_hook=forward, chain=f2b-docker]
+banaction = nftables[type=multiport, chain_hook=forward]
+# A láncnevet a jail adja át a műveletnek, ezért itt kell megadni, nem a banaction mellett.
+chain = f2b-docker
 maxretry = 5
 findtime = 10m
 bantime = 1h
@@ -53,7 +55,9 @@ backend = systemd
 journalmatch = CONTAINER_TAG=vaultwarden
 ignoreip = 127.0.0.1/8 ::1 $worker
 port = http,https
-banaction = nftables[type=multiport, chain_hook=forward, chain=f2b-docker]
+banaction = nftables[type=multiport, chain_hook=forward]
+# A láncnevet a jail adja át a műveletnek, ezért itt kell megadni, nem a banaction mellett.
+chain = f2b-docker
 maxretry = 5
 findtime = 10m
 bantime = 1h
