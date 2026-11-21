@@ -25,6 +25,7 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 
 - FIN-314 Vaultwarden a Pi-n a saját aldomainen, a Caddy mögött; regisztráció csak a fiókok létrehozásáig, az admin felület alapból kikapcsolva.
 - `scripts/pi/fail2ban-web.sh`: fail2ban az Authelia és a Vaultwarden hibás belépéseire; `scripts/pi/tailscale-nosnat.sh`, hogy a szolgáltatások a kliens valódi címét lássák.
+- `scripts/pi/vault-signups.sh`: a Vaultwarden regisztrációja egy új fiókhoz időzítővel nyílik meg, és magától bezárul.
 - A Pi mentése: a `scripts/backup.sh` a `PI_BACKUP_TARGET`-tel lehúzza a Vaultwarden és az Authelia adatát, külön `pi` pillanatképbe (`scripts/pi/backup-user.sh`, `scripts/restore-test-pi.sh`).
 
 ### Módosítva

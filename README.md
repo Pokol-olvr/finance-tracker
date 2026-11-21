@@ -109,13 +109,14 @@ A Windows PowerShell 5.1 a BOM nélküli UTF-8 fájl ékezeteit félreolvassa, e
 
 #### Vaultwarden
 
-A jelszókezelő a `VAULT_DOMAIN` címen fut, a Caddy mögött, csak a tailnetről. Az Authelia nem áll elé, mert a Bitwarden-kliensek saját belépést használnak; a kliensben a szerver „self-hosted”, a címe `https://` + `VAULT_DOMAIN`. Levélküldés nincs, ezért meghívó helyett a regisztráció a fiókok létrehozásáig nyitva van, utána le van zárva:
+A jelszókezelő a `VAULT_DOMAIN` címen fut, a Caddy mögött, csak a tailnetről. Az Authelia nem áll elé, mert a Bitwarden-kliensek saját belépést használnak; a kliensben a szerver „self-hosted”, a címe `https://` + `VAULT_DOMAIN`. Levélküldés nincs, ezért meghívó helyett a regisztráció egy új fiókhoz rövid időre megnyílik, és magától be is zárul:
 
 ```sh
-# a pi/.env-ben: VAULT_SIGNUPS_ALLOWED=true, majd
-sudo docker compose -f pi/docker-compose.yml up -d vaultwarden
-# a fiókok után: VAULT_SIGNUPS_ALLOWED=false, és ugyanez a parancs
+sudo scripts/pi/vault-signups.sh open      # 30 percre; az időzítő akkor is bezárja, ha a close elmarad
+sudo scripts/pi/vault-signups.sh close     # a fiók létrehozása után
 ```
+
+A fiók e-mail-címe a belépési név; levelet nem kap, de legyen valódi cím, mert a Bitwarden-kliensek és a Have I Been Pwned is ezt használják.
 
 A mesterjelszó semmilyen módon nem állítható vissza. A fiókon legyen kétlépcsős belépés (Settings → Security → Two-step login), a recovery code a mesterjelszó mellett. Az admin felület alapból ki van kapcsolva; bekapcsolni a `VAULT_ADMIN_TOKEN`-nel lehet, egy `docker run --rm -it docker.io/vaultwarden/server:<verzió> /vaultwarden hash` argon2-es hash-ével, egyes idézőjelben.
 

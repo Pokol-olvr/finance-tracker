@@ -57,8 +57,9 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 
 - [x] A webapp csak a Tailscale-hálózatról érhető el
     - 2026-11-18: a Caddy csak a Pi Tailscale-címén figyel; a helyi címen a 443-as porton a Pi-hole saját felülete válaszol (`CN=pi.hole`), a nyilvános DNS-ben nincs rekord (DoH: NXDOMAIN), port forward nincs.
-- [ ] Mobilnetről, Tailscale nélkül a Pi címe nem válaszol
+- [x] Mobilnetről, Tailscale nélkül a Pi címe nem válaszol
     - 2026-11-18: a nyilvános DNS-ben a nevek nem léteznek (NXDOMAIN), a 100.x cím az interneten nem útválasztható; a telefonos próba hátravan.
+    - 2026-11-21: telefonon, mobilneten, kikapcsolt Tailscale-lel egyik név sem érhető el.
 - [x] Az otthoni gép a Pi-t a Tailscale-címén éri el
 - [x] A riportok a Pi-ről a tailneten elérhetők, a helyi hálózatról Tailscale nélkül nem (2026-11-18)
 
@@ -214,8 +215,9 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 
 **Elfogadási feltételek**
 
-- [ ] A Bitwarden-kliens a telefonról és a gépről, a tailneten át szinkronizál
+- [x] A Bitwarden-kliens a telefonról és a gépről, a tailneten át szinkronizál
     - 2026-11-18: a gépen a böngészőbővítmény szinkronizál, a Firefox jelszavai importálva; a telefon hátravan.
+    - 2026-11-21: az iPhone-on a Bitwarden-alkalmazás a saját szerverrel, kétlépcsős belépéssel szinkronizál; a kulcskarika jelszavai átvéve.
 - [x] Idegen nem regisztrálhat, és az admin felület token nélkül nem nyílik meg
 - [x] Egy napi mentésből a széf visszaállítható
 - [x] A Vaultwarden adata a `finance` mentésétől külön pillanatképben van, és a FIN-309 nem törli
