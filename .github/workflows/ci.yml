@@ -39,7 +39,6 @@ jobs:
         # Kitalált értékek: csak a fájl szerkezetét ellenőrzi.
         env:
           FINANCE_DOMAIN: penzugy.example.test
-          VAULT_DOMAIN: vault.example.test
           CLOUDFLARE_API_TOKEN: ci
           BIND_ADDRESS: 127.0.0.1
           WORKER_API_TOKEN: ci

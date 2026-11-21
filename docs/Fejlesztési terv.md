@@ -121,6 +121,7 @@ Kész, ha: telefonról feltöltött vagy e-mailben továbbított számla eljut a
     - Elfogadás: a korlátozott felhasználó belép, de sem sudo, sem Docker nem érhető el neki; öt hibás SSH-próbálkozás után a cím ki van tiltva
 - [ ] FIN-314 Vaultwarden a Pi-n a Caddy mögött, regisztráció nélkül, kötelező 2FA-val, napi mentéssel az otthoni gépre · 3 SP #E3 #sprint/S6 📅 2027-01-24
     - Elfogadás: a Bitwarden-kliens a tailnetről eléri, idegen nem regisztrálhat, és egy mentésből visszaállítható
+    - 2026-11-21: kikerült a repóból, a Pi saját szolgáltatása; a repóban a Caddy bővítési pontja és a mentés kiegészítő mappája maradt
 - [ ] FIN-315 Együttélés a Pi-hole-lal és az Unbounddal: portok, belső DNS-rekordok, Tailscale split DNS · 2 SP #E3 #sprint/S6 📅 2027-01-24
     - Elfogadás: a Pi-hole és a Caddy is fut, a domain a tailneten a Pi-re oldódik fel, a Pi kiesése a telefonok internetét nem állítja le
 

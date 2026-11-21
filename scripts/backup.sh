@@ -28,7 +28,7 @@ fi
 
 compose run --rm restic backup /backup/dumps /backup/garage-raw
 
-# A Pi adata (Vaultwarden, Authelia, a Pi .env-je) külön pillanatképbe, így a FIN-309 sem érinti.
+# A Pi adata (Authelia, a Pi .env-je és a Pi saját kiegészítői) külön pillanatképbe, így a FIN-309 sem érinti.
 # A kapcsolatot ez a gép nyitja; a Pi mentő kulcsa csak a friss mentést adja (scripts/pi/backup-user.sh).
 pi_failed=false
 if [[ -n ${PI_BACKUP_TARGET:-} ]]; then
@@ -37,7 +37,7 @@ if [[ -n ${PI_BACKUP_TARGET:-} ]]; then
   mkdir -p "$BACKUP_DIR/pi.new"
   if ssh -i "$pi_key" -o BatchMode=yes -o IdentitiesOnly=yes "$PI_BACKUP_TARGET" |
     tar -C "$BACKUP_DIR/pi.new" -xf - &&
-    [[ -s $BACKUP_DIR/pi.new/vaultwarden/db.sqlite3 && -s $BACKUP_DIR/pi.new/authelia/db.sqlite3 ]]; then
+    [[ -s $BACKUP_DIR/pi.new/authelia/db.sqlite3 ]]; then
     rm -rf "$BACKUP_DIR/pi"
     mv "$BACKUP_DIR/pi.new" "$BACKUP_DIR/pi"
     compose run --rm restic backup --tag pi /backup/pi

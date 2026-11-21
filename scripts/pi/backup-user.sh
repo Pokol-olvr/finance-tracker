@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# FIN-314 a Pi-n: mentő felhasználó, amelynek a kulcsa csak a friss mentést kérheti le.
+# A Pi mentése: mentő felhasználó, amelynek a kulcsa csak a friss mentést kérheti le.
 #
 #   sudo scripts/pi/backup-user.sh '<a feldolgozó gép mentőkulcsának publikus része>'
 #
