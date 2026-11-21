@@ -4,7 +4,7 @@
 #   sudo scripts/pi/tailscale-nosnat.sh
 #
 # Alapból a Tailscale a tailscale0-ról továbbított csomagokat MASQUERADE-del átcímzi (ez a subnet
-# routerhez kell, amit a Pi nem használ). Ilyenkor a Caddy, az Authelia és a Vaultwarden minden
+# routerhez kell, amit a Pi nem használ). Ilyenkor a Caddy és a mögötte futó szolgáltatások minden
 # kérést a Docker-átjáró címéről lát, és a fail2ban nem tudja, kit tiltson. A Pi-hole natívan fut,
 # ezt nem érinti. Élesítéskor 5 perces önvisszavonó időzítő indul; ha minden működik:
 #   sudo systemctl stop nosnat-rollback.timer

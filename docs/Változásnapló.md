@@ -23,9 +23,9 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 
 ### Hozzáadva
 
-- FIN-314 Vaultwarden a Pi-n a saját aldomainen, a Caddy mögött; regisztráció csak a fiókok létrehozásáig, az admin felület alapból kikapcsolva.
-- `scripts/pi/fail2ban-web.sh`: fail2ban az Authelia és a Vaultwarden hibás belépéseire; `scripts/pi/tailscale-nosnat.sh`, hogy a szolgáltatások a kliens valódi címét lássák.
-- A Pi mentése: a `scripts/backup.sh` a `PI_BACKUP_TARGET`-tel lehúzza a Vaultwarden és az Authelia adatát, külön `pi` pillanatképbe (`scripts/pi/backup-user.sh`, `scripts/restore-test-pi.sh`).
+- A Pi Caddy-je repón kívüli szolgáltatásokat is kiszolgálhat: a site-blokkjuk a `CADDY_SITES_DIR` mappában, a hálózatuk a `pi-proxy`; a közös fejlécek az `import security_headers` snippetben.
+- `scripts/pi/fail2ban-web.sh`: fail2ban az Authelia hibás belépéseire; `scripts/pi/tailscale-nosnat.sh`, hogy a szolgáltatások a kliens valódi címét lássák.
+- A Pi mentése: a `scripts/backup.sh` a `PI_BACKUP_TARGET`-tel lehúzza az Authelia adatát és a Pi `.env`-jét, külön `pi` pillanatképbe; a repón kívüli szolgáltatások az `/etc/finance-pi-snapshot.d` mappából kerülnek bele (`scripts/pi/backup-user.sh`, `scripts/restore-test-pi.sh`).
 
 ### Módosítva
 
@@ -35,7 +35,7 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 ### Frissítési teendők
 
 - A worker induláskor a `PARSER_VERSION` 11 miatt minden tárolt szöveget újra feldolgoz, modell nélkül.
-- A Pi `.env`-jébe kell a `VAULT_DOMAIN`; a Pi-hole-ban a név helyi rekordja a Pi Tailscale-címére.
+- A Pi `.env`-jében a `VAULT_*` sorok nem kellenek; a `CADDY_SITES_DIR` üresen a `pi/caddy/sites`. A `/usr/local/sbin/finance-pi-snapshot` újratelepítése: `sudo scripts/pi/backup-user.sh '<mentőkulcs>'`.
 - A `home/.env`-be kell az `INBOX_URL`: Pi nélkül `INBOX_URL=http://webapp:8000`, és a `COMPOSE_FILE`-ba a `docker-compose.inbox.yml` (pl. `COMPOSE_FILE=docker-compose.yml:docker-compose.inbox.yml`); a Pi-vel a README „Postaláda a Pi-n” 5. lépése.
 
 ## v0.5.0 · 2026-11-17

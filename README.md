@@ -62,7 +62,7 @@ A webapp a Raspberry Pi 4-en fut, Caddy és Authelia mögött, csak a Tailscale-
    ```sh
    scripts/setup-pi.sh
    ```
-2. **DNS:** a `scripts/pi/pihole-tailnet.sh` a Pi-hole webszerverét a helyi címre szűkíti, hogy a Tailscale-cím 80-as és 443-as portja a Caddyé legyen, a `FINANCE_DOMAIN`, az `auth.` aldomain és a Vaultwarden nevét helyi rekordként a Pi Tailscale-címére irányítja, és a Pi-t leválasztja a Tailscale DNS-éről. A Tailscale admin felületén a domainre split DNS kell, a Pi Tailscale-címével. A Cloudflare-ben nincs rekord, ott csak egy API-token kell ehhez a zónához, `Zone.DNS` szerkesztési joggal, a tanúsítványhoz.
+2. **DNS:** a `scripts/pi/pihole-tailnet.sh` a Pi-hole webszerverét a helyi címre szűkíti, hogy a Tailscale-cím 80-as és 443-as portja a Caddyé legyen, a `FINANCE_DOMAIN`-t és az `auth.` aldomaint helyi rekordként a Pi Tailscale-címére irányítja, és a Pi-t leválasztja a Tailscale DNS-éről. A Tailscale admin felületén a domainre split DNS kell, a Pi Tailscale-címével. A Cloudflare-ben nincs rekord, ott csak egy API-token kell ehhez a zónához, `Zone.DNS` szerkesztési joggal, a tanúsítványhoz.
 3. **Beállítások és felhasználók** a Pi-n; a felhasználónevek a `HOUSEHOLD_MEMBERS` kódjai, a jelszót az Authelia kéri be. A felhasználók az első `up` előtt kellenek: fájl nélkül az Authelia egy példafelhasználót hoz létre.
    ```sh
    scripts/init-pi-env.sh
@@ -94,7 +94,7 @@ A Pi a háztartás DNS-szervere is (natív Pi-hole v6 és Unbound), ezért minde
 | `harden-4-ufw.sh <helyi hálózat>` | Tűzfal: a helyi hálózatról DNS, NTP, SSH, a Pi-hole felülete, mDNS és a Beszel; a tailnetről DNS, SSH és a Caddy; minden más tiltva. Élesítéskor 5 perces önvisszavonó időzítő indul | `ufw disable` |
 | `harden-4-finalize.sh` | Ellenőrzés után leállítja az időzítőt | – |
 | `tailscale-nosnat.sh` | A Tailscale nem címzi át a tailnetről a Docker felé továbbított forgalmat, így a Caddy mögötti szolgáltatások a kliens valódi címét látják. 5 perces önvisszavonó időzítővel | `tailscale set --snat-subnet-routes=true` |
-| `fail2ban-web.sh <feldolgozó gép Tailscale-címe>` | fail2ban az Authelia és a Vaultwarden hibás belépéseire: 10 percen belül 5 hiba után 1 óra tiltás a 80-as és 443-as porton, a forward ponton; a feldolgozó gép kivétel, mert a worker is onnan húz | a script elején |
+| `fail2ban-web.sh <feldolgozó gép Tailscale-címe>` | fail2ban az Authelia hibás belépéseire: 10 percen belül 5 hiba után 1 óra tiltás a 80-as és 443-as porton, a forward ponton; a feldolgozó gép kivétel, mert a worker is onnan húz | a script elején |
 | `backup-user.sh '<mentőkulcs>'` | A `mentes` felhasználó: a kulcsa kényszerített paranccsal csak a friss mentést kapja, shell, jelszó és alagút nélkül | a script elején |
 
 A harmadik lépés előtt mindkét felhasználó kulcsos belépését ki kell próbálni.
@@ -107,28 +107,26 @@ powershell -ExecutionPolicy Bypass -File scripts\windows\rotate-ssh-key.ps1 -Hos
 
 A Windows PowerShell 5.1 a BOM nélküli UTF-8 fájl ékezeteit félreolvassa, ezért a `scripts/windows/` scriptjei BOM-mal vannak mentve. A tűzfal a Docker által közzétett portokra nem vonatkozik, ezért a `pi/` Compose minden portot csak a Tailscale-címre köt.
 
-#### Vaultwarden
+#### Más szolgáltatás a Caddy mögött
 
-A jelszókezelő a `VAULT_DOMAIN` címen fut, a Caddy mögött, csak a tailnetről. Az Authelia nem áll elé, mert a Bitwarden-kliensek saját belépést használnak; a kliensben a szerver „self-hosted”, a címe `https://` + `VAULT_DOMAIN`. Levélküldés nincs, ezért meghívó helyett a regisztráció a fiókok létrehozásáig nyitva van, utána le van zárva:
+A Pi-n a repón kívül is futhat szolgáltatás ugyanazon a Caddyn át, saját tanúsítvánnyal, csak a tailnetről. Ehhez a repóban nem kell semmi; a Pi-n:
 
-```sh
-# a pi/.env-ben: VAULT_SIGNUPS_ALLOWED=true, majd
-sudo docker compose -f pi/docker-compose.yml up -d vaultwarden
-# a fiókok után: VAULT_SIGNUPS_ALLOWED=false, és ugyanez a parancs
-```
-
-A mesterjelszó semmilyen módon nem állítható vissza. A fiókon legyen kétlépcsős belépés (Settings → Security → Two-step login), a recovery code a mesterjelszó mellett. Az admin felület alapból ki van kapcsolva; bekapcsolni a `VAULT_ADMIN_TOKEN`-nel lehet, egy `docker run --rm -it docker.io/vaultwarden/server:<verzió> /vaultwarden hash` argon2-es hash-ével, egyes idézőjelben.
+- a saját Compose-fájlja a `pi-proxy` hálózatra csatlakozik (`networks: proxy: {external: true, name: pi-proxy}`), port nélkül;
+- a site-blokkja a `CADDY_SITES_DIR` mappába kerül (`*.caddy`, a közös fejlécekhez `import security_headers`), utána a Caddy újraindul;
+- a neve a Pi-hole-ban helyi rekord a Pi Tailscale-címére, mint a `FINANCE_DOMAIN`;
+- a mentése az `/etc/finance-pi-snapshot.d` mappába tett, root tulajdonú scripttel kerül a Pi napi mentésébe (`scripts/pi/backup-snapshot.sh`);
+- a fail2ban-jailje saját fájlban legyen, mert a `fail2ban-web.sh` a sajátját felülírja.
 
 #### A Pi mentése
 
-A Pi adata (a Vaultwarden, az Authelia felhasználói és TOTP-titkai, a `pi/.env`) a napi otthoni mentéssel, külön `pi` pillanatképbe kerül a restic-tárolóba. A kapcsolatot az otthoni gép nyitja, egy csak erre jó kulccsal:
+A Pi adata (az Authelia felhasználói és TOTP-titkai, a `pi/.env`, és a repón kívüli szolgáltatások kiegészítői) a napi otthoni mentéssel, külön `pi` pillanatképbe kerül a restic-tárolóba. A kapcsolatot az otthoni gép nyitja, egy csak erre jó kulccsal:
 
 ```sh
 ssh-keygen -t ed25519 -N '' -C finance-pi-backup -f ~/.ssh/finance_pi_backup   # az otthoni gépen
 sudo scripts/pi/backup-user.sh '<a ~/.ssh/finance_pi_backup.pub tartalma>'      # a Pi-n
 ```
 
-Az otthoni `home/.env`-ben `PI_BACKUP_TARGET=mentes@<a Pi Tailscale-címe>`. Az első kapcsolat előtt a Pi gazdakulcsát a `known_hosts`-ba kell venni, ellenőrzött ujjlenyomattal. A `scripts/restore-test-pi.sh` a legutóbbi mentést visszaállítja egy ideiglenes mappába, ellenőrzi az adatbázisokat, és egy eldobható Vaultwardent indít rajta. A mentés titkokat is tartalmaz (`pi/.env`), ezért nyersen nem marad a lemezen, csak a titkosított pillanatképben, és a restic-tároló jelszava ugyanúgy védendő, mint a mesterjelszó.
+Az otthoni `home/.env`-ben `PI_BACKUP_TARGET=mentes@<a Pi Tailscale-címe>`. Az első kapcsolat előtt a Pi gazdakulcsát a `known_hosts`-ba kell venni, ellenőrzött ujjlenyomattal. A `scripts/restore-test-pi.sh` a legutóbbi mentést visszaállítja egy ideiglenes mappába, és ellenőrzi a benne lévő adatbázisokat. A mentés titkokat is tartalmaz (`pi/.env`), ezért nyersen nem marad a lemezen, csak a titkosított pillanatképben, és a restic-tároló jelszava ugyanúgy védendő, mint a mesterjelszó.
 
 Belépéssel a feltöltő és a döntést hozó mindig a belépett felhasználó: a webapp az Authelia `Remote-User` fejlécét veszi, és más nevében nem ment. A worker API (`/inbox/…`) és a `/health` belépés nélkül, a worker tokenjével érhető el.
 
