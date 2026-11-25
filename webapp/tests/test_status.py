@@ -234,6 +234,27 @@ def test_failed_backup_is_an_error_with_next_run():
     assert result["overall"]["label"] == "Hiba: Mentés"
 
 
+def test_pi_backup_time_is_shown():
+    backup = card(build(host=with_job("backup", pi_backup_at="2026-12-01T03:05:00+01:00")), "backup")
+
+    assert backup["state"] == "ok"
+    assert {"label": "Pi-mentés", "time": "2026-12-01T03:05:00+01:00"} in backup["facts"]
+
+
+def test_old_pi_backup_is_an_error_even_if_the_job_succeeded():
+    result = build(host=with_job("backup", pi_backup_at="2026-11-28T03:05:00+01:00"))
+
+    backup = card(result, "backup")
+    assert (backup["state"], backup["summary"]) == ("error", "A Pi mentése régi")
+    assert result["overall"]["label"] == "Hiba: Mentés"
+
+
+def test_backup_without_pi_has_no_pi_fact():
+    labels = [row["label"] for row in card(build(), "backup")["facts"]]
+
+    assert "Pi-mentés" not in labels
+
+
 def test_running_job_is_busy():
     assert card(build(host=with_job("dbt", active="activating")), "dbt")["summary"] == "Most fut"
 

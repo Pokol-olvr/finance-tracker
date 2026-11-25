@@ -108,6 +108,8 @@ class JobReport(BaseModel):
     result: str
     last_run: datetime | None = None
     next_run: datetime | None = None
+    # Csak a backupnál, ha a Pi is mentve van: az utolsó sikeres Pi-mentés.
+    pi_backup_at: datetime | None = None
 
 
 class GpuReport(BaseModel):
