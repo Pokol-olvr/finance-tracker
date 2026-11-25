@@ -41,6 +41,8 @@ def check_text(key: str, check: dict) -> str:
         return f"Az áfaösszesítő bruttója {money(check.get('gross'))}, ez eltér a végösszegtől."
     if key == "currency":
         return f"A végösszeg nem forintban van: {check.get('currency')}."
+    if key == "inferred":
+        return "A levélből kikövetkeztetett adat: nézd át a végösszeget, a tételt és a dátumot."
     return key
 
 

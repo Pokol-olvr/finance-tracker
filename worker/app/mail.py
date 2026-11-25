@@ -27,6 +27,7 @@ from uuid import UUID
 import psycopg
 
 from app import bronze, pdf, text
+from app.email_receipt import UNKNOWN_ISSUER
 from app.extract import ModelMissing
 from app.parsing import parse_pending
 from app.reviews import TRANSIENT
@@ -291,20 +292,66 @@ NOISE = re.compile(r"\[image:[^\]]*\]|\s*<(?:https?://|mailto:|tel:|\()[^>]*>")
 
 def clean_body(text: str) -> str:
     """A továbbítás fejléce (feladó, dátum, tárgy) nem a számla része: a bolt nevét eltakarná.
-    A képhelyek és a linkek is kimaradnak, az üres sorok összevonódnak."""
+    A fejléc az első üres sorig tart, a hosszú tárgy folytatósora is. A képhelyek és a linkek is
+    kimaradnak, az üres sorok összevonódnak."""
     kept: list[str] = []
-    in_header = False
+    in_header = seen_header = False
     for line in NOISE.sub("", text).split("\n"):
         stripped = line.strip()
         if FORWARD_MARK.match(stripped):
-            in_header = True
+            in_header, seen_header = True, False
             continue
-        if in_header and (FORWARD_HEADER.match(stripped) or not stripped):
+        if in_header:
+            seen_header = seen_header or bool(FORWARD_HEADER.match(stripped))
+            if not stripped and seen_header:
+                in_header = False
             continue
-        in_header = False
         if stripped:
             kept.append(stripped)
     return "\n".join(kept)
+
+
+SENDER_LINE = re.compile(r"^(?:From|Feladó):\s*(?P<value>.+)$", re.IGNORECASE)
+
+
+def display_name(value: str) -> str | None:
+    """`Apple <no_reply@email.apple.com>` → Apple; név nélkül a cím domainje."""
+    name = value.split("<", 1)[0].strip().strip('"').strip()
+    if name and "@" not in name:
+        return name
+    return domain_of(value.strip("<> "))
+
+
+def forwarded_sender(text: str) -> str | None:
+    """A továbbított levél eredeti feladója a továbbítás fejlécéből."""
+    in_header = False
+    for line in text.replace("\r\n", "\n").split("\n"):
+        stripped = line.strip()
+        if FORWARD_MARK.match(stripped):
+            in_header = True
+        elif in_header and (found := SENDER_LINE.match(stripped)):
+            return display_name(found["value"])
+    return None
+
+
+def issuer_of(message: EmailMessage, own_addresses: set[str]) -> str | None:
+    """Ki állította ki: továbbításnál az eredeti feladó, egyébként a levél feladója."""
+    body = message.get_body(preferencelist=("plain", "html"))
+    try:
+        raw = body.get_content() if body is not None else ""
+    except (LookupError, ValueError):
+        raw = ""
+    if body is not None and body.get_content_subtype() == "html":
+        raw = html_to_text(raw)
+    if found := forwarded_sender(raw):
+        return found
+    sender = from_address(message)
+    if sender is None or sender in own_addresses:
+        return None
+    try:
+        return display_name(str(message["From"]))
+    except (TypeError, ValueError):
+        return None
 
 
 def body_text(message: EmailMessage) -> str:
@@ -387,7 +434,9 @@ def handle(
     if not documents:
         body = body_text(message)
         if len(body) >= MIN_BODY_CHARS:
-            documents = [(body.encode("utf-8"), text.CONTENT_TYPE)]
+            # Az első sor a kibocsátó: ebből lesz a bolt neve (email_receipt.py).
+            issuer = issuer_of(message, set(settings.buyers)) or UNKNOWN_ISSUER
+            documents = [(f"Kibocsátó: {issuer}\n{body}".encode(), text.CONTENT_TYPE)]
 
     document_ids = []
     for content, content_type in documents:

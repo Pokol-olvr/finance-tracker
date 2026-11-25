@@ -247,6 +247,7 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
     - 2026-11-25: `bronze.email_message` (csak hozzáfűzhető), a dokumentumok `email/<év>/<hó>/` alatt.
 - [x] A PDF-melléklet ugyanazon az úton megy, mint a webes feltöltés ([[0010-pdf-olvasas-es-szamlafeldolgozo|ADR 0010]]) 📅 2027-01-24
     - 2026-11-25: a melléklet nélküli levél szövege szöveges dokumentum, modell nélkül; a Pi webappja az Ellenőrzésen szövegként mutatja.
+    - 2026-11-26: a levél törzséből jött e-nyugta (Apple, JYSK) saját feldolgozóval: kibocsátó a feladóból, végösszeg a címkéből vagy a kártyás fizetésből, egy tétel; mindig ellenőrzésre megy. Az első bombázás: 11 levél, mind Feldolgozva, a Karantén üres.
 - [x] Kitalált levelekkel tesztek: hamis DKIM, melléklet nélküli levél, számla a törzsben, továbbított levél 📅 2027-01-24
     - 2026-11-25: `worker/tests/test_mail.py`, 23 tesztfüggvény; a valódi postafiókos próba a beállítás után.
 

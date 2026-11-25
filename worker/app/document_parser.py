@@ -2,6 +2,7 @@
 
 import re
 
+from app.email_receipt import ISSUER, issuer_name, parse_email_receipt
 from app.invoice_parser import clean_lines, draft_of, parse_invoice
 from app.receipt_parser import match_key, parse_pages
 
@@ -73,4 +74,13 @@ def parse_by_type(joined: str, texts: list[str]) -> dict:
             "receipt_number": None,
             "draft": draft_of(clean_lines(joined)),
         }
-    return {"document_type": kind, **parse_pages(texts)}
+    result = parse_pages(texts)
+    # A levél törzséből jött e-nyugtánál a blokkfeldolgozó gyakran semmit nem talál (FIN-307).
+    if (result["total"] is None or not result["items"]) and (
+        inferred := parse_email_receipt(joined)
+    ):
+        return {"document_type": kind, **inferred}
+    if result["store_name"] and ISSUER.match(result["store_name"]):
+        # A levél első sora nem bolt név: a kibocsátó a neve, ha ismert.
+        result["store_name"] = issuer_name(joined)
+    return {"document_type": kind, **result}

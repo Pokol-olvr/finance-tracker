@@ -342,12 +342,12 @@ def test_body_only_email_becomes_a_text_document(conn, storage):
     [(_, _, _, _, [document_id])] = email_rows(conn, raw)
     object_key = document(conn, document_id)[0]
     assert object_key.endswith(".txt")
-    assert stored(storage, object_key).decode() == body
+    assert stored(storage, object_key).decode() == f"Kibocsátó: Példa Bolt\n{body}"
     [(model_name, payload)] = conn.execute(
         "select model_name, payload from bronze.extraction where document_id = %s",
         (document_id,),
     ).fetchall()
-    assert (model_name, payload) == ("text", {"ocr_text": body})
+    assert (model_name, payload) == ("text", {"ocr_text": f"Kibocsátó: Példa Bolt\n{body}"})
 
 
 def test_text_page_goes_to_review_with_charset(conn, storage):
@@ -500,3 +500,41 @@ def test_body_without_forward_keeps_its_lines():
     assert clean_body("Kedves Vásárló!\n\nFizetendő: 1 290 Ft\n") == (
         "Kedves Vásárló!\nFizetendő: 1 290 Ft"
     )
+
+
+def test_long_forwarded_subject_continuation_is_part_of_the_header():
+    from app.mail import clean_body
+
+    forwarded = (
+        "---------- Forwarded message ---------\n"
+        "Feladó: Példa Bútor <noreply@butor.example>\n"
+        "Subject: Az 4100000000 azonosítószámú megrendelés átvehető az Ön\n"
+        "által választott üzletben\n"
+        "To: <en@example.test>\n"
+        "\n"
+        "Kedves Vásárló\n"
+    )
+
+    assert clean_body(forwarded) == "Kedves Vásárló"
+
+
+def test_issuer_is_the_original_sender_of_a_forward_or_the_sender():
+    from app.mail import issuer_of
+
+    forward = EmailMessage()
+    forward["From"] = "Én <en@example.test>"
+    forward.set_content(
+        "---------- Forwarded message ---------\n"
+        "From: Példa Előfizetés <no_reply@elofizetes.example>\n"
+        "Date: 2026. nov. 24.\n\nSzámla\n"
+    )
+    direct = EmailMessage()
+    direct["From"] = "noreply@bolt.example"
+    direct.set_content("Számla")
+    own = EmailMessage()
+    own["From"] = "Én <en@example.test>"
+    own.set_content("Számla")
+
+    assert issuer_of(parsed(forward.as_bytes()), {"en@example.test"}) == "Példa Előfizetés"
+    assert issuer_of(parsed(direct.as_bytes()), {"en@example.test"}) == "bolt.example"
+    assert issuer_of(parsed(own.as_bytes()), {"en@example.test"}) is None
