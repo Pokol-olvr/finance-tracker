@@ -200,6 +200,29 @@ def reread_truncated(
     return done
 
 
+def reread_text_layers(conn: psycopg.Connection, storage: Storage) -> list[UUID]:
+    """A szöveges PDF új sorképzése (`pdf.LAYOUT_VERSION`) a még el nem döntött dokumentumokon is.
+
+    Modell nem kell hozzá, ezért olcsó; a döntött dokumentum olvasata nem változik. A régi sor a
+    bronzban marad, a feldolgozás a `PARSER_VERSION` emelésével a legutóbbit veszi.
+    """
+    current = pdf.TextLayerReading({}).version()
+    done = []
+    for document in bronze.outdated_text_layers(conn, pdf.READER_NAME, current):
+        try:
+            text = pdf.text_layer(storage.get(document["object_key"]))
+        except pdf.pdfium.PdfiumError:
+            continue
+        if not pdf.is_readable(text):
+            continue
+        payload = {"ocr_text": text, "done_reason": "stop", "seconds": 0}
+        bronze.insert_extraction(
+            conn, document["id"], pdf.READER_NAME, current, PROMPT_VERSION, payload
+        )
+        done.append(document["id"])
+    return done
+
+
 def reparse_stored(settings: Settings) -> None:
     """Új `PARSER_VERSION` után a meglévő szövegek is feldolgozódnak, modellfutás nélkül."""
     with psycopg.connect(settings.database_url, autocommit=True) as conn:
@@ -251,6 +274,8 @@ def main() -> None:
                 with psycopg.connect(settings.database_url, autocommit=True) as conn:
                     if reread := reread_truncated(conn, storage, reader):
                         log.info("%s csonka olvasás újraolvasva.", len(reread))
+                    if reread := reread_text_layers(conn, storage):
+                        log.info("%s szöveges PDF újraolvasva.", len(reread))
                 reparse_stored(settings)
                 parsers_ready = True
             run_once(settings, inbox, storage, reader, reporter, mail)

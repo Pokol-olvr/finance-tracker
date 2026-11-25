@@ -15,6 +15,7 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 
 ### Javítva
 
+- A betűnként tárolt szövegű PDF (pl. a Stripe-számlák) szavai egyben maradnak, a vessző nem kerül külön sorba; a még el nem döntött szöveges PDF-ek induláskor új olvasatot kapnak, modell nélkül.
 - A Pi mentése a gép indulása után nem bukik el azonnal, ha a Tailscale még nem áll készen: a `backup.sh` legfeljebb `PI_BACKUP_WAIT` másodpercig (alapból 15 perc) vár a Pi-re. Az állapotoldal Mentés kártyája mutatja az utolsó sikeres Pi-mentést, és másfél napnál régebbinél hibát jelez.
 - A számlafeldolgozó a mértékegység nélküli, áfakulccsal kezdődő tételsorokat is olvassa; az ingyenes választás nem lesz tétel, és a neve nem ragad a következő tételre.
 - A számlán a nap-hónap-év dátum és a szállítási idő is teljesítési dátum.
@@ -36,7 +37,8 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 
 ### Frissítési teendők
 
-- A worker induláskor a `PARSER_VERSION` 11 miatt minden tárolt szöveget újra feldolgoz, modell nélkül.
+- A worker induláskor a `PARSER_VERSION` 12 miatt minden tárolt szöveget újra feldolgoz, modell nélkül.
+- A `migrate` futtatása kell (`bronze.email_message`), és a Pi webappjának újraépítése a szöveges ellenőrzési oldal miatt.
 - A Pi `.env`-jében a `VAULT_*` sorok nem kellenek; a `CADDY_SITES_DIR` üresen a `pi/caddy/sites`. A `/usr/local/sbin/finance-pi-snapshot` újratelepítése: `sudo scripts/pi/backup-user.sh '<mentőkulcs>'`.
 - A `home/.env`-be kell az `INBOX_URL`: Pi nélkül `INBOX_URL=http://webapp:8000`, és a `COMPOSE_FILE`-ba a `docker-compose.inbox.yml` (pl. `COMPOSE_FILE=docker-compose.yml:docker-compose.inbox.yml`); a Pi-vel a README „Postaláda a Pi-n” 5. lépése.
 

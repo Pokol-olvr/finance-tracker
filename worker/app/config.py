@@ -1,3 +1,4 @@
+import logging
 import os
 from dataclasses import dataclass
 
@@ -40,7 +41,13 @@ def mail_settings() -> MailSettings | None:
 
 def parse_buyers(value: str) -> dict[str, str]:
     """`person_a:a@example.hu,person_b:b@example.hu` → e-mail-cím szerint a személy kódja."""
-    pairs = (entry.split(":", 1) for entry in value.split(",") if ":" in entry)
+    entries = [entry.strip() for entry in value.split(",") if entry.strip()]
+    for entry in entries:
+        if ":" not in entry:
+            logging.getLogger("worker").warning(
+                "MAIL_BUYERS: a(z) %s elől hiányzik a személy kódja (pl. person_a:%s).", entry, entry
+            )
+    pairs = (entry.split(":", 1) for entry in entries if ":" in entry)
     return {
         address.strip().lower(): person.strip()
         for person, address in pairs

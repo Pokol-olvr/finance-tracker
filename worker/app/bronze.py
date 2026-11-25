@@ -236,6 +236,31 @@ order by d.ingested_at
 """
 
 
+OUTDATED_TEXT_LAYERS = """
+select d.id, d.object_key
+from bronze.raw_document as d
+cross join lateral (
+  select e.model_name, e.model_version
+  from bronze.extraction as e
+  where e.document_id = d.id
+  order by e.created_at desc
+  limit 1
+) as latest
+where latest.model_name = %s and latest.model_version <> %s
+  and not exists (
+    select 1 from bronze.review_decision as r where r.group_id = coalesce(d.group_id, d.id)
+  )
+order by d.ingested_at
+"""
+
+
+def outdated_text_layers(conn: psycopg.Connection, name: str, version: str) -> list[dict]:
+    """A régebbi sorképzéssel olvasott szöveges PDF-ek, amelyekről még nincs döntés."""
+    with conn.cursor(row_factory=dict_row) as cursor:
+        cursor.execute(OUTDATED_TEXT_LAYERS, (name, version))
+        return cursor.fetchall()
+
+
 def truncated_documents(conn: psycopg.Connection, reason: str, prompt_version: str) -> list[dict]:
     """Azok a dokumentumok, amelyeknek a legutóbbi olvasása egy régebbi beállítással csonka maradt."""
     with conn.cursor(row_factory=dict_row) as cursor:

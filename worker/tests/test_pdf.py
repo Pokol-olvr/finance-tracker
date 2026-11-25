@@ -126,3 +126,36 @@ def test_short_or_garbled_text_layer_is_not_used():
     assert not is_readable("Scanner 3000")
     assert not is_readable("?" * 60 + "a" * 5)
     assert is_readable(LONG_LINE)
+
+
+def test_letter_by_letter_text_keeps_words_and_commas():
+    """A Stripe-számlák betűnként tárolják a szöveget; a vessző lejjebb lóg, mégis a sor része."""
+    from app.pdf import sorted_rows
+
+    def letters(word, left, bottom=700.0, top=707.0, width=4.0):
+        return [
+            (left + i * width, left + (i + 1) * width - 0.2, bottom, top, char)
+            for i, char in enumerate(word)
+        ]
+
+    boxes = (
+        letters("Invoice", 50)
+        + letters("number", 82)
+        + letters("Anthropic", 50, 680, 687)
+        + [(86.0, 87.5, 678.5, 682.0, ",")]
+        + letters("Limited", 90, 680, 687)
+    )
+
+    assert sorted_rows(boxes) == ["Invoice number", "Anthropic, Limited"]
+
+
+def test_word_boxes_still_get_spaces():
+    from app.pdf import sorted_rows
+
+    boxes = [
+        (50.0, 80.0, 700.0, 708.0, "Kenyér"),
+        (83.0, 95.0, 700.0, 708.0, "599"),
+        (97.0, 105.0, 700.0, 708.0, "Ft"),
+    ]
+
+    assert sorted_rows(boxes) == ["Kenyér 599 Ft"]

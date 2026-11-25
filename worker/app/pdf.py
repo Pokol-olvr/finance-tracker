@@ -1,6 +1,7 @@
 """A PDF olvasása: a szövegréteg közvetlenül, a szkennelt lapok a modellen át."""
 
 from collections.abc import Callable
+from itertools import pairwise
 
 import pypdfium2 as pdfium
 
@@ -16,16 +17,42 @@ MIN_READABLE_SHARE = 0.5
 MAX_SCANNED_PAGES = 5
 
 
-def sorted_rows(boxes: list[tuple[float, float, float, str]]) -> list[str]:
-    """Szövegdobozokból látható sorok: a fájl belső sorrendje oszloponként is haladhat."""
-    rows: list[list[tuple[float, float, float, str]]] = []
-    for box in sorted(boxes, key=lambda box: -box[2]):
-        middle = (box[1] + box[2]) / 2
-        if rows and rows[-1][0][1] <= middle <= rows[-1][0][2]:
+# Egy soron belül csak akkor kerül szóköz két doboz közé, ha a hézag a magassághoz képest ennél
+# nagyobb: a betűnként tárolt szövegnél (pl. a Stripe-számlák) a betűk között nincs szóköz.
+WORD_GAP = 0.15
+# Ennyi függőleges átfedés kell egy sorhoz; a vessző és a „g” lejjebb lóg, mégis abba a sorba tartozik.
+ROW_OVERLAP = 0.3
+# A sorképzés változása új olvasatot ad, ezért a bronzban a könyvtár verziója mellett ez is szerepel.
+LAYOUT_VERSION = "2"
+
+
+Box = tuple[float, float, float, float, str]
+
+
+def same_row(first: Box, box: Box) -> bool:
+    overlap = min(first[3], box[3]) - max(first[2], box[2])
+    height = max(min(first[3] - first[2], box[3] - box[2]), 0.1)
+    return overlap > ROW_OVERLAP * height
+
+
+def joined(row: list[Box]) -> str:
+    text = row[0][4]
+    for previous, box in pairwise(row):
+        height = max(previous[3] - previous[2], box[3] - box[2])
+        text += (" " if box[0] - previous[1] > WORD_GAP * height else "") + box[4]
+    return text
+
+
+def sorted_rows(boxes: list[Box]) -> list[str]:
+    """Szövegdobozokból (bal, jobb, alsó, felső, szöveg) látható sorok: a fájl belső sorrendje
+    oszloponként is haladhat."""
+    rows: list[list[Box]] = []
+    for box in sorted(boxes, key=lambda box: -box[3]):
+        if rows and same_row(rows[-1][0], box):
             rows[-1].append(box)
         else:
             rows.append([box])
-    return [" ".join(box[3] for box in sorted(row)) for row in rows]
+    return [joined(sorted(row)) for row in rows]
 
 
 def page_lines(page: pdfium.PdfPage) -> list[str]:
@@ -35,7 +62,7 @@ def page_lines(page: pdfium.PdfPage) -> list[str]:
         left, bottom, right, top = text_page.get_rect(index)
         text = text_page.get_text_bounded(left, bottom, right, top).strip()
         if text:
-            boxes.append((left, bottom, top, " ".join(text.split())))
+            boxes.append((left, right, bottom, top, " ".join(text.split())))
     return sorted_rows(boxes)
 
 
@@ -72,7 +99,7 @@ class TextLayerReading:
         self.payload = payload
 
     def version(self) -> str:
-        return str(pdfium.PYPDFIUM_INFO)
+        return f"{pdfium.PYPDFIUM_INFO} sorok{LAYOUT_VERSION}"
 
     def read(self, content: bytes, report: Callable[[str], None]) -> dict:
         report("read_text")
