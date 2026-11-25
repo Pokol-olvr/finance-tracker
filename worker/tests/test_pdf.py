@@ -159,3 +159,63 @@ def test_word_boxes_still_get_spaces():
     ]
 
     assert sorted_rows(boxes) == ["Kenyér 599 Ft"]
+
+
+def test_far_apart_boxes_are_separate_cells_with_pdfium_text():
+    """A cella szövegét a pdfium adja a szóközökkel; a távoli doboz (másik oszlop) külön cella."""
+    from app.pdf import sorted_rows
+
+    boxes = [
+        (50.0, 54.0, 700.0, 707.0, "B"),
+        (54.2, 58.0, 700.0, 707.0, "i"),
+        (300.0, 330.0, 700.0, 707.0, "Bill"),
+    ]
+    asked = []
+
+    def text_of(left, bottom, right, top):
+        asked.append(round(left))
+        return {50: "Bi  ", 300: "Bill to"}[round(left)]
+
+    assert sorted_rows(boxes, text_of) == ["Bi Bill to"]
+    assert asked == [50, 300]
+
+
+def test_letter_spaced_real_layout_reads_like_pdfium():
+    """Valódi, betűnként írt PDF: minden betű külön szövegobjektum."""
+    from app.pdf import text_layer
+
+    content = letter_by_letter_pdf(
+        [(50, 800, "Invoice number 9BF0758D"), (50, 780, "Amount due 22.86 EUR")]
+    )
+
+    assert text_layer(content).splitlines() == ["Invoice number 9BF0758D", "Amount due 22.86 EUR"]
+
+
+def letter_by_letter_pdf(rows):
+    """Mint a conftest invented_pdf-je, de minden betű külön Td-vel, a Helvetica valódi
+    betűszélességeivel (10 pt), ahogy a Stripe-számlákban."""
+    from conftest import invented_pdf
+
+    widths = {
+        char: width / 100
+        for chars, width in (
+            (" I.t", 278),
+            ("i", 222),
+            ("r", 333),
+            ("cv", 500),
+            ("nouebd0256789", 556),
+            ("F", 611),
+            ("BAE", 667),
+            ("DUR", 722),
+            ("m", 833),
+        )
+        for char in chars
+    }
+    letters = []
+    for x, y, text in rows:
+        position = float(x)
+        for char in text:
+            if char != " ":
+                letters.append((round(position, 2), y, char))
+            position += widths[char]
+    return invented_pdf(letters)

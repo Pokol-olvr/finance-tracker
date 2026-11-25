@@ -17,16 +17,19 @@ MIN_READABLE_SHARE = 0.5
 MAX_SCANNED_PAGES = 5
 
 
-# Egy soron belül csak akkor kerül szóköz két doboz közé, ha a hézag a magassághoz képest ennél
-# nagyobb: a betűnként tárolt szövegnél (pl. a Stripe-számlák) a betűk között nincs szóköz.
+# Egy soron belül a dobozok közötti hézag a magassághoz mérve: ennél nagyobb hézag új cellát
+# (pl. másik oszlopot) jelent, a cellán belüli szóközöket a pdfium adja. A betűnként tárolt
+# szövegben (pl. a Stripe-számlák) a dobozok betűk, köztük nincs szóköz.
+CELL_GAP = 1.0
+# Szöveg nélküli összerakásnál (tesztek) ennél nagyobb hézag szóköz.
 WORD_GAP = 0.15
 # Ennyi függőleges átfedés kell egy sorhoz; a vessző és a „g” lejjebb lóg, mégis abba a sorba tartozik.
 ROW_OVERLAP = 0.3
 # A sorképzés változása új olvasatot ad, ezért a bronzban a könyvtár verziója mellett ez is szerepel.
-LAYOUT_VERSION = "2"
-
+LAYOUT_VERSION = "3"
 
 Box = tuple[float, float, float, float, str]
+TextOf = Callable[[float, float, float, float], str]
 
 
 def same_row(first: Box, box: Box) -> bool:
@@ -35,24 +38,48 @@ def same_row(first: Box, box: Box) -> bool:
     return overlap > ROW_OVERLAP * height
 
 
-def joined(row: list[Box]) -> str:
-    text = row[0][4]
+def height_of(previous: Box, box: Box) -> float:
+    return max(previous[3] - previous[2], box[3] - box[2])
+
+
+def cells_of(row: list[Box]) -> list[list[Box]]:
+    cells = [[row[0]]]
     for previous, box in pairwise(row):
-        height = max(previous[3] - previous[2], box[3] - box[2])
-        text += (" " if box[0] - previous[1] > WORD_GAP * height else "") + box[4]
+        if box[0] - previous[1] > CELL_GAP * height_of(previous, box):
+            cells.append([box])
+        else:
+            cells[-1].append(box)
+    return cells
+
+
+def joined(cell: list[Box]) -> str:
+    text = cell[0][4]
+    for previous, box in pairwise(cell):
+        gap = box[0] - previous[1]
+        text += (" " if gap > WORD_GAP * height_of(previous, box) else "") + box[4]
     return text
 
 
-def sorted_rows(boxes: list[Box]) -> list[str]:
+def cell_text(cell: list[Box], text_of: TextOf | None) -> str:
+    if text_of is None:
+        return joined(cell)
+    left, right = min(box[0] for box in cell), max(box[1] for box in cell)
+    bottom, top = min(box[2] for box in cell), max(box[3] for box in cell)
+    return " ".join(text_of(left, bottom, right, top).split()) or joined(cell)
+
+
+def sorted_rows(boxes: list[Box], text_of: TextOf | None = None) -> list[str]:
     """Szövegdobozokból (bal, jobb, alsó, felső, szöveg) látható sorok: a fájl belső sorrendje
-    oszloponként is haladhat."""
+    oszloponként is haladhat, ezért a sorokat és a cellákat a helyzetük adja."""
     rows: list[list[Box]] = []
     for box in sorted(boxes, key=lambda box: -box[3]):
         if rows and same_row(rows[-1][0], box):
             rows[-1].append(box)
         else:
             rows.append([box])
-    return [joined(sorted(row)) for row in rows]
+    return [
+        " ".join(cell_text(cell, text_of) for cell in cells_of(sorted(row))) for row in rows
+    ]
 
 
 def page_lines(page: pdfium.PdfPage) -> list[str]:
@@ -63,7 +90,7 @@ def page_lines(page: pdfium.PdfPage) -> list[str]:
         text = text_page.get_text_bounded(left, bottom, right, top).strip()
         if text:
             boxes.append((left, right, bottom, top, " ".join(text.split())))
-    return sorted_rows(boxes)
+    return sorted_rows(boxes, text_page.get_text_bounded)
 
 
 def text_layer(content: bytes) -> str:

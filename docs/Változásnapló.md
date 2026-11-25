@@ -37,7 +37,7 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 
 ### Frissítési teendők
 
-- A worker induláskor a `PARSER_VERSION` 12 miatt minden tárolt szöveget újra feldolgoz, modell nélkül.
+- A worker induláskor a `PARSER_VERSION` 13 miatt minden tárolt szöveget újra feldolgoz, modell nélkül.
 - A `migrate` futtatása kell (`bronze.email_message`), és a Pi webappjának újraépítése a szöveges ellenőrzési oldal miatt.
 - A Pi `.env`-jében a `VAULT_*` sorok nem kellenek; a `CADDY_SITES_DIR` üresen a `pi/caddy/sites`. A `/usr/local/sbin/finance-pi-snapshot` újratelepítése: `sudo scripts/pi/backup-user.sh '<mentőkulcs>'`.
 - A `home/.env`-be kell az `INBOX_URL`: Pi nélkül `INBOX_URL=http://webapp:8000`, és a `COMPOSE_FILE`-ba a `docker-compose.inbox.yml` (pl. `COMPOSE_FILE=docker-compose.yml:docker-compose.inbox.yml`); a Pi-vel a README „Postaláda a Pi-n” 5. lépése.
