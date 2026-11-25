@@ -360,7 +360,8 @@ async def put_review_page(
     content = await request.body()
     if len(content) > MAX_UPLOAD_BYTES:
         raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, "A fájl nagyobb 20 MB-nál.")
-    if inbox.detect_file_type(content) is None:
+    declared = request.headers.get("content-type", "")
+    if inbox.detect_file_type(content) is None and not inbox.is_review_text(content, declared):
         raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "Nem támogatott fájltípus.")
     inbox.save_review_page(group_id, page_no, content)
 

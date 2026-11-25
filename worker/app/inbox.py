@@ -32,9 +32,13 @@ class Inbox:
         response.raise_for_status()
         return {review["group_id"]: review for review in response.json()["reviews"]}
 
-    def put_review_page(self, group_id: UUID, page_no: int, content: bytes) -> None:
+    def put_review_page(
+        self, group_id: UUID, page_no: int, content: bytes, content_type: str | None = None
+    ) -> None:
+        """A szöveges oldalt a webapp csak `text/plain` fejléccel fogadja (FIN-307)."""
+        headers = {"Content-Type": content_type} if content_type else None
         self.client.put(
-            f"/inbox/reviews/{group_id}/pages/{page_no}", content=content
+            f"/inbox/reviews/{group_id}/pages/{page_no}", content=content, headers=headers
         ).raise_for_status()
 
     def put_review(self, group_id: UUID, package: dict) -> None:

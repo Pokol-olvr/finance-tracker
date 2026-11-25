@@ -100,6 +100,9 @@ def run_checks(parsed: dict, entered_date: str | None, seen_elsewhere: bool) -> 
         "date": check_date(parsed, entered_date),
         "duplicate": check_duplicate(parsed, seen_elsewhere),
     }
+    # A levélből kikövetkeztetett e-nyugta soha nem számít magától: ellenőrzésre megy.
+    if parsed.get("inferred"):
+        common["inferred"] = {"ok": False}
     if parsed.get("document_type") == "invoice":
         return {
             "sum": check_invoice_sum(parsed),

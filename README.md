@@ -264,6 +264,17 @@ A kimenet nem kerülhet a repóba: a szöveges fájlokat a commit előtti ellen�
 
 A worker tesztjei a `scripts/test-worker.sh` paranccsal futnak, valódi Garage-dzsal és Postgresszel, a modellt egy csonk helyettesíti. A riportok tesztjei a `scripts/test-reports.sh` paranccsal futnak, kitalált adatokkal.
 
+### Számlák e-mailben
+
+A saját domain `szamla@` címére érkező számlák maguktól bekerülnek ([ADR 0017](docs/adr/0017-e-mailes-szamlafogadas.md)). A worker ötpercenként IMAP-pal nézi a postafiókot; a kapcsolatot ő nyitja.
+
+- **Ki küldhet:** bárki, akinek a levele a fogadó szerver szerint hiteles (DMARC, vagy a feladó domainjére illeszkedő DKIM/SPF). A többi a postafiók „Karantén” mappájába kerül; onnan kézzel továbbítva újra próbálható.
+- **Mi lesz belőle:** a PDF- és képmellékletek (a logók és a beágyazott képek nem), melléklet nélkül a levél szövege. Ugyanúgy feldolgozódnak, mint a feltöltött fájlok, és az Ellenőrzésen jelennek meg; a szöveg ott szövegként látszik.
+- **Vásárló és címkék:** a saját címről továbbított levélnél a vásárló a továbbító (`MAIL_BUYERS`), a bolt közvetlen levelénél üres; a címkék a tárgyból jönnek (`#élelmiszer #háztartás`).
+- **Utána:** a levél a „Feldolgozva” mappába kerül, a nyers levél a Garage-ba, az adatai a `bronze.email_message` táblába. Törlés nincs.
+
+Beállítás: a postafiókban egy csak IMAP-ra szóló alkalmazásjelszó, a `home/.env`-ben a `MAIL_*` változók (`.env.example`), utána `cd home && docker compose up -d worker`. A worker naplója (`docker compose logs worker`) mutatja a karanténba tett leveleket az okkal együtt.
+
 ## Szabályok és betétdíj
 
 A `http://127.0.0.1:8000/rules` oldalon vehetők fel a szabályok:

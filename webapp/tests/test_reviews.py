@@ -87,7 +87,9 @@ def test_review_needs_a_decision_and_opens_with_data(client, headers):
     assert listing["open"][0]["label"] == "ellenőrzés kell"
     detail = client.get(f"/reviews/{group_id}.json").json()
     assert detail["parsed"]["store_name"] == "Kitalált Bolt Kft."
-    assert detail["pages"] == [{"url": f"/reviews/{group_id}/pages/1", "is_pdf": False}]
+    assert detail["pages"] == [
+        {"url": f"/reviews/{group_id}/pages/1", "is_pdf": False, "is_text": False}
+    ]
     assert detail["ocr_text"].startswith("NYUGTA")
 
 
@@ -134,6 +136,35 @@ def test_worker_api_needs_token(client):
     assert client.put(f"/inbox/reviews/{group_id}", json=package()).status_code == 401
     assert client.put(f"/inbox/reviews/{group_id}/pages/1", content=b"x").status_code == 401
     assert client.post(f"/inbox/decisions/{group_id}/close").status_code == 401
+
+
+def test_email_body_is_stored_as_text_page(client, headers):
+    group_id = uuid4()
+    text_headers = headers | {"Content-Type": "text/plain; charset=utf-8"}
+    body = "Számla\nFizetendő: 12 990 Ft".encode()
+
+    response = client.put(f"/inbox/reviews/{group_id}/pages/1", content=body, headers=text_headers)
+
+    assert response.status_code == 204
+
+
+@pytest.mark.parametrize(
+    ("content", "content_type"),
+    [(b"Szamla", None), (b"\xff\xfe nem utf-8", "text/plain"), (b"a\x00b", "text/plain")],
+)
+def test_text_page_needs_header_and_valid_utf8(client, headers, content, content_type):
+    sent = headers | ({"Content-Type": content_type} if content_type else {})
+
+    response = client.put(f"/inbox/reviews/{uuid4()}/pages/1", content=content, headers=sent)
+
+    assert response.status_code == 415
+
+
+def test_text_page_is_marked(client, headers):
+    group_id, _ = push(client, headers, content_types=["text/plain; charset=utf-8"])
+
+    page = client.get(f"/reviews/{group_id}.json").json()["pages"][0]
+    assert (page["is_pdf"], page["is_text"]) == (False, True)
 
 
 def test_only_known_file_types_are_stored(client, headers):
@@ -604,3 +635,18 @@ def test_status_card_links_to_the_review_page():
 
     assert card["link"]["url"] == "/review"
     assert json.dumps(card["facts"], ensure_ascii=False).count("Ellenőrzésre vár") == 1
+
+
+def test_correction_currency_comes_from_the_list():
+    from app.schemas import Correction
+    from pydantic import ValidationError
+
+    base = {
+        "purchased_on": "2026-11-24",
+        "total": 22.86,
+        "items": [{"name": "Claude Pro", "value": 22.86}],
+    }
+    assert Correction(**base).currency == "HUF"
+    assert Correction(**base, currency="EUR").currency == "EUR"
+    with pytest.raises(ValidationError):
+        Correction(**base, currency="XYZ")

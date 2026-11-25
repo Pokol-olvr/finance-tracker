@@ -1,7 +1,7 @@
 ---
 projekt: Pénzügyi nyomkövető
 tipus: technikai terv
-datum: 2026-11-01
+datum: 2026-11-25
 tags: [penzugy, projekt, architektura]
 ---
 
@@ -97,12 +97,12 @@ Minden kapcsolatot az otthoni oldal nyit a Pi felé, így az otthoni hálózatba
 
 ### E-mailben továbbított számlák
 
-A webshopok és szolgáltatók számláit egy külön postafiókba lehet továbbítani, pl. egy `szamla@` címre a saját domainen. Ajánlott a meglévő levelezőszolgáltatónál létrehozni, mert saját levelezőszerver üzemeltetése sok munka, és otthoni internetről a 25-ös portot gyakran blokkolják.
+A webshopok és szolgáltatók számlái egy külön postafiókba jönnek, a saját domain `szamla@` címére: a boltok közvetlenül is küldhetnek ide, a régi számlák továbbítva jönnek. A domain MX-rekordja egy EU-s levelezőszolgáltatóra mutat, mert saját levelezőszerverhez a 25-ös portot kellene megnyitni ([[0017-e-mailes-szamlafogadas|ADR 0017]]).
 
 - **Lehúzás, mint a Pi-nél:** a worker IMAP-pal, titkosított kapcsolaton olvassa a postafiókot; a kapcsolatot itt is az otthoni oldal nyitja. A feldolgozott levél egy „Feldolgozva” mappába kerül, nem törlődik.
-- **Csak ismert feladótól:** kizárólag a két saját címünkről továbbított levél kerül be, és a levél hitelesítési fejléce (SPF, DKIM) is ellenőrzött. Így egy idegen levél nem tud hamis kiadást becsempészni.
-- **Ugyanazok a mezők, mint feltöltéskor:** a vásárló alapból a továbbító; a címkék a tárgyból jönnek, pl. `#élelmiszer #háztartás`; a dátumot a modell olvassa ki a számláról.
-- **Bronz:** a teljes nyers levél (.eml) és a mellékletek a Garage-ba kerülnek, a bronzban `email` forrástípussal.
+- **Csak hitelesített feladótól:** a fogadó szerver DMARC-, DKIM- és SPF-eredménye dönt, a feladó domainjére illesztve; ami nem megy át, a „Karantén” mappába kerül. Egy hamis feladójú levél így nem csempészhet be kiadást, a hiteles levélről pedig az Ellenőrzésen dől el, hogy kiadás-e.
+- **Ugyanazok a mezők, mint feltöltéskor:** a vásárló a saját címről továbbított levélnél a továbbító, a bolt közvetlen levelénél üres; a címkék a tárgyból jönnek, pl. `#élelmiszer #háztartás`; a dátumot a feldolgozó olvassa ki a számláról.
+- **Bronz:** a teljes nyers levél (.eml) a Garage-ba, a fejlécadatai a `bronze.email_message` táblába; a PDF- és képmellékletek, melléklet nélkül a levél szövege dokumentumként, `email` forrástípussal.
 - **PDF-számlák:** szöveges PDF-nél a szövegréteg közvetlenül kiolvasható, ez gyorsabb és pontosabb; a képfelismerő modell csak szkennelt PDF-nél és képnél kell. Mindkettőt a `pypdfium2` adja, a számlát pedig külön feldolgozó bontja, amely a webes feltöltéshez és az e-mailhez is ugyanaz ([[0010-pdf-olvasas-es-szamlafeldolgozo|ADR 0010]]).
 - **Későbbre:** a csak letöltési linket tartalmazó számlaértesítők kezelése nem része az első változatnak.
 

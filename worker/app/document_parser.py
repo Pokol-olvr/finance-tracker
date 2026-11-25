@@ -2,6 +2,7 @@
 
 import re
 
+from app.email_receipt import ISSUER, issuer_name, parse_email_receipt
 from app.invoice_parser import clean_lines, draft_of, parse_invoice
 from app.receipt_parser import match_key, parse_pages
 
@@ -11,6 +12,27 @@ NON_EXPENSE_TITLES = {"SZALLITOLEVEL", "DIJBEKERO", "PROFORMA"}
 # A visszaváltó automata utalványa nem vásárlás; a párosítása a vásárlással a FIN-411 feladata.
 # A REpont a nyugtán fizetési sorként is szerepel, ezért nyugtánál nem elég önmagában.
 VOUCHER_WORDS = {"UTALVANY", "VISSZAVALTOD"}
+
+
+# A szövegben talált pénznemjelek; a forintjel elsőbbséget kap, mert a magyar blokkon is
+# előfordulhat euró (pl. az árfolyam sora).
+FOREIGN_CURRENCIES = {
+    "EUR": re.compile(r"€|\bEUR\b", re.IGNORECASE),
+    "USD": re.compile(r"(?<![A-Z])\$|\bUSD\b", re.IGNORECASE),
+    "GBP": re.compile(r"£|\bGBP\b", re.IGNORECASE),
+    "CHF": re.compile(r"\bCHF\b", re.IGNORECASE),
+    "CZK": re.compile(r"\bCZK\b|\bKč", re.IGNORECASE),
+    "PLN": re.compile(r"\bPLN\b|\bzł", re.IGNORECASE),
+    "RON": re.compile(r"\bRON\b|\blei\b", re.IGNORECASE),
+}
+HUF_MARK = re.compile(r"\bFt\b|\bHUF\b|\bforint", re.IGNORECASE)
+
+
+def currency_in_text(text: str) -> str | None:
+    """A leggyakoribb külföldi pénznem, ha a szövegben nincs több forintjel; különben None (HUF)."""
+    counts = {code: len(pattern.findall(text)) for code, pattern in FOREIGN_CURRENCIES.items()}
+    code, count = max(counts.items(), key=lambda pair: pair[1])
+    return code if count and count > len(HUF_MARK.findall(text)) else None
 
 
 def is_deposit_voucher(words: set[str]) -> bool:
@@ -28,7 +50,15 @@ def document_type(text: str) -> str:
 
 
 def parse_document(texts: list[str]) -> dict:
+    """A feldolgozó eredménye; ha a pénznemet nem olvasta ki, a szöveg jelei döntenek."""
     joined = "\n".join(texts)
+    result = parse_by_type(joined, texts)
+    if result.get("currency") is None and (currency := currency_in_text(joined)):
+        result["currency"] = currency
+    return result
+
+
+def parse_by_type(joined: str, texts: list[str]) -> dict:
     kind = document_type(joined)
     if kind == "invoice":
         return parse_invoice(joined)
@@ -44,4 +74,13 @@ def parse_document(texts: list[str]) -> dict:
             "receipt_number": None,
             "draft": draft_of(clean_lines(joined)),
         }
-    return {"document_type": kind, **parse_pages(texts)}
+    result = parse_pages(texts)
+    # A levél törzséből jött e-nyugtánál a blokkfeldolgozó gyakran semmit nem talál (FIN-307).
+    if (result["total"] is None or not result["items"]) and (
+        inferred := parse_email_receipt(joined)
+    ):
+        return {"document_type": kind, **inferred}
+    if result["store_name"] and ISSUER.match(result["store_name"]):
+        # A levél első sora nem bolt név: a kibocsátó a neve, ha ismert.
+        result["store_name"] = issuer_name(joined)
+    return {"document_type": kind, **result}

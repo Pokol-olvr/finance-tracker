@@ -137,6 +137,26 @@ on conflict (id) do nothing
 REVIEW_KEEP_DAYS = 30
 
 
+INSERT_EMAIL = """
+insert into bronze.email_message
+  (sha256, object_key, message_id, from_address, to_addresses, subject, sent_at, received_at,
+   auth, document_ids)
+values
+  (%(sha256)s, %(object_key)s, %(message_id)s, %(from_address)s, %(to_addresses)s, %(subject)s,
+   %(sent_at)s, %(received_at)s, %(auth)s, %(document_ids)s)
+on conflict (sha256) do nothing
+"""
+
+
+def email_seen(conn: psycopg.Connection, sha256: str) -> bool:
+    row = conn.execute("select 1 from bronze.email_message where sha256 = %s", (sha256,)).fetchone()
+    return row is not None
+
+
+def insert_email(conn: psycopg.Connection, message: dict) -> None:
+    conn.execute(INSERT_EMAIL, message | {"auth": Jsonb(message["auth"])})
+
+
 def find_document(conn: psycopg.Connection, sha256: str) -> UUID | None:
     row = conn.execute(
         "select id from bronze.raw_document where sha256 = %s", (sha256,)
@@ -214,6 +234,31 @@ cross join lateral (
 where latest.payload ->> 'done_reason' = %s and latest.prompt_version <> %s
 order by d.ingested_at
 """
+
+
+OUTDATED_TEXT_LAYERS = """
+select d.id, d.object_key
+from bronze.raw_document as d
+cross join lateral (
+  select e.model_name, e.model_version
+  from bronze.extraction as e
+  where e.document_id = d.id
+  order by e.created_at desc
+  limit 1
+) as latest
+where latest.model_name = %s and latest.model_version <> %s
+  and not exists (
+    select 1 from bronze.review_decision as r where r.group_id = coalesce(d.group_id, d.id)
+  )
+order by d.ingested_at
+"""
+
+
+def outdated_text_layers(conn: psycopg.Connection, name: str, version: str) -> list[dict]:
+    """A régebbi sorképzéssel olvasott szöveges PDF-ek, amelyekről még nincs döntés."""
+    with conn.cursor(row_factory=dict_row) as cursor:
+        cursor.execute(OUTDATED_TEXT_LAYERS, (name, version))
+        return cursor.fetchall()
 
 
 def truncated_documents(conn: psycopg.Connection, reason: str, prompt_version: str) -> list[dict]:

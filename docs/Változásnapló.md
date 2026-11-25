@@ -15,6 +15,8 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 
 ### Javítva
 
+- A javításban megadott idegen pénznemű dokumentum nem számít forintos kiadásnak (silver); az e-mailes dokumentum fizetője „közös”, a fizető nélkül bekerültek is.
+- A betűnként tárolt szövegű PDF (pl. a Stripe-számlák) szavai egyben maradnak, a vessző nem kerül külön sorba; a még el nem döntött szöveges PDF-ek induláskor új olvasatot kapnak, modell nélkül.
 - A Pi mentése a gép indulása után nem bukik el azonnal, ha a Tailscale még nem áll készen: a `backup.sh` legfeljebb `PI_BACKUP_WAIT` másodpercig (alapból 15 perc) vár a Pi-re. Az állapotoldal Mentés kártyája mutatja az utolsó sikeres Pi-mentést, és másfél napnál régebbinél hibát jelez.
 - A számlafeldolgozó a mértékegység nélküli, áfakulccsal kezdődő tételsorokat is olvassa; az ingyenes választás nem lesz tétel, és a neve nem ragad a következő tételre.
 - A számlán a nap-hónap-év dátum és a szállítási idő is teljesítési dátum.
@@ -24,6 +26,9 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 
 ### Hozzáadva
 
+- A levél törzséből jött e-nyugta (pl. Apple-előfizetés, webshop-visszaigazolás) is feldolgozódik: a bolt a levél (továbbításnál az eredeti) feladója, a végösszeg a címkéből vagy a kártyás fizetés sorából, a tétel a végösszeg előtti névsor. A kikövetkeztetett adat mindig ellenőrzésre megy.
+- Az Ellenőrzésen a javításnál a pénznem is választható (HUF, EUR, USD, GBP, CHF, CZK, PLN, RON); a feldolgozó, ha a számlán nem találja, a szöveg pénznemjeleiből állapítja meg, a forintjel elsőbbségével.
+- FIN-307 E-mailes számlafogadás: a worker IMAP-pal lehúzza a saját domaines postafiók leveleit; a hiteles feladó PDF- és képmellékletei, melléklet nélkül a levél szövege az Ellenőrzésre kerülnek, a nyers levél a Garage-ba és a `bronze.email_message` táblába; az ellenőrizetlen feladó levele a „Karantén” mappába ([ADR 0017](adr/0017-e-mailes-szamlafogadas.md)). Az Ellenőrzés a levél szövegét is mutatja.
 - A Pi Caddy-je repón kívüli szolgáltatásokat is kiszolgálhat: a site-blokkjuk a `CADDY_SITES_DIR` mappában, a hálózatuk a `pi-proxy`; a közös fejlécek az `import security_headers` snippetben.
 - `scripts/pi/fail2ban-web.sh`: fail2ban az Authelia hibás belépéseire; `scripts/pi/tailscale-nosnat.sh`, hogy a szolgáltatások a kliens valódi címét lássák.
 - A Pi mentése: a `scripts/backup.sh` a `PI_BACKUP_TARGET`-tel lehúzza az Authelia adatát és a Pi `.env`-jét, külön `pi` pillanatképbe; a repón kívüli szolgáltatások az `/etc/finance-pi-snapshot.d` mappából kerülnek bele (`scripts/pi/backup-user.sh`, `scripts/restore-test-pi.sh`).
@@ -35,7 +40,8 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 
 ### Frissítési teendők
 
-- A worker induláskor a `PARSER_VERSION` 11 miatt minden tárolt szöveget újra feldolgoz, modell nélkül.
+- A worker induláskor a `PARSER_VERSION` 15 miatt minden tárolt szöveget újra feldolgoz, modell nélkül.
+- A `migrate` futtatása kell (`bronze.email_message`), és a Pi webappjának újraépítése a szöveges ellenőrzési oldal miatt.
 - A Pi `.env`-jében a `VAULT_*` sorok nem kellenek; a `CADDY_SITES_DIR` üresen a `pi/caddy/sites`. A `/usr/local/sbin/finance-pi-snapshot` újratelepítése: `sudo scripts/pi/backup-user.sh '<mentőkulcs>'`.
 - A `home/.env`-be kell az `INBOX_URL`: Pi nélkül `INBOX_URL=http://webapp:8000`, és a `COMPOSE_FILE`-ba a `docker-compose.inbox.yml` (pl. `COMPOSE_FILE=docker-compose.yml:docker-compose.inbox.yml`); a Pi-vel a README „Postaláda a Pi-n” 5. lépése.
 

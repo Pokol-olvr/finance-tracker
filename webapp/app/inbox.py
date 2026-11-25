@@ -236,6 +236,18 @@ def detect_file_type(content: bytes) -> str | None:
     return None
 
 
+def is_review_text(content: bytes, declared: str) -> bool:
+    """A számlát tartalmazó levél törzse (FIN-307): csak ellenőrzési oldalként, a worker
+    `text/plain` fejlécével, érvényes UTF-8-ként. Feltöltésként szöveg nem fogadható."""
+    if not declared.lower().startswith("text/plain") or b"\x00" in content:
+        return False
+    try:
+        content.decode("utf-8")
+    except UnicodeDecodeError:
+        return False
+    return True
+
+
 def connect() -> sqlite3.Connection:
     conn = sqlite3.connect(get_settings().inbox_dir / "inbox.sqlite3")
     conn.row_factory = sqlite3.Row

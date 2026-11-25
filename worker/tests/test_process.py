@@ -472,3 +472,35 @@ def test_truncated_reading_with_the_current_setting_is_not_repeated(conn, storag
 
     assert document_id not in reread_truncated(conn, storage, FakeReader())
 
+
+
+def test_undecided_text_layer_pdf_is_reread_with_new_layout(conn, storage):
+    from app import pdf
+    from app.main import reread_text_layers
+
+    content = invented_pdf(
+        [
+            (50, 800, "SZAMLA Pelda Bolt Kft. 1234 Budapest"),
+            (50, 780, "Adoszam: 12345678-2-42"),
+            (50, 760, "Fizetendo osszeg: 599 Ft"),
+        ]
+    )
+    item = pdf_item(content)
+    process([item], conn, FakeInbox({item["id"]: content}), storage, FakeReader(), no_report)
+    [(document_id, *_)] = documents(conn, item["sha256"])
+    conn.execute(
+        "insert into bronze.extraction "
+        "(document_id, model_name, model_version, prompt_version, payload, created_at) "
+        "values (%s, %s, 'regi', %s, %s, clock_timestamp())",
+        (document_id, pdf.READER_NAME, PROMPT_VERSION, Jsonb({"ocr_text": "r e g i"})),
+    )
+
+    assert document_id in reread_text_layers(conn, storage)
+    version, payload = conn.execute(
+        "select model_version, payload from bronze.extraction where document_id = %s "
+        "order by created_at desc limit 1",
+        (document_id,),
+    ).fetchone()
+    assert version == pdf.TextLayerReading({}).version()
+    assert "Fizetendo osszeg: 599 Ft" in payload["ocr_text"]
+    assert document_id not in reread_text_layers(conn, storage)

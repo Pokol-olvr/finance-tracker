@@ -122,6 +122,13 @@ services:
       OLLAMA_NUM_THREAD: ${OLLAMA_NUM_THREAD:-10}
       OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-0}
       OLLAMA_MAX_SIDE: ${OLLAMA_MAX_SIDE:-1400}
+      # E-mailes számlafogadás (FIN-307, ADR 0017); üres MAIL_IMAP_HOST mellett ki van kapcsolva.
+      MAIL_IMAP_HOST: ${MAIL_IMAP_HOST:-}
+      MAIL_IMAP_USER: ${MAIL_IMAP_USER:-}
+      MAIL_IMAP_PASSWORD: ${MAIL_IMAP_PASSWORD:-}
+      MAIL_AUTHSERV_ID: ${MAIL_AUTHSERV_ID:-}
+      MAIL_POLL_SECONDS: ${MAIL_POLL_SECONDS:-300}
+      MAIL_BUYERS: ${MAIL_BUYERS:-}
     healthcheck:
       # A jelentő szál frissíti a fájlt; a főszál a modellnél percekig is állhat.
       test: [CMD, python, -c, "import os, sys, time; sys.exit(time.time() - os.path.getmtime('/tmp/worker-heartbeat') > 60)"]
