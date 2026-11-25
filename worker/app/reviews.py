@@ -25,6 +25,7 @@ TRANSIENT = (httpx.HTTPError, BotoCoreError, ClientError, psycopg.Error)
 
 CONTENT_TYPES = {extension: content_type for content_type, extension in EXTENSIONS.items()}
 HEIC_TYPE = "image/heic"
+TEXT_TYPE = "text/plain"
 PREVIEW_TYPE = "image/jpeg"
 
 
@@ -33,8 +34,13 @@ def stored_type(object_key: str) -> str:
 
 
 def shown_type(content_type: str) -> str:
-    """A böngésző a HEIC-et nem tudja megjeleníteni, ezért abból JPEG-előnézet megy vissza."""
-    return PREVIEW_TYPE if content_type == HEIC_TYPE else content_type
+    """A böngésző a HEIC-et nem tudja megjeleníteni, ezért abból JPEG-előnézet megy vissza;
+    a levél törzse kódolással, hogy az ékezetek jól látsszanak."""
+    if content_type == HEIC_TYPE:
+        return PREVIEW_TYPE
+    if content_type == TEXT_TYPE:
+        return f"{TEXT_TYPE}; charset=utf-8"
+    return content_type
 
 
 def shown_content(content: bytes, content_type: str) -> bytes:
@@ -64,7 +70,7 @@ def push(
         content_types.append(shown_type(content_type))
         if not has_files:
             content = shown_content(storage.get(page["object_key"]), content_type)
-            inbox.put_review_page(group_id, page["page_no"], content)
+            inbox.put_review_page(group_id, page["page_no"], content, shown_type(content_type))
     inbox.put_review(
         group_id,
         {

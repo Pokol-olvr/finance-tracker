@@ -10,6 +10,8 @@ EXTENSIONS = {
     "image/heic": "heic",
     "image/webp": "webp",
     "application/pdf": "pdf",
+    # A számlát tartalmazó levél törzse (FIN-307).
+    "text/plain": "txt",
 }
 
 

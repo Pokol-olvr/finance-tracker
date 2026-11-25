@@ -137,6 +137,26 @@ on conflict (id) do nothing
 REVIEW_KEEP_DAYS = 30
 
 
+INSERT_EMAIL = """
+insert into bronze.email_message
+  (sha256, object_key, message_id, from_address, to_addresses, subject, sent_at, received_at,
+   auth, document_ids)
+values
+  (%(sha256)s, %(object_key)s, %(message_id)s, %(from_address)s, %(to_addresses)s, %(subject)s,
+   %(sent_at)s, %(received_at)s, %(auth)s, %(document_ids)s)
+on conflict (sha256) do nothing
+"""
+
+
+def email_seen(conn: psycopg.Connection, sha256: str) -> bool:
+    row = conn.execute("select 1 from bronze.email_message where sha256 = %s", (sha256,)).fetchone()
+    return row is not None
+
+
+def insert_email(conn: psycopg.Connection, message: dict) -> None:
+    conn.execute(INSERT_EMAIL, message | {"auth": Jsonb(message["auth"])})
+
+
 def find_document(conn: psycopg.Connection, sha256: str) -> UUID | None:
     row = conn.execute(
         "select id from bronze.raw_document where sha256 = %s", (sha256,)

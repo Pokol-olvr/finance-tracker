@@ -24,6 +24,7 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 
 ### Hozzáadva
 
+- FIN-307 E-mailes számlafogadás: a worker IMAP-pal lehúzza a saját domaines postafiók leveleit; a hiteles feladó PDF- és képmellékletei, melléklet nélkül a levél szövege az Ellenőrzésre kerülnek, a nyers levél a Garage-ba és a `bronze.email_message` táblába; az ellenőrizetlen feladó levele a „Karantén” mappába ([ADR 0017](adr/0017-e-mailes-szamlafogadas.md)). Az Ellenőrzés a levél szövegét is mutatja.
 - A Pi Caddy-je repón kívüli szolgáltatásokat is kiszolgálhat: a site-blokkjuk a `CADDY_SITES_DIR` mappában, a hálózatuk a `pi-proxy`; a közös fejlécek az `import security_headers` snippetben.
 - `scripts/pi/fail2ban-web.sh`: fail2ban az Authelia hibás belépéseire; `scripts/pi/tailscale-nosnat.sh`, hogy a szolgáltatások a kliens valódi címét lássák.
 - A Pi mentése: a `scripts/backup.sh` a `PI_BACKUP_TARGET`-tel lehúzza az Authelia adatát és a Pi `.env`-jét, külön `pi` pillanatképbe; a repón kívüli szolgáltatások az `/etc/finance-pi-snapshot.d` mappából kerülnek bele (`scripts/pi/backup-user.sh`, `scripts/restore-test-pi.sh`).

@@ -117,6 +117,7 @@ def build_detail(review: dict) -> dict:
             {
                 "url": f"/reviews/{review['group_id']}/pages/{page_no}",
                 "is_pdf": content_type == "application/pdf",
+                "is_text": content_type.startswith("text/plain"),
             }
             for page_no, content_type in enumerate(review["content_types"], 1)
         ],

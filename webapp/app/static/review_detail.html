@@ -175,10 +175,10 @@
         link.href = page.url;
         link.target = "_blank";
         link.rel = "noopener";
-        if (page.is_pdf) {
+        if (page.is_pdf || page.is_text) {
           const frame = element("iframe");
           frame.src = page.url;
-          frame.title = "Eredeti PDF";
+          frame.title = page.is_text ? "A levél szövege" : "Eredeti PDF";
           box.append(link, frame);
         } else {
           const image = element("img");

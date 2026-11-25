@@ -98,6 +98,7 @@ class FakeInbox:
         self.outcomes: list[dict] = []
         self.reviews: dict[str, dict] = {}
         self.pages: dict[tuple[str, int], bytes] = {}
+        self.page_types: dict[tuple[str, int], str | None] = {}
         self.decisions: list[dict] = []
         self.decided: set[str] = set()
         self.synced: list[str] = []
@@ -123,8 +124,9 @@ class FakeInbox:
             for group_id, package in self.reviews.items()
         }
 
-    def put_review_page(self, group_id, page_no: int, content: bytes) -> None:
+    def put_review_page(self, group_id, page_no: int, content: bytes, content_type=None) -> None:
         self.pages[(str(group_id), page_no)] = content
+        self.page_types[(str(group_id), page_no)] = content_type
 
     def put_review(self, group_id, package: dict) -> None:
         self.reviews[str(group_id)] = package

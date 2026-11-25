@@ -229,19 +229,26 @@ Javasolt sorrend: FIN-313, FIN-301, FIN-315, FIN-302, FIN-303, FIN-308, FIN-314,
 
 **Story:** felhasználóként a számláimat egy saját domaines postaládába akarom kapni, hogy ami oda érkezik, magától bekerüljön, letöltés és feltöltés nélkül.
 
-**Elképzelés (2026-11-18):** a saját domainen egy cím, pl. `szamla@`, ez postaládaként működik: a boltoknál és szolgáltatóknál a számlacímet erre állítjuk át, és a régi számlák továbbítva is ide jönnek. A worker figyeli, és minden új levelet a bronzba visz: a feladó címével, a tárggyal, a törzzsel és a mellékletekkel (PDF vagy más fájl, amelyben az összeg van). Ha nincs melléklet, a számla a levél törzsében is lehet. Postafiók: mailbox.org vagy Posteo IMAP-pal, a Proton IMAP-ja csak a Bridge-dzsel menne, ezért nem jó. A cím a Cloudflare Email Routinggal továbbít a postafiókba, így szolgáltatóváltáskor a cím marad.
+**Elképzelés (2026-11-18):** a saját domainen egy cím, pl. `szamla@`, ez postaládaként működik: a boltoknál és szolgáltatóknál a számlacímet erre állítjuk át, és a régi számlák továbbítva is ide jönnek. A worker figyeli, és minden új levelet a bronzba visz: a feladó címével, a tárggyal, a törzzsel és a mellékletekkel (PDF vagy más fájl, amelyben az összeg van). Ha nincs melléklet, a számla a levél törzsében is lehet.
 
-**Nyitott kérdések:** ki a vásárló, ha a bolt közvetlenül küld (javaslat: személyenként egy cím, pl. két alias, vagy az Ellenőrzésen dől el); mi kerül be idegen feladótól (javaslat: érvényes DKIM- vagy SPF-eredménnyel bármelyik feladó, a többi a postafiók „Karantén” mappájába, és minden levél az Ellenőrzésen dől el).
+**Változás 2026-11-25** ([[0017-e-mailes-szamlafogadas|ADR 0017]]): a domain MX-rekordja közvetlenül a mailbox.org-ra mutat, a Cloudflare-továbbítás kimarad, mert továbbítás után az SPF-eredmény nem a feladóra vonatkozik. Személyenkénti alias nincs: bármely hitelesített feladó levele bekerül, a saját címről továbbítottnál a vásárló a továbbító (`MAIL_BUYERS`), a bolt közvetlen levelénél üres, és minden levél az Ellenőrzésen dől el.
 
 **Részfeladatok**
 
-- [ ] Postafiók a levelezőszolgáltatónál, a saját domaines cím a Cloudflare Email Routinggal 📅 2027-01-24
-- [ ] Worker: IMAP-lehúzás titkosított kapcsolaton, a feldolgozott levél a „Feldolgozva” mappába kerül 📅 2027-01-24
-- [ ] Feladó-ellenőrzés SPF- és DKIM-eredménnyel; ami nem megy át, a „Karantén” mappába kerül 📅 2027-01-24
-- [ ] A bronzba a feladó, a tárgy, a törzs és a mellékletek; a vásárló a címzett címből vagy az Ellenőrzésen; címkék a tárgyból (`#élelmiszer #háztartás`), ha van 📅 2027-01-24
-- [ ] A nyers `.eml` és a mellékletek a Garage-ba, a bronzban `email` forrástípussal (migráció) 📅 2027-01-24
-- [ ] A PDF-melléklet ugyanazon az úton megy, mint a webes feltöltés ([[0010-pdf-olvasas-es-szamlafeldolgozo|ADR 0010]]) 📅 2027-01-24
-- [ ] Kitalált levelekkel tesztek: hamis DKIM, melléklet nélküli levél, számla a törzsben, továbbított levél 📅 2027-01-24
+- [x] Postafiók a levelezőszolgáltatónál, a saját domaines cím közvetlen MX-szel 📅 2027-01-24
+    - 2026-11-25: mailbox.org, `szamla@`, MX, SPF, DKIM (négy CNAME, proxy nélkül) és DMARC (`p=none`, egy hét múlva `quarantine`) a Cloudflare-ben; a próbalevél megérkezett.
+- [x] Worker: IMAP-lehúzás titkosított kapcsolaton, a feldolgozott levél a „Feldolgozva” mappába kerül 📅 2027-01-24
+    - 2026-11-25: `worker/app/mail.py`, ötpercenként; a mappanevek IMAP-UTF-7-ben, a hibás levél a Karanténba kerül, és nem akasztja meg a többit.
+- [x] Feladó-ellenőrzés SPF- és DKIM-eredménnyel; ami nem megy át, a „Karantén” mappába kerül 📅 2027-01-24
+    - 2026-11-25: a fogadó szerver `Authentication-Results` fejléce; DMARC `pass`, vagy DMARC nélkül a feladó domainjére illeszkedő DKIM/SPF `pass`.
+- [x] A bronzba a feladó, a tárgy, a törzs és a mellékletek; a vásárló a címzett címből vagy az Ellenőrzésen; címkék a tárgyból (`#élelmiszer #háztartás`), ha van 📅 2027-01-24
+    - 2026-11-25: a vásárló a saját feladó címéből (`MAIL_BUYERS`), egyébként üres; az Ellenőrzésen még nem állítható.
+- [x] A nyers `.eml` és a mellékletek a Garage-ba, a bronzban `email` forrástípussal (migráció) 📅 2027-01-24
+    - 2026-11-25: `bronze.email_message` (csak hozzáfűzhető), a dokumentumok `email/<év>/<hó>/` alatt.
+- [x] A PDF-melléklet ugyanazon az úton megy, mint a webes feltöltés ([[0010-pdf-olvasas-es-szamlafeldolgozo|ADR 0010]]) 📅 2027-01-24
+    - 2026-11-25: a melléklet nélküli levél szövege szöveges dokumentum, modell nélkül; a Pi webappja az Ellenőrzésen szövegként mutatja.
+- [x] Kitalált levelekkel tesztek: hamis DKIM, melléklet nélküli levél, számla a törzsben, továbbított levél 📅 2027-01-24
+    - 2026-11-25: `worker/tests/test_mail.py`, 23 tesztfüggvény; a valódi postafiókos próba a beállítás után.
 
 **Elfogadási feltételek**
 

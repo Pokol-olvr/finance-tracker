@@ -10,10 +10,11 @@ from uuid import UUID
 
 import psycopg
 
-from app import bronze, pdf, reviews
+from app import bronze, pdf, reviews, text
 from app.config import Settings, get_settings
 from app.extract import PROMPT_VERSION, TRUNCATED, ModelMissing, ReceiptReader
 from app.inbox import Inbox
+from app.mail import MailIntake
 from app.parsing import parse_pending
 from app.receipt_parser import PARSER_VERSION
 from app.status import StatusReporter
@@ -35,7 +36,19 @@ RETRYABLE = (*reviews.TRANSIENT, HashMismatch, IncompleteGroup, ModelMissing)
 
 
 def source_type(item: dict) -> str:
+    """A levélből jött dokumentum `email`, a feltöltött a fájltípusa szerint (FIN-307)."""
+    if item.get("source_type"):
+        return item["source_type"]
     return "pdf" if item["content_type"] == pdf.CONTENT_TYPE else "photo"
+
+
+def reader_for(content_type: str, content: bytes, reader: ReceiptReader):
+    """A PDF szövegrétege és a szöveges dokumentum modell nélkül olvasható."""
+    if content_type == pdf.CONTENT_TYPE:
+        return pdf.reader_for(content, reader)
+    if content_type == text.CONTENT_TYPE:
+        return text.TextReader()
+    return reader
 
 
 def object_key(item: dict) -> str:
@@ -64,7 +77,18 @@ def store_page(
     content = inbox.download(item["id"])
     if hashlib.sha256(content).hexdigest() != item["sha256"]:
         raise HashMismatch("A letöltött fájl hash-e eltér.")
+    return store_content(item, content, conn, storage, reader, report)
 
+
+def store_content(
+    item: dict,
+    content: bytes,
+    conn: psycopg.Connection,
+    storage: Storage,
+    reader: ReceiptReader,
+    report: Callable[[str], None],
+) -> tuple[UUID, dict | None]:
+    """A fájl a Garage-ba és a bronzba, majd a kiolvasása; a postaláda és a levél is ezt hívja."""
     document_id = bronze.find_document(conn, item["sha256"])
     if document_id is None:
         report("storage")
@@ -73,7 +97,7 @@ def store_page(
         document_id = bronze.insert_document(conn, item, key, source_type(item))
 
     payload = None
-    active = pdf.reader_for(content, reader) if source_type(item) == "pdf" else reader
+    active = reader_for(item["content_type"], content, reader)
     version = active.version()
     if not bronze.has_extraction(conn, document_id, active.name, version, PROMPT_VERSION):
         payload = active.read(content, report)
@@ -130,6 +154,7 @@ def run_once(
     storage: Storage,
     reader: ReceiptReader,
     reporter: StatusReporter,
+    mail: MailIntake | None = None,
 ) -> None:
     groups = group_items(inbox.list_new())
     # Autocommit: a modell percekig is futhat, közben nem maradhat nyitva tranzakció.
@@ -145,6 +170,14 @@ def run_once(
                 log.info("A(z) %s blokk kész.", label)
             reporter.step("idle")
             reviews.sync(conn, inbox, storage)
+        if mail is not None and mail.due():
+
+            def store(item: dict, content: bytes) -> UUID:
+                return store_content(item, content, conn, storage, reader, reporter.step)[0]
+
+            if done := mail.run(conn, storage, store, reporter.step):
+                log.info("%s levél feldolgozva.", done)
+                reviews.sync(conn, inbox, storage)
 
 
 def reread_truncated(
@@ -158,7 +191,7 @@ def reread_truncated(
     done = []
     for document in bronze.truncated_documents(conn, TRUNCATED, PROMPT_VERSION):
         content = storage.get(document["object_key"])
-        active = pdf.reader_for(content, reader) if document["source_type"] == "pdf" else reader
+        active = reader_for(reviews.stored_type(document["object_key"]), content, reader)
         payload = active.read(content, lambda _step: None)
         bronze.insert_extraction(
             conn, document["id"], active.name, active.version(), PROMPT_VERSION, payload
@@ -209,6 +242,7 @@ def main() -> None:
         reader=reader,
     )
     reporter.start()
+    mail = MailIntake(settings.mail) if settings.mail else None
 
     parsers_ready = False
     while True:
@@ -219,7 +253,7 @@ def main() -> None:
                         log.info("%s csonka olvasás újraolvasva.", len(reread))
                 reparse_stored(settings)
                 parsers_ready = True
-            run_once(settings, inbox, storage, reader, reporter)
+            run_once(settings, inbox, storage, reader, reporter, mail)
         except RETRYABLE as error:
             log.error("A kör megszakadt: %s", error)
         time.sleep(settings.poll_seconds)
