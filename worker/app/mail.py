@@ -277,6 +277,36 @@ def html_to_text(html: str) -> str:
     return parser.text()
 
 
+FORWARD_MARK = re.compile(
+    r"^-{2,}\s*(?:Forwarded message|Továbbított üzenet|Original Message|Eredeti üzenet)\s*-{2,}$",
+    re.IGNORECASE,
+)
+FORWARD_HEADER = re.compile(
+    r"^(?:From|Feladó|Date|Dátum|Sent|Elküldve|Subject|Tárgy|To|Címzett|Cc|Másolat):",
+    re.IGNORECASE,
+)
+# A Gmail sima szöveges változatában a képek helye és a felismert telefonszámok, linkek.
+NOISE = re.compile(r"\[image:[^\]]*\]|\s*<(?:https?://|mailto:|tel:|\()[^>]*>")
+
+
+def clean_body(text: str) -> str:
+    """A továbbítás fejléce (feladó, dátum, tárgy) nem a számla része: a bolt nevét eltakarná.
+    A képhelyek és a linkek is kimaradnak, az üres sorok összevonódnak."""
+    kept: list[str] = []
+    in_header = False
+    for line in NOISE.sub("", text).split("\n"):
+        stripped = line.strip()
+        if FORWARD_MARK.match(stripped):
+            in_header = True
+            continue
+        if in_header and (FORWARD_HEADER.match(stripped) or not stripped):
+            continue
+        in_header = False
+        if stripped:
+            kept.append(stripped)
+    return "\n".join(kept)
+
+
 def body_text(message: EmailMessage) -> str:
     body = message.get_body(preferencelist=("plain", "html"))
     if body is None:
@@ -286,9 +316,8 @@ def body_text(message: EmailMessage) -> str:
     except (LookupError, ValueError):
         return ""
     if body.get_content_subtype() == "html":
-        return html_to_text(content)
-    lines = [line.rstrip() for line in content.replace("\r\n", "\n").split("\n")]
-    return "\n".join(lines).strip()
+        return clean_body(html_to_text(content))
+    return clean_body(content.replace("\r\n", "\n"))
 
 
 TAG = re.compile(r"#(\w+)")

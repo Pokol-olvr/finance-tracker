@@ -466,3 +466,37 @@ def test_unreachable_mailbox_does_not_stop_the_worker(conn, storage):
     )
 
     assert intake.run(conn, storage, store_with(conn, storage), no_report) == 0
+
+
+def test_forward_header_images_and_links_are_removed_from_the_body():
+    from app.mail import clean_body
+
+    forwarded = (
+        "---------- Forwarded message ---------\n"
+        "Feladó: Apple <no_reply@email.apple.com>\n"
+        "Date: 2026. nov. 24., K, 21:16\n"
+        "Subject: Az Ön számlája az Apple-től\n"
+        "To: <en@example.test>\n"
+        "\n"
+        "\n"
+        "[image: Apple]\n"
+        "Számla\n"
+        "\n"
+        "Sorszám:\n"
+        "1-15004610664 <(500)%20461-0664>\n"
+        "YouTube Premium (Havi)\n"
+        "\n"
+        "3490 Ft\n"
+    )
+
+    assert clean_body(forwarded) == (
+        "Számla\nSorszám:\n1-15004610664\nYouTube Premium (Havi)\n3490 Ft"
+    )
+
+
+def test_body_without_forward_keeps_its_lines():
+    from app.mail import clean_body
+
+    assert clean_body("Kedves Vásárló!\n\nFizetendő: 1 290 Ft\n") == (
+        "Kedves Vásárló!\nFizetendő: 1 290 Ft"
+    )
