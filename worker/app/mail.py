@@ -370,7 +370,8 @@ def handle(
             "uploaded_at": received_at.isoformat(),
             "purchased_by": settings.buyers.get(sender),
             "purchase_date": None,
-            "payer": None,
+            # A közös fizető, mint a feltöltés alapértéke; a silver nem enged üres fizetőt.
+            "payer": "shared",
             "tags": subject_tags(subject),
             "group_id": None,
             "page_no": 1,

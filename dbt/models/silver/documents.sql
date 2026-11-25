@@ -26,7 +26,8 @@ uploads as (
     uploaded_at,
     purchased_by,
     purchase_date,
-    payer,
+    -- Az e-mailből jött dokumentum fizetője a FIN-307 első napján üresen került a bronzba.
+    coalesce(payer, 'shared') as payer,
     tags
   from {{ source('bronze', 'raw_document') }}
   order by coalesce(group_id, id), page_no
@@ -62,9 +63,10 @@ classified as (
     *,
     case
       when decision = 'rejected' then 'rejected'
+      -- A javításban megadott idegen pénznem sem számít forintnak (FIN-307).
+      when coalesce(data ->> 'currency', 'HUF') <> 'HUF' then 'foreign_currency'
       when decision = 'corrected' then 'counted'
       when document_type = 'non_expense' then 'non_expense'
-      when coalesce(data ->> 'currency', 'HUF') <> 'HUF' then 'foreign_currency'
       when decision = 'approved' or status = 'ok' then 'counted'
       else 'pending'
     end as raw_state

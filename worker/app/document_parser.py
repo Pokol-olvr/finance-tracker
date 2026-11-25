@@ -13,6 +13,27 @@ NON_EXPENSE_TITLES = {"SZALLITOLEVEL", "DIJBEKERO", "PROFORMA"}
 VOUCHER_WORDS = {"UTALVANY", "VISSZAVALTOD"}
 
 
+# A szövegben talált pénznemjelek; a forintjel elsőbbséget kap, mert a magyar blokkon is
+# előfordulhat euró (pl. az árfolyam sora).
+FOREIGN_CURRENCIES = {
+    "EUR": re.compile(r"€|\bEUR\b", re.IGNORECASE),
+    "USD": re.compile(r"(?<![A-Z])\$|\bUSD\b", re.IGNORECASE),
+    "GBP": re.compile(r"£|\bGBP\b", re.IGNORECASE),
+    "CHF": re.compile(r"\bCHF\b", re.IGNORECASE),
+    "CZK": re.compile(r"\bCZK\b|\bKč", re.IGNORECASE),
+    "PLN": re.compile(r"\bPLN\b|\bzł", re.IGNORECASE),
+    "RON": re.compile(r"\bRON\b|\blei\b", re.IGNORECASE),
+}
+HUF_MARK = re.compile(r"\bFt\b|\bHUF\b|\bforint", re.IGNORECASE)
+
+
+def currency_in_text(text: str) -> str | None:
+    """A leggyakoribb külföldi pénznem, ha a szövegben nincs több forintjel; különben None (HUF)."""
+    counts = {code: len(pattern.findall(text)) for code, pattern in FOREIGN_CURRENCIES.items()}
+    code, count = max(counts.items(), key=lambda pair: pair[1])
+    return code if count and count > len(HUF_MARK.findall(text)) else None
+
+
 def is_deposit_voucher(words: set[str]) -> bool:
     return VOUCHER_WORDS <= words or ("REPONT" in words and "NYUGTA" not in words)
 
@@ -28,7 +49,15 @@ def document_type(text: str) -> str:
 
 
 def parse_document(texts: list[str]) -> dict:
+    """A feldolgozó eredménye; ha a pénznemet nem olvasta ki, a szöveg jelei döntenek."""
     joined = "\n".join(texts)
+    result = parse_by_type(joined, texts)
+    if result.get("currency") is None and (currency := currency_in_text(joined)):
+        result["currency"] = currency
+    return result
+
+
+def parse_by_type(joined: str, texts: list[str]) -> dict:
     kind = document_type(joined)
     if kind == "invoice":
         return parse_invoice(joined)

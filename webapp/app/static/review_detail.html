@@ -142,11 +142,31 @@
       return node;
     }
 
+    // A választható pénznemek, mint a webapp Correction sémájában; a nem forintos nem számít kiadásnak.
+    const CURRENCIES = { HUF: "Ft", EUR: "€", USD: "$", GBP: "£", CHF: "CHF", CZK: "Kč", PLN: "zł", RON: "lej" };
+
+    function shownCurrency() {
+      return (draft && draft.currency) || viewData().currency || "HUF";
+    }
+
     function money(value) {
       if (value === null || value === undefined) return "–";
       const [whole, fraction] = String(value).split(".");
       const grouped = whole.replace(/\B(?=(\d{3})+$)/g, " ");
-      return `${grouped}${fraction ? `,${fraction}` : ""} Ft`;
+      const code = shownCurrency();
+      return `${grouped}${fraction ? `,${fraction}` : ""} ${CURRENCIES[code] || code}`;
+    }
+
+    function currencySelect() {
+      const select = element("select");
+      for (const [code, sign] of Object.entries(CURRENCIES)) {
+        const option = element("option", "", code === "HUF" ? "Forint (Ft)" : `${code} (${sign})`);
+        option.value = code;
+        select.append(option);
+      }
+      select.value = draft.currency;
+      select.addEventListener("change", () => { draft.currency = select.value; render(); });
+      return select;
     }
 
     function input(type, value, onInput, className) {
@@ -216,6 +236,7 @@
         addField(list, "Bolt, kiállító", input("text", draft.store_name, (v) => { draft.store_name = v; }));
         addField(list, "Dátum", input("date", draft.purchased_on, (v) => { draft.purchased_on = v; }));
         addField(list, "Végösszeg", input("number", draft.total, (v) => { draft.total = v; renderSum(); }));
+        addField(list, "Pénznem", currencySelect());
         return;
       }
       addField(list, "Bolt, kiállító", data.store_name);
@@ -228,6 +249,9 @@
       );
       addField(list, "Fizetés", payments.join(", ") || null);
       addField(list, "Végösszeg", money(data.total));
+      if ((data.currency || "HUF") !== "HUF") {
+        addField(list, "Pénznem", `${data.currency} – nem forint, a kiadásokba nem számít`);
+      }
     }
 
     function viewRow(item) {
@@ -335,6 +359,7 @@
         store_name: data.store_name || "",
         purchased_on: data.purchased_on || "",
         total: data.total ?? "",
+        currency: data.currency || "HUF",
         items: (data.items || []).map((item) => ({ ...item })),
       };
       if (!draft.items.length) draft.items.push({ name: "", value: "", kind: "item" });
@@ -347,6 +372,7 @@
         store_name: draft.store_name || null,
         purchased_on: draft.purchased_on,
         total: Number(draft.total),
+        currency: draft.currency,
         items: draft.items.map((item) => ({
           name: item.name,
           value: Number(item.value),

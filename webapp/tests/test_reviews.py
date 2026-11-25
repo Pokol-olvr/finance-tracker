@@ -635,3 +635,18 @@ def test_status_card_links_to_the_review_page():
 
     assert card["link"]["url"] == "/review"
     assert json.dumps(card["facts"], ensure_ascii=False).count("Ellenőrzésre vár") == 1
+
+
+def test_correction_currency_comes_from_the_list():
+    from app.schemas import Correction
+    from pydantic import ValidationError
+
+    base = {
+        "purchased_on": "2026-11-24",
+        "total": 22.86,
+        "items": [{"name": "Claude Pro", "value": 22.86}],
+    }
+    assert Correction(**base).currency == "HUF"
+    assert Correction(**base, currency="EUR").currency == "EUR"
+    with pytest.raises(ValidationError):
+        Correction(**base, currency="XYZ")

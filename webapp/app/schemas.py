@@ -217,10 +217,15 @@ class CorrectedItem(BaseModel):
     ean: str | None = Field(default=None, pattern=r"^\d{8,14}$")
 
 
+# A javításban választható pénznemek; a nem forintos dokumentum nem számít a kiadásokba (silver).
+CURRENCIES = ("HUF", "EUR", "USD", "GBP", "CHF", "CZK", "PLN", "RON")
+
+
 class Correction(BaseModel):
     store_name: str | None = Field(default=None, max_length=200)
     purchased_on: date
     total: float = Field(gt=0)
+    currency: Literal[CURRENCIES] = "HUF"
     items: list[CorrectedItem] = Field(min_length=1, max_length=500)
 
     @model_validator(mode="after")

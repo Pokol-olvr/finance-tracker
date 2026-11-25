@@ -119,6 +119,8 @@ unit_tests:
           select '00000000-0000-0000-0000-000000000007'::uuid as group_id, '10000000-0000-0000-0000-000000000007'::uuid as id, 'review'::text as status, '{"document_type": "invoice", "currency": "EUR", "total": 70, "items": [], "payments": []}'::jsonb as payload, '2026-10-01 10:00:00+00'::timestamptz as created_at
           union all
           select '00000000-0000-0000-0000-000000000008'::uuid as group_id, '10000000-0000-0000-0000-000000000008'::uuid as id, 'review'::text as status, '{"document_type": "receipt", "total": 800, "items": [], "payments": []}'::jsonb as payload, '2026-10-01 10:00:00+00'::timestamptz as created_at
+          union all
+          select '00000000-0000-0000-0000-000000000009'::uuid as group_id, '10000000-0000-0000-0000-000000000009'::uuid as id, 'unparsed'::text as status, '{"document_type": "receipt", "items": [], "payments": []}'::jsonb as payload, '2026-10-01 10:00:00+00'::timestamptz as created_at
       - input: source('bronze', 'review_decision')
         rows:
           - {group_id: 00000000-0000-0000-0000-000000000003, decision: approved, corrected: null, decided_at: 2026-10-02 10:00:00+00}
@@ -127,6 +129,7 @@ unit_tests:
           - {group_id: 00000000-0000-0000-0000-000000000007, decision: approved, corrected: null, decided_at: 2026-10-02 10:00:00+00}
           - {group_id: 00000000-0000-0000-0000-000000000008, decision: rejected, corrected: null, decided_at: 2026-10-02 10:00:00+00}
           - {group_id: 00000000-0000-0000-0000-000000000008, decision: reopened, corrected: null, decided_at: 2026-10-03 10:00:00+00}
+          - {group_id: 00000000-0000-0000-0000-000000000009, decision: corrected, corrected: '{"total": 22.86, "currency": "EUR", "items": [], "store_name": "Külföldi Ltd."}', decided_at: 2026-10-02 10:00:00+00}
       - input: source('bronze', 'raw_document')
         format: sql
         rows: |
@@ -145,6 +148,8 @@ unit_tests:
           select '00000000-0000-0000-0000-000000000007'::uuid as id, null::uuid as group_id, 1::smallint as page_no, 'person_a'::text as uploaded_by, '2026-10-01 09:00:00+00'::timestamptz as uploaded_at, 'person_a'::text as purchased_by, null::date as purchase_date, 'shared'::text as payer, array['élelmiszer']::text[] as tags
           union all
           select '00000000-0000-0000-0000-000000000008'::uuid as id, null::uuid as group_id, 1::smallint as page_no, 'person_a'::text as uploaded_by, '2026-10-01 09:00:00+00'::timestamptz as uploaded_at, 'person_a'::text as purchased_by, null::date as purchase_date, 'shared'::text as payer, array['élelmiszer']::text[] as tags
+          union all
+          select '00000000-0000-0000-0000-000000000009'::uuid as id, null::uuid as group_id, 1::smallint as page_no, 'email'::text as uploaded_by, '2026-10-01 09:00:00+00'::timestamptz as uploaded_at, null::text as purchased_by, null::date as purchase_date, null::text as payer, array[]::text[] as tags
     expect:
       rows:
         - {group_id: 00000000-0000-0000-0000-000000000001, state: counted, counted: true, total: 100, store_name: null}
@@ -155,6 +160,7 @@ unit_tests:
         - {group_id: 00000000-0000-0000-0000-000000000006, state: rejected, counted: false, total: 600, store_name: null}
         - {group_id: 00000000-0000-0000-0000-000000000007, state: foreign_currency, counted: false, total: 70, store_name: null}
         - {group_id: 00000000-0000-0000-0000-000000000008, state: pending, counted: false, total: 800, store_name: null}
+        - {group_id: 00000000-0000-0000-0000-000000000009, state: foreign_currency, counted: false, total: 22.86, store_name: Külföldi Ltd.}
 
   - name: documents_masolat_es_datum
     model: documents
