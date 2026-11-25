@@ -3,6 +3,8 @@
 from datetime import UTC, datetime
 
 STALE_SECONDS = 60
+# A Pi mentése naponta fut; másfél nap után a régi mentés hiba.
+PI_BACKUP_MAX_AGE_SECONDS = 36 * 3600
 RECENT_LIMIT = 10
 
 OK = "ok"
@@ -280,19 +282,25 @@ def reports_card(host: dict | None, reports_url: str) -> dict:
     return result | {"link": {"label": "Riportok megnyitása", "url": reports_url}}
 
 
-def job_card(host: dict | None, name: str, title: str) -> dict:
+def job_card(host: dict | None, name: str, title: str, now: datetime) -> dict:
     if host is None:
         return card(name, title, STALE, NO_DATA)
     job = next((row for row in host["jobs"] if row["name"] == name), None)
     if job is None:
         return card(name, title, STALE, "Nincs időzítő")
     facts = [time_fact("Utolsó futás", job["last_run"]), time_fact("Következő", job["next_run"])]
+    pi_backup_at = job.get("pi_backup_at")
+    if pi_backup_at:
+        facts.append(time_fact("Pi-mentés", pi_backup_at))
     if job["active"] == "activating":
         return card(name, title, BUSY, "Most fut", facts)
     if job["last_run"] is None:
         return card(name, title, STALE, "Még nem futott", facts)
     if job["result"] != "success":
         return card(name, title, ERROR, "Hibás futás", facts)
+    pi_age = (now - datetime.fromisoformat(pi_backup_at)).total_seconds() if pi_backup_at else None
+    if pi_age is not None and pi_age > PI_BACKUP_MAX_AGE_SECONDS:
+        return card(name, title, ERROR, "A Pi mentése régi", facts)
     return card(name, title, OK, "Sikeres", facts)
 
 
@@ -357,8 +365,8 @@ def build(
         garage_card(host),
         postgres_card(host),
         reports_card(host, reports_url),
-        job_card(host, "dbt", "dbt"),
-        job_card(host, "backup", "Mentés"),
+        job_card(host, "dbt", "dbt", now),
+        job_card(host, "backup", "Mentés", now),
         machine_card(host),
         resources_card(host),
     ]

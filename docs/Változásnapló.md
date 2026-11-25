@@ -15,6 +15,7 @@ Minden, a szoftvert érintő változás ide kerül, a kiadáskor pedig innen ké
 
 ### Javítva
 
+- A Pi mentése a gép indulása után nem bukik el azonnal, ha a Tailscale még nem áll készen: a `backup.sh` legfeljebb `PI_BACKUP_WAIT` másodpercig (alapból 15 perc) vár a Pi-re. Az állapotoldal Mentés kártyája mutatja az utolsó sikeres Pi-mentést, és másfél napnál régebbinél hibát jelez.
 - A számlafeldolgozó a mértékegység nélküli, áfakulccsal kezdődő tételsorokat is olvassa; az ingyenes választás nem lesz tétel, és a neve nem ragad a következő tételre.
 - A számlán a nap-hónap-év dátum és a szállítási idő is teljesítési dátum.
 - Olvasható címke nélkül az áfasorok bruttója a végösszeg; a „Fizetendő összeg” megelőzi egy részösszeg „Fizetendő” sorát.

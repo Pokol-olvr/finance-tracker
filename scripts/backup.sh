@@ -30,17 +30,31 @@ compose run --rm restic backup /backup/dumps /backup/garage-raw
 
 # A Pi adata (Authelia, a Pi .env-je és a Pi saját kiegészítői) külön pillanatképbe, így a FIN-309 sem érinti.
 # A kapcsolatot ez a gép nyitja; a Pi mentő kulcsa csak a friss mentést adja (scripts/pi/backup-user.sh).
+# A Tailscale a gép indulása után néha percekig nem áll készen, ezért a Pi-re legfeljebb
+# PI_BACKUP_WAIT másodpercig vár. A sikeres Pi-mentés idejét az állapotoldal mutatja.
+pi_wait() {
+  local host=${PI_BACKUP_TARGET#*@} deadline=$((SECONDS + ${PI_BACKUP_WAIT:-900}))
+  until timeout 5 bash -c ">/dev/tcp/$host/22" 2>/dev/null; do
+    if ((SECONDS >= deadline)); then
+      echo "A Pi ($host) nem érhető el; fut a Tailscale ezen a gépen?" >&2
+      return 1
+    fi
+    sleep 30
+  done
+}
+
 pi_failed=false
 if [[ -n ${PI_BACKUP_TARGET:-} ]]; then
   pi_key=${PI_BACKUP_KEY:-$HOME/.ssh/finance_pi_backup}
   rm -rf "$BACKUP_DIR/pi.new"
   mkdir -p "$BACKUP_DIR/pi.new"
-  if ssh -i "$pi_key" -o BatchMode=yes -o IdentitiesOnly=yes "$PI_BACKUP_TARGET" |
+  if pi_wait && ssh -i "$pi_key" -o BatchMode=yes -o IdentitiesOnly=yes "$PI_BACKUP_TARGET" |
     tar -C "$BACKUP_DIR/pi.new" -xf - &&
     [[ -s $BACKUP_DIR/pi.new/authelia/db.sqlite3 ]]; then
     rm -rf "$BACKUP_DIR/pi"
     mv "$BACKUP_DIR/pi.new" "$BACKUP_DIR/pi"
     compose run --rm restic backup --tag pi /backup/pi
+    date --iso-8601=seconds >"$BACKUP_DIR/pi-backup-ok"
     # A pi.env titkokat tart: nyersen nem marad a lemezen, csak a titkosított pillanatképben.
     rm -rf "$BACKUP_DIR/pi"
   else

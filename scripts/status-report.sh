@@ -39,9 +39,12 @@ rows=$(row_counts_json) || rows='{}'
 garage=$(compose exec -T garage /garage bucket info raw 2>/dev/null) || garage=
 garage_objects=$(sed -n 's/^Objects: *//p' <<<"$garage")
 garage_size=$(sed -n 's/^Size: *\([0-9.]* [A-Za-z]*\).*/\1/p' <<<"$garage")
+# A backup.sh a sikeres Pi-mentés idejét írja ide; Pi nélkül nincs ilyen fájl.
+pi_backup_at=$(iso_time "$(cat "$BACKUP_DIR/pi-backup-ok" 2>/dev/null || true)")
 jobs=$(
   job_report dbt finance-dbt
-  job_report backup finance-backup
+  job_report backup finance-backup |
+    jq -c --arg pi "$pi_backup_at" 'if $pi == "" then . else . + {pi_backup_at: $pi} end'
 )
 read -r disk_free disk_total < <(df -B1 --output=avail,size "$data_dir" | tail -1)
 
